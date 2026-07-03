@@ -605,25 +605,24 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
     usable_width = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
     
     # Add PrescoPad Logo above clinic name
-    logo_url = 'https://res.cloudinary.com/dkyby5fyw/image/upload/v1782789326/dzdhu6idivihjsai05af.png'
+    import os
+    logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'newicon.png')
     try:
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            logo_resp = await client.get(logo_url)
-            if logo_resp.status_code == 200:
-                logo_buf = io.BytesIO(logo_resp.content)
-                logo_buf.seek(0)
-                logo_flowable = Image(logo_buf, width=28, height=28, kind="proportional")
-                logo_table = Table([[logo_flowable]], colWidths=[usable_width])
-                logo_table.setStyle(TableStyle([
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ("TOPPADDING", (0, 0), (-1, -1), 0),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ]))
-                story.append(logo_table)
+        if os.path.exists(logo_path):
+            logo_flowable = Image(logo_path, width=28, height=28, kind="proportional")
+            logo_table = Table([[logo_flowable]], colWidths=[usable_width])
+            logo_table.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            story.append(logo_table)
+        else:
+            log.warning(f"Local logo not found at {logo_path}")
     except Exception as e:
-        log.error("Failed to load PrescoPad logo from Cloudinary: %s", e)
+        log.error("Failed to load PrescoPad logo locally: %s", e)
 
     # ── 5. Build Header Section ───────────────────────────────────────────
     # Clinic name — bold, large font (18–22pt)

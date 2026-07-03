@@ -39,7 +39,7 @@ export default function App(): React.JSX.Element {
       <View style={styles.splash}>
         <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
         <Image
-          source={require('./assets/prescopad.png')}
+          source={require('./assets/newicon.png')}
           style={styles.splashLogo}
           resizeMode="contain"
         />

@@ -16,7 +16,7 @@ export default function LandingScreen({ navigation }: Props): React.JSX.Element 
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
 
       <View style={styles.topSection}>
-        <Image source={require('../../../assets/prescopad.png')} style={styles.logo} resizeMode="contain" />
+        <Image source={require('../../../assets/newicon.png')} style={styles.logo} resizeMode="contain" />
         <Text style={styles.appName}>{APP_CONFIG.name}</Text>
         <Text style={styles.tagline}>{APP_CONFIG.tagline}</Text>
       </View>
