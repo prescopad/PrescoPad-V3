@@ -35,6 +35,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   recharge: async (amount: number) => {
     const result = await walletService.rechargeWallet(amount);
     set({ balance: result.balance, lastError: null });
+    await get().loadBalance();
   },
 
   canAfford: () => get().balance >= APP_CONFIG.wallet.costPerPrescription,

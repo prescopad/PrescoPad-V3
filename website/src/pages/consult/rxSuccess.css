@@ -1,0 +1,122 @@
+.success-container {
+  max-width: 480px;
+  margin: 60px auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.success-circle {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.1);
+}
+
+.success-inner-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 2.5rem;
+  font-weight: 800;
+  box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+}
+
+.success-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.success-rx-id {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  background: var(--color-primary-surface);
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  margin-bottom: 16px;
+}
+
+.success-patient-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 24px;
+}
+
+.success-balance-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.success-balance-icon {
+  font-size: 1.5rem;
+  color: #16a34a;
+}
+
+.success-balance-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.success-balance-label {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.success-balance-amount {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: #16a34a;
+  margin-top: 2px;
+}
+
+.success-share-section {
+  width: 100%;
+  margin-bottom: 32px;
+}
+
+.success-share-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.success-divider {
+  width: 100%;
+  height: 1px;
+  background: var(--color-border-light);
+  margin-bottom: 20px;
+}

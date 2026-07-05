@@ -10,6 +10,7 @@ import type {
 } from '../types/prescription.types';
 import type { QueueItem, QueueStatus } from '../types/queue.types';
 import type { Medicine, LabTest } from '../types/medicine.types';
+import { SAMPLE_MEDICINES, SAMPLE_LAB_TESTS } from '../constants/sampleCatalog';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAPPING HELPERS (snake_case backend → camelCase frontend) — mirrors
@@ -340,6 +341,9 @@ function mergeByName<T extends { name: string }>(primary: T[], secondary: T[]): 
 }
 
 export async function searchAllMedicines(query: string): Promise<Medicine[]> {
+  const local = SAMPLE_MEDICINES.filter((m) =>
+    m.name.toLowerCase().includes(query.toLowerCase())
+  );
   const [catalogRes, customRes] = await Promise.allSettled([
     api.get('/data/medicines', { params: { q: query } }),
     api.get('/data/custom-medicines', { params: { q: query } }),
@@ -350,7 +354,7 @@ export async function searchAllMedicines(query: string): Promise<Medicine[]> {
   const custom = customRes.status === 'fulfilled'
     ? (customRes.value.data.medicines as Record<string, unknown>[]).map(mapCustomMedicine)
     : [];
-  return mergeByName(catalog, custom).sort((a, b) => a.name.localeCompare(b.name));
+  return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
@@ -364,10 +368,15 @@ export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
   const custom = customRes.status === 'fulfilled'
     ? (customRes.value.data.medicines as Record<string, unknown>[]).map(mapCustomMedicine)
     : [];
-  return mergeByName(custom, catalog).sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
+  const merged = mergeByName(mergeByName(custom, catalog), SAMPLE_MEDICINES);
+  return merged.sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
 }
 
 export async function getMedicinesByCategory(types: string[], query = ''): Promise<Medicine[]> {
+  const local = SAMPLE_MEDICINES.filter((m) =>
+    types.includes(m.type) &&
+    (!query || m.name.toLowerCase().includes(query.toLowerCase()))
+  );
   const results = await Promise.allSettled(
     types.map((type) => api.get('/data/medicines', { params: { type, q: query || undefined } }))
   );
@@ -385,10 +394,14 @@ export async function getMedicinesByCategory(types: string[], query = ''): Promi
       .filter((m) => types.includes(m.type));
   } catch { /* cloud unavailable */ }
 
-  return mergeByName(catalog, custom).sort((a, b) => a.name.localeCompare(b.name));
+  return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getMedicinesOutsideCategories(excludeTypes: string[], query = ''): Promise<Medicine[]> {
+  const local = SAMPLE_MEDICINES.filter((m) =>
+    !excludeTypes.includes(m.type) &&
+    (!query || m.name.toLowerCase().includes(query.toLowerCase()))
+  );
   const res = await api.get('/data/medicines', { params: { q: query || undefined } });
   const catalog = (res.data.medicines as Record<string, unknown>[])
     .map(mapCatalogMedicine)
@@ -402,7 +415,7 @@ export async function getMedicinesOutsideCategories(excludeTypes: string[], quer
       .filter((m) => !excludeTypes.includes(m.type));
   } catch { /* cloud unavailable */ }
 
-  return mergeByName(catalog, custom).sort((a, b) => a.name.localeCompare(b.name));
+  return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function addCustomMedicine(name: string, type: string, strength: string): Promise<Medicine> {
@@ -421,6 +434,9 @@ export async function incrementMedicineUsage(name: string, isCustom: boolean): P
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function searchAllLabTests(query: string): Promise<LabTest[]> {
+  const local = SAMPLE_LAB_TESTS.filter((t) =>
+    t.name.toLowerCase().includes(query.toLowerCase())
+  );
   const [catalogRes, customRes] = await Promise.allSettled([
     api.get('/data/lab-tests', { params: { q: query } }),
     api.get('/data/custom-lab-tests', { params: { q: query } }),
@@ -431,7 +447,7 @@ export async function searchAllLabTests(query: string): Promise<LabTest[]> {
   const custom = customRes.status === 'fulfilled'
     ? (customRes.value.data.labTests as Record<string, unknown>[]).map(mapCustomLabTest)
     : [];
-  return mergeByName(catalog, custom).sort((a, b) => a.name.localeCompare(b.name));
+  return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {
@@ -445,12 +461,18 @@ export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {
   const custom = customRes.status === 'fulfilled'
     ? (customRes.value.data.labTests as Record<string, unknown>[]).map(mapCustomLabTest)
     : [];
-  return mergeByName(custom, catalog).sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
+  const merged = mergeByName(mergeByName(custom, catalog), SAMPLE_LAB_TESTS);
+  return merged.sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
 }
 
 export async function getLabTestsByCategory(category: string, query = ''): Promise<LabTest[]> {
+  const local = SAMPLE_LAB_TESTS.filter((t) =>
+    t.category === category &&
+    (!query || t.name.toLowerCase().includes(query.toLowerCase()))
+  );
   const res = await api.get('/data/lab-tests', { params: { category, q: query || undefined } });
-  return (res.data.labTests as Record<string, unknown>[]).map(mapCatalogLabTest);
+  const catalog = (res.data.labTests as Record<string, unknown>[]).map(mapCatalogLabTest);
+  return mergeByName(local, catalog).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function addCustomLabTest(name: string, category: string): Promise<LabTest> {
@@ -510,4 +532,11 @@ export async function deletePrescriptionTemplate(id: string): Promise<void> {
 export async function getShareToken(prescriptionId: string): Promise<{ share_token: string; share_token_expires_at: string }> {
   const res = await api.post(`/data/prescriptions/${prescriptionId}/share`);
   return res.data;
+}
+
+export async function downloadPrescriptionPdf(id: string): Promise<Blob> {
+  const response = await api.get(`/data/prescriptions/${id}/pdf`, {
+    responseType: 'blob',
+  });
+  return response.data;
 }

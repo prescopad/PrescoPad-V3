@@ -5,10 +5,10 @@ function resolveBackendUrl(): string {
   if (configured) return configured;
 
   if (import.meta.env.DEV) {
-    return 'http://localhost:3000/api';
+    return '/api';
   }
 
-  return PRODUCTION_BACKEND_URL;
+  return '/api';
 }
 
 export const APP_CONFIG = {

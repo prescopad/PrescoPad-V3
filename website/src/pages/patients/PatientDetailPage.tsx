@@ -6,6 +6,7 @@ import { useQueueStore } from '../../store/useQueueStore';
 import * as DataService from '../../api/dataService';
 import type { Patient } from '../../types/patient.types';
 import type { Prescription } from '../../types/prescription.types';
+import ConsultTypeModal from '../../components/ConsultTypeModal';
 import '../pages.css';
 
 export default function PatientDetailPage() {
@@ -18,6 +19,9 @@ export default function PatientDetailPage() {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQueueSubmitting, setIsQueueSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -28,13 +32,22 @@ export default function PatientDetailPage() {
     });
   }, [id, getPatientById]);
 
-  const handleAddToQueue = async () => {
+  const handleAddToQueue = () => {
     if (!user || !id) return;
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmQueue = async (type: 'new' | 'follow_up', notes: string) => {
+    if (!user || !id || !patient) return;
+    setIsQueueSubmitting(true);
     try {
-      await addToQueue(id, user.id, undefined, 'new');
-      alert('Added to today\'s queue.');
+      await addToQueue(id, user.id, notes, type);
+      setIsModalOpen(false);
+      alert(`${patient.name} added to today's queue.`);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to add to queue');
+    } finally {
+      setIsQueueSubmitting(false);
     }
   };
 
@@ -100,6 +113,14 @@ export default function PatientDetailPage() {
           </div>
         ))}
       </div>
+
+      <ConsultTypeModal
+        isOpen={isModalOpen}
+        patientName={patient.name}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmQueue}
+        isSubmitting={isQueueSubmitting}
+      />
     </div>
   );
 }

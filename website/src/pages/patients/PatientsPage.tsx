@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../../store/usePatientStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useQueueStore } from '../../store/useQueueStore';
+import ConsultTypeModal from '../../components/ConsultTypeModal';
 import '../pages.css';
 
 export default function PatientsPage() {
@@ -11,6 +12,10 @@ export default function PatientsPage() {
   const { patients, searchResults, loadPatients, searchPatients, clearSearch } = usePatientStore();
   const addToQueue = useQueueStore((s) => s.addToQueue);
   const [query, setQuery] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingPatient, setPendingPatient] = useState<{ id: string; name: string } | null>(null);
+  const [isQueueSubmitting, setIsQueueSubmitting] = useState(false);
 
   useEffect(() => {
     loadPatients();
@@ -26,14 +31,25 @@ export default function PatientsPage() {
 
   const list = query.trim() ? searchResults : patients;
 
-  const handleAddToQueue = async (e: React.MouseEvent, patientId: string) => {
+  const handleAddToQueue = (e: React.MouseEvent, patientId: string, patientName: string) => {
     e.stopPropagation();
     if (!user) return;
+    setPendingPatient({ id: patientId, name: patientName });
+    setIsModalOpen(true);
+  };
+
+  const handleConfirmQueue = async (type: 'new' | 'follow_up', notes: string) => {
+    if (!user || !pendingPatient) return;
+    setIsQueueSubmitting(true);
     try {
-      await addToQueue(patientId, user.id, undefined, 'new');
-      alert('Added to today\'s queue.');
+      await addToQueue(pendingPatient.id, user.id, notes, type);
+      setIsModalOpen(false);
+      setPendingPatient(null);
+      alert(`${pendingPatient.name} added to today's queue.`);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to add to queue');
+    } finally {
+      setIsQueueSubmitting(false);
     }
   };
 
@@ -71,12 +87,20 @@ export default function PatientsPage() {
                 </div>
               </div>
             </div>
-            <button type="button" className="secondary-btn" onClick={(e) => handleAddToQueue(e, p.id)}>
+            <button type="button" className="secondary-btn" onClick={(e) => handleAddToQueue(e, p.id, p.name)}>
               Add to queue
             </button>
           </div>
         ))}
       </div>
+
+      <ConsultTypeModal
+        isOpen={isModalOpen}
+        patientName={pendingPatient?.name ?? ''}
+        onClose={() => { setIsModalOpen(false); setPendingPatient(null); }}
+        onConfirm={handleConfirmQueue}
+        isSubmitting={isQueueSubmitting}
+      />
     </div>
   );
 }
