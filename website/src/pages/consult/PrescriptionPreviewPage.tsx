@@ -208,34 +208,36 @@ export default function PrescriptionPreviewPage() {
               <span style={{ fontSize: '1.2rem', color: 'var(--color-primary)', fontWeight: 800 }}>℞</span>
               <div className="paper-section-title" style={{ margin: 0 }}>Medicines</div>
             </div>
-            <table className="paper-med-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '5%', textAlign: 'center' }}>#</th>
-                  <th style={{ width: '45%' }}>Medicine Name</th>
-                  <th style={{ width: '15%' }}>Dosage</th>
-                  <th style={{ width: '15%' }}>Duration</th>
-                  <th style={{ width: '20%' }}>Instructions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rx.medicines.map((m, i) => (
-                  <tr key={m.id || i}>
-                    <td style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>{i + 1}</td>
-                    <td>
-                      <div className="paper-med-name">{m.medicineName}</div>
-                      <div className="paper-med-type">{m.type}</div>
-                    </td>
-                    <td>{m.frequency}</td>
-                    <td>{m.duration}</td>
-                    <td style={{ fontSize: '0.8125rem' }}>
-                      {m.timing}
-                      {m.notes ? ` (${m.notes})` : ''}
-                    </td>
+            <div className="paper-med-table-wrapper">
+              <table className="paper-med-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '5%', textAlign: 'center' }}>#</th>
+                    <th style={{ width: '45%' }}>Medicine Name</th>
+                    <th style={{ width: '15%' }}>Dosage</th>
+                    <th style={{ width: '15%' }}>Duration</th>
+                    <th style={{ width: '20%' }}>Instructions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {rx.medicines.map((m, i) => (
+                    <tr key={m.id || i}>
+                      <td style={{ textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.8125rem' }}>{i + 1}</td>
+                      <td>
+                        <div className="paper-med-name">{m.medicineName}</div>
+                        <div className="paper-med-type">{m.type}</div>
+                      </td>
+                      <td>{m.frequency}</td>
+                      <td>{m.duration}</td>
+                      <td style={{ fontSize: '0.8125rem' }}>
+                        {m.timing}
+                        {m.notes ? ` (${m.notes})` : ''}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

@@ -177,3 +177,36 @@
   background: var(--color-surface-secondary);
   color: var(--color-error);
 }
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .item-card {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .tab-row {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 8px;
+    font-size: 0.8rem;
+    min-width: 70px;
+  }
+}

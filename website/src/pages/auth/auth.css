@@ -184,3 +184,10 @@
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+
+@media (max-width: 480px) {
+  .auth-form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

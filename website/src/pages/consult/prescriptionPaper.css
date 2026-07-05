@@ -271,3 +271,70 @@
   word-break: break-all;
   margin-top: 4px;
 }
+
+@media (max-width: 640px) {
+  .prescription-paper {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .paper-meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .paper-date-id {
+    text-align: left;
+  }
+
+  .paper-patient-table {
+    display: block;
+  }
+
+  .paper-patient-table tbody,
+  .paper-patient-table tr {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .paper-patient-cell {
+    display: block;
+    width: 100% !important;
+    padding: 8px 4px;
+    border-bottom: 1px dashed var(--color-border-light);
+  }
+
+  .paper-patient-cell:last-child {
+    border-bottom: none;
+  }
+
+  .paper-med-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 12px;
+  }
+
+  .paper-med-table {
+    min-width: 540px; /* Keep tabular alignment but make scrollable */
+  }
+
+  .paper-signature-section {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .paper-qr-container {
+    align-items: center;
+  }
+
+  .paper-sig-container {
+    align-items: center;
+    text-align: center;
+    min-width: 100%;
+  }
+}

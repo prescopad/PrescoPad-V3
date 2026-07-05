@@ -132,3 +132,16 @@
   border-color: var(--color-primary);
   background: var(--color-primary-surface);
 }
+
+@media (max-width: 576px) {
+  .modal-panel {
+    width: calc(100% - 24px);
+    max-height: 90vh;
+    margin: 12px;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
