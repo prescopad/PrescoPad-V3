@@ -1,0 +1,84 @@
+export const PrescriptionStatus = {
+  DRAFT: 'draft',
+  FINALIZED: 'finalized',
+} as const;
+export type PrescriptionStatus = (typeof PrescriptionStatus)[keyof typeof PrescriptionStatus];
+
+export interface PrescriptionMedicine {
+  id: string;
+  prescriptionId: string;
+  medicineName: string;
+  type: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  timing: string;
+  notes: string;
+}
+
+export interface PrescriptionLabTest {
+  id: string;
+  prescriptionId: string;
+  testName: string;
+  category: string;
+  notes: string;
+}
+
+export interface Prescription {
+  id: string;
+  patientId: string;
+  patientName: string;
+  patientAge: number;
+  patientGender: string;
+  patientPhone: string;
+  consultationType?: 'new' | 'follow_up';
+  doctorId: string;
+  doctorName?: string;
+
+  diagnosis: string;
+  advice: string;
+  followUpDate: string | null;
+  symptoms: string[];
+  referredTo?: string;
+
+  pdfPath: string | null;
+  pdfHash: string | null;
+  signature: string | null;
+  status: PrescriptionStatus;
+  walletDeducted: boolean;
+  medicines: PrescriptionMedicine[];
+  labTests: PrescriptionLabTest[];
+  createdAt: string;
+}
+
+export interface PrescriptionDraft {
+  patientId: string;
+  patientName: string;
+  patientAge: string;
+  patientGender: string;
+  patientWeight: string;
+  patientPhone: string;
+  consultationType?: 'new' | 'follow_up';
+
+  diagnosis: string;
+  advice: string;
+  followUpDate: string;
+  symptoms: string[];
+  referredTo?: string;
+
+  medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
+  labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
+}
+
+export interface PrescriptionTemplate {
+  id: string;
+  name: string;
+
+  diagnosis: string;
+  advice: string;
+  symptoms: string[];
+  referredTo?: string;
+  medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
+  labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
+  createdAt: string;
+}

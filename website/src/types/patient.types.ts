@@ -1,0 +1,42 @@
+export const Gender = {
+  MALE: 'male',
+  FEMALE: 'female',
+  OTHER: 'other',
+} as const;
+export type Gender = (typeof Gender)[keyof typeof Gender];
+
+export interface Patient {
+  id: string;
+  name: string;
+  age: number;
+  gender: Gender;
+  weight: number | null;
+  phone: string;
+  address: string;
+  bloodGroup: string;
+  allergies: string;
+  createdAt: string;
+  updatedAt: string;
+  casebookSummary?: string | null;
+  casebookSummaryUpdatedAt?: string | null;
+  casebookEntries?: CasebookEntry[];
+}
+
+export interface CasebookEntry {
+  date: string;
+  summary: string;
+  prescriptionId: string;
+}
+
+export interface PatientFormData {
+  name: string;
+  age: string;
+  gender: Gender;
+  weight: string;
+  phone: string;
+  address: string;
+  bloodGroup: string;
+  allergies: string;
+}
+
+export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
