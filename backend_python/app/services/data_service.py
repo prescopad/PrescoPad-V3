@@ -497,6 +497,32 @@ async def link_transcript_to_prescription(
 
 # ─── Custom Medicines ─────────────────────────────────────────────────────────
 
+async def search_medicine_catalog(medicine_type: str = None, search: str = None) -> list:
+    """Read-only shared medicine catalog (seeded via scripts/seed_medicine_catalog.py),
+    distinct from a clinic's own custom_medicines."""
+    db = get_db()
+    query = {}
+    if medicine_type:
+        query["type"] = medicine_type
+    if search:
+        query["name"] = {"$regex": search, "$options": "i"}
+    cursor = db.medicines_catalog.find(query).sort("name", 1).limit(200)
+    return [serialize_doc(m) async for m in cursor]
+
+
+async def search_lab_test_catalog(category: str = None, search: str = None) -> list:
+    """Read-only shared lab-test catalog (seeded via scripts/seed_medicine_catalog.py),
+    distinct from a clinic's own custom_lab_tests."""
+    db = get_db()
+    query = {}
+    if category:
+        query["category"] = category
+    if search:
+        query["name"] = {"$regex": search, "$options": "i"}
+    cursor = db.lab_tests_catalog.find(query).sort("name", 1).limit(200)
+    return [serialize_doc(t) async for t in cursor]
+
+
 async def get_frequent_medicines(clinic_id: str, limit: int = 10) -> list:
     db = get_db()
     cursor = db.custom_medicines.find({"clinic_id": clinic_id}).sort("usage_count", -1).limit(limit)

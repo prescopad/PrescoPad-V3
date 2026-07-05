@@ -293,6 +293,54 @@ async def finalize_prescription(prescription_id: str, request: Request, body: Fi
         return _err(str(e), 500)
 
 
+@router.get("/prescriptions/{prescription_id}/pdf")
+async def download_prescription_pdf(prescription_id: str, request: Request):
+    """Authenticated PDF download/preview for the website — reuses the same
+    ReportLab generator as the public /rx/{share_token} link, but scoped to
+    the requesting user's own clinic instead of a share token."""
+    import io
+    from bson import ObjectId
+    from fastapi.responses import StreamingResponse
+    from app.config.database import get_db
+    from app.services.pdf_generator import generate_prescription_pdf
+
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+
+    db = get_db()
+    rx = await db.prescriptions.find_one({
+        "_id": prescription_id, "clinic_id": user.clinic_id, "is_deleted": {"$ne": True},
+    })
+    if not rx:
+        return _err("Prescription not found", 404)
+
+    clinic_doc = None
+    doctor_doc = None
+    try:
+        clinic_doc = await db.clinics.find_one({"_id": ObjectId(user.clinic_id)})
+    except Exception:
+        pass
+    doctor_id_raw = rx.get("doctor_id")
+    if doctor_id_raw:
+        try:
+            did = ObjectId(doctor_id_raw) if not isinstance(doctor_id_raw, ObjectId) else doctor_id_raw
+            doctor_doc = await db.doctors.find_one({"_id": did})
+        except Exception:
+            pass
+
+    try:
+        pdf_bytes = await generate_prescription_pdf(rx, clinic_doc, doctor_doc)
+    except Exception as e:
+        return _err(str(e), 500)
+
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="prescription_{prescription_id}.pdf"'},
+    )
+
+
 @router.post("/prescriptions/{prescription_id}/share")
 async def share_prescription(prescription_id: str, request: Request):
     user: TokenData = await get_current_user(request)
@@ -303,6 +351,28 @@ async def share_prescription(prescription_id: str, request: Request):
         return _ok(token_info)
     except ValueError as e:
         return _err(str(e), 404)
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+# ─── Shared Medicine/Lab-Test Catalog (read-only, seeded) ─────────────────────
+
+@router.get("/medicines")
+async def list_medicine_catalog(request: Request, type: Optional[str] = Query(None), q: Optional[str] = Query(None)):
+    await get_current_user(request)
+    try:
+        medicines = await data_service.search_medicine_catalog(type, q)
+        return _ok({"medicines": medicines})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.get("/lab-tests")
+async def list_lab_test_catalog(request: Request, category: Optional[str] = Query(None), q: Optional[str] = Query(None)):
+    await get_current_user(request)
+    try:
+        lab_tests = await data_service.search_lab_test_catalog(category, q)
+        return _ok({"labTests": lab_tests})
     except Exception as e:
         return _err(str(e), 500)
 
