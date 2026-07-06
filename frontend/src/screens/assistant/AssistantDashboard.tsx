@@ -25,6 +25,7 @@ import api from '../../services/api';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -45,6 +46,7 @@ function getStatusColor(status: QueueStatus): string {
 
 export default function AssistantDashboard(): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const navigation = useNavigation<NavigationProp>();
   const { queueItems, stats, isLoading, doctorReady, loadQueue, loadStats, startPolling, stopPolling } =
     useQueueStore();
@@ -141,7 +143,7 @@ export default function AssistantDashboard(): React.JSX.Element {
               const { removeFromQueue } = useQueueStore.getState();
               await removeFromQueue(item.id);
             } catch (error: unknown) {
-              Alert.alert('Error', 'Failed to remove patient from queue');
+              toast.error('Failed to remove patient from queue');
             }
           }
         }

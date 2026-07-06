@@ -7,7 +7,6 @@ import {
   FlatList,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -35,12 +34,14 @@ import {
 } from '../../types/medicine.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type MedicinePickerScreenProps = NativeStackScreenProps<DoctorStackParamList, 'MedicinePicker'>;
 
 export default function MedicinePickerScreen({ navigation, route }: MedicinePickerScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   const addMedicine = usePrescriptionStore((s) => s.addMedicine);
+  const toast = useToast();
   const categoryTypes = route.params?.types;
   const excludeTypes = route.params?.excludeTypes;
   const defaultType = categoryTypes?.[0] ?? MedicineType.TABLET;
@@ -154,7 +155,7 @@ export default function MedicinePickerScreen({ navigation, route }: MedicinePick
 
   const handleAddCustomMedicine = async () => {
     if (!customName.trim()) {
-      Alert.alert(t('common.required'),'Please enter medicine name.');
+      toast.warning('Please enter medicine name.');
       return;
     }
     // frequency / duration / timing are optional.
@@ -175,7 +176,7 @@ export default function MedicinePickerScreen({ navigation, route }: MedicinePick
       navigation.goBack();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to add custom medicine';
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     }
   };
 

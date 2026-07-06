@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import api from '../../api/client';
 import { MedicineType, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import type { Medicine, LabTest } from '../../types/medicine.types';
+import { useToast } from '../../components/toast/ToastContext';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
 
 export default function MedicineTestManagementPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<'medicines' | 'tests'>('medicines');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [tests, setTests] = useState<LabTest[]>([]);
@@ -72,12 +76,12 @@ export default function MedicineTestManagementPage() {
       setShowAddModal(false);
       resetForm();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to add');
+      toast.error(e instanceof Error ? e.message : 'Failed to add');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this entry?')) return;
+    if (!(await confirm({ title: 'Delete entry', message: 'Delete this entry?', danger: true }))) return;
     try {
       if (tab === 'medicines') {
         await api.delete(`/data/custom-medicines/${id}`);
@@ -87,7 +91,7 @@ export default function MedicineTestManagementPage() {
         await loadTests();
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to delete');
+      toast.error(e instanceof Error ? e.message : 'Failed to delete');
     }
   };
 

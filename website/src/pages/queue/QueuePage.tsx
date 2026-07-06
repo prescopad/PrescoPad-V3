@@ -4,6 +4,8 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { QueueStatus } from '../../types/queue.types';
 import type { QueueItem } from '../../types/queue.types';
 import { COLORS } from '../../theme';
+import { useToast } from '../../components/toast/ToastContext';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
 import '../pages.css';
 
 type Tab = 'all' | 'waiting' | 'in_progress' | 'completed';
@@ -24,8 +26,17 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function QueuePage() {
   const navigate = useNavigate();
-  const { queueItems, stats, startPolling, stopPolling, startConsult, removeFromQueue } = useQueueStore();
+  const { queueItems, stats, lastError, startPolling, stopPolling, startConsult, removeFromQueue, clearError } = useQueueStore();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>('all');
+
+  useEffect(() => {
+    if (lastError) {
+      toast.error(lastError);
+      clearError();
+    }
+  }, [lastError, toast, clearError]);
 
   useEffect(() => {
     startPolling();
@@ -48,17 +59,17 @@ export default function QueuePage() {
       await startConsult(item.id);
       navigate('/consult', { state: { queueItem: item, patient: item.patient, consultType: item.consultationType || 'new' } });
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to start consultation');
+      toast.error(e instanceof Error ? e.message : 'Failed to start consultation');
     }
   };
 
   const handleRemove = async (e: React.MouseEvent, item: QueueItem) => {
     e.stopPropagation();
-    if (!confirm(`Remove ${item.patient?.name ?? 'this patient'} from the queue?`)) return;
+    if (!(await confirm({ title: 'Remove from queue', message: `Remove ${item.patient?.name ?? 'this patient'} from the queue?`, danger: true }))) return;
     try {
       await removeFromQueue(item.id);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to remove from queue');
+      toast.error(err instanceof Error ? err.message : 'Failed to remove from queue');
     }
   };
 

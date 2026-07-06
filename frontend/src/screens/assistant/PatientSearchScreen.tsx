@@ -8,7 +8,6 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -20,8 +19,9 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Patient } from '../../types/patient.types';
-import { getRecentPatients } from '../../services/dataService';
+import { getPatientsPage } from '../../services/dataService';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/Toast/ToastContext';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import type { RouteProp } from '@react-navigation/native';
 
@@ -30,15 +30,19 @@ type ScreenRouteProp = RouteProp<AssistantStackParamList, 'PatientSearch'>;
 
 export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp }): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const navigation = useNavigation<NavigationProp>();
   const { searchPatients, searchResults, clearSearch, isLoading } =
     usePatientStore();
   const addToQueue = useQueueStore((s) => s.addToQueue);
   const user = useAuthStore((s) => s.user);
 
+  const PAGE_SIZE = 20;
   const [query, setQuery] = useState('');
   const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
+  const [recentTotal, setRecentTotal] = useState(0);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [loadingMoreRecent, setLoadingMoreRecent] = useState(false);
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
   const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
@@ -61,12 +65,27 @@ export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp
   const loadRecentPatients = async () => {
     setLoadingRecent(true);
     try {
-      const recent = await getRecentPatients(20);
-      setRecentPatients(recent);
+      const { patients, total } = await getPatientsPage(undefined, PAGE_SIZE, 0);
+      setRecentPatients(patients);
+      setRecentTotal(total);
     } catch {
-      // Silently handle error
+      toast.error('Search failed. Please try again.');
     } finally {
       setLoadingRecent(false);
+    }
+  };
+
+  const loadMoreRecentPatients = async () => {
+    if (loadingMoreRecent || query.trim().length > 0 || recentPatients.length >= recentTotal) return;
+    setLoadingMoreRecent(true);
+    try {
+      const { patients, total } = await getPatientsPage(undefined, PAGE_SIZE, recentPatients.length);
+      setRecentPatients((prev) => [...prev, ...patients]);
+      setRecentTotal(total);
+    } catch {
+      toast.error('Failed to load more patients.');
+    } finally {
+      setLoadingMoreRecent(false);
     }
   };
 
@@ -118,11 +137,11 @@ export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp
       setShowConsultModal(false);
       setIsAddingToQueue(true);
       await addToQueue(pendingPatientId, user.id, undefined, type);
-      Alert.alert(t('common.success'), `${pendingPatientName} added to queue.`);
+      toast.success(`${pendingPatientName} added to queue.`);
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Failed to add to queue';
-      Alert.alert(t('common.error'), message);
+      toast.error(message);
     } finally {
       setIsAddingToQueue(false);
       setPendingPatientId(null);
@@ -297,6 +316,13 @@ export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp
         ListEmptyComponent={renderEmptyState}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onEndReached={isSearching ? undefined : loadMoreRecentPatients}
+        onEndReachedThreshold={0.4}
+        ListFooterComponent={
+          !isSearching && loadingMoreRecent ? (
+            <ActivityIndicator size="small" color={COLORS.primary} style={styles.footerLoader} />
+          ) : null
+        }
       />
       <ConsultTypeModal
         visible={showConsultModal}
@@ -438,5 +464,8 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     textAlign: 'center',
     paddingHorizontal: SPACING.xxxl,
+  },
+  footerLoader: {
+    marginVertical: SPACING.lg,
   },
 });

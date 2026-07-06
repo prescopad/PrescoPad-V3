@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   TextInput,
@@ -23,6 +22,7 @@ import { useWalletStore } from '../../store/useWalletStore';
 import { Transaction, TransactionType } from '../../types/wallet.types';
 import * as walletService from '../../services/walletService';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 const RECHARGE_OPTIONS = [100, 500, 1000];
 
@@ -32,11 +32,15 @@ interface WalletScreenProps {
 
 export default function WalletScreen({ navigation }: WalletScreenProps): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const {
     balance,
     transactions,
+    transactionsTotal,
+    isLoadingMore,
     loadBalance,
     loadTransactions,
+    loadMoreTransactions,
     recharge,
   } = useWalletStore();
 
@@ -66,7 +70,7 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
     try {
       await Promise.all([loadBalance(), loadTransactions()]);
     } catch {
-      // Silently handle
+      toast.error(t('common.somethingWrong'));
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +84,7 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
 
   const handleRecharge = async (amount: number) => {
     if (amount <= 0) {
-      Alert.alert(t('common.invalid'), t('wallet.invalidAmount'));
+      toast.warning(t('wallet.invalidAmount'));
       return;
     }
 
@@ -90,10 +94,10 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
       await loadTransactions();
       setShowRecharge(false);
       setCustomAmount('');
-      Alert.alert(t('common.success'), t('wallet.addedToWallet', { currency: APP_CONFIG.wallet.currencySymbol, amount }));
+      toast.success(t('wallet.addedToWallet', { currency: APP_CONFIG.wallet.currencySymbol, amount }));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsRecharging(false);
     }
@@ -104,10 +108,10 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
       const threshold = parseInt(autoRefillThreshold, 10) || APP_CONFIG.wallet.lowBalanceThreshold;
       const amount = parseInt(autoRefillAmount, 10) || APP_CONFIG.wallet.defaultRechargeAmount;
       await walletService.updateAutoRefill(autoRefill, amount, threshold);
-      Alert.alert(t('common.success'), t('wallet.autoRefillSaved'));
+      toast.success(t('wallet.autoRefillSaved'));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     }
   };
 
@@ -273,11 +277,27 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
               <Text style={styles.emptyTxnText}>{t('wallet.noTransactions')}</Text>
             </View>
           ) : (
-            transactions.map((txn) => (
-              <View key={txn.id}>
-                {renderTransaction({ item: txn })}
-              </View>
-            ))
+            <>
+              {transactions.map((txn) => (
+                <View key={txn.id}>
+                  {renderTransaction({ item: txn })}
+                </View>
+              ))}
+              {transactions.length < transactionsTotal && (
+                <TouchableOpacity
+                  style={styles.loadMoreBtn}
+                  onPress={loadMoreTransactions}
+                  disabled={isLoadingMore}
+                  activeOpacity={0.7}
+                >
+                  {isLoadingMore ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.loadMoreBtnText}>Load more</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
@@ -585,6 +605,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textLight,
     marginTop: SPACING.md,
+  },
+  loadMoreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+  },
+  loadMoreBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 
   // Auto-refill

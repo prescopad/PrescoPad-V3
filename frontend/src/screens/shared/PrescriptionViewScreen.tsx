@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { getPrescriptionById } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type ViewRouteProp = RouteProp<AssistantStackParamList, 'PrescriptionView'>;
 
@@ -17,6 +18,7 @@ export default function PrescriptionViewScreen(): React.JSX.Element {
   const navigation = useNavigation();
   const route = useRoute<ViewRouteProp>();
   const { prescriptionId } = route.params;
+  const toast = useToast();
 
   const [rx, setRx] = useState<Prescription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function PrescriptionViewScreen(): React.JSX.Element {
       const data = await getPrescriptionById(prescriptionId);
       setRx(data);
     } catch (e) {
-      Alert.alert('Error', 'Failed to load prescription.');
+      toast.error('Failed to load prescription.');
     } finally {
       setIsLoading(false);
     }

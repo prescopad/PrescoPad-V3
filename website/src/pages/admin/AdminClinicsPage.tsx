@@ -1,14 +1,40 @@
 import { useEffect, useState } from 'react';
 import { fetchAdminClinics, deleteAdminClinic } from '../../api/adminService';
 import type { AdminClinic } from '../../api/adminService';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
+const PAGE_SIZE = 50;
+
 export default function AdminClinicsPage() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [clinics, setClinics] = useState<AdminClinic[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
 
   const load = () => {
-    fetchAdminClinics({ search: search || undefined, limit: 200 }).then((r) => setClinics(r.clinics)).catch(() => {});
+    fetchAdminClinics({ search: search || undefined, limit: PAGE_SIZE, offset: 0 })
+      .then((r) => {
+        setClinics(r.clinics);
+        setTotal(r.total);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load clinics'));
+  };
+
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    try {
+      const r = await fetchAdminClinics({ search: search || undefined, limit: PAGE_SIZE, offset: clinics.length });
+      setClinics((prev) => [...prev, ...r.clinics]);
+      setTotal(r.total);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load more clinics');
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -18,9 +44,13 @@ export default function AdminClinicsPage() {
   }, [search]);
 
   const handleDelete = async (c: AdminClinic) => {
-    if (!confirm(`Delete clinic ${c.name}?`)) return;
-    await deleteAdminClinic(c.id);
-    load();
+    if (!(await confirm({ title: 'Delete clinic', message: `Delete clinic ${c.name}?`, danger: true }))) return;
+    try {
+      await deleteAdminClinic(c.id);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete clinic');
+    }
   };
 
   return (
@@ -32,6 +62,7 @@ export default function AdminClinicsPage() {
       <input className="auth-input" style={{ maxWidth: 320, marginBottom: 20 }} placeholder="Search clinics..." value={search} onChange={(e) => setSearch(e.target.value)} />
 
       <div className="card-list">
+        {clinics.length === 0 && <div className="empty-state">No clinics found</div>}
         {clinics.map((c) => (
           <div key={c.id} className="item-card" style={{ cursor: 'default' }}>
             <div>
@@ -42,6 +73,11 @@ export default function AdminClinicsPage() {
           </div>
         ))}
       </div>
+      {clinics.length < total && (
+        <button type="button" className="secondary-btn" style={{ marginTop: 12, width: '100%' }} disabled={isLoadingMore} onClick={loadMore}>
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      )}
     </div>
   );
 }

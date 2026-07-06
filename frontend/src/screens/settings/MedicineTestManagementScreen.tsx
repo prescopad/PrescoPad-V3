@@ -5,13 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Alert,
   ScrollView,
   TextInput,
   Modal,
   FlatList,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +21,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Medicine, LabTest } from '../../types/medicine.types';
 import api from '../../services/api';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 interface MedicineTestManagementScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
@@ -28,6 +29,7 @@ interface MedicineTestManagementScreenProps {
 
 export default function MedicineTestManagementScreen({ navigation }: MedicineTestManagementScreenProps): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'medicines' | 'tests'>('medicines');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [tests, setTests] = useState<LabTest[]>([]);
@@ -74,7 +76,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
       }));
       setMedicines(mapped);
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('manage.loadFailed', { type: t('manage.medicines') }));
+      toast.error(error.message || t('manage.loadFailed', { type: t('manage.medicines') }));
     }
   };
 
@@ -90,7 +92,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
       }));
       setTests(mapped);
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('manage.loadFailed', { type: t('manage.labTests') }));
+      toast.error(error.message || t('manage.loadFailed', { type: t('manage.labTests') }));
     }
   };
 
@@ -102,7 +104,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
   const handleAddMedicine = async () => {
     if (!formName.trim()) {
-      Alert.alert(t('common.error'), t('manage.nameRequired', { type: t('manage.medicineName') }));
+      toast.warning(t('manage.nameRequired', { type: t('manage.medicineName') }));
       return;
     }
 
@@ -113,12 +115,12 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
         type: formType,
         strength: formStrength.trim(),
       });
-      Alert.alert(t('common.success'), t('manage.addedSuccess', { type: t('manage.medicineName') }));
+      toast.success(t('manage.addedSuccess', { type: t('manage.medicineName') }));
       setShowAddModal(false);
       resetForm();
       await loadMedicines();
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('manage.addFailed', { type: t('manage.medicineName') }));
+      toast.error(error.message || t('manage.addFailed', { type: t('manage.medicineName') }));
     } finally {
       setSubmitting(false);
     }
@@ -126,7 +128,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
   const handleAddTest = async () => {
     if (!formName.trim()) {
-      Alert.alert(t('common.error'), t('manage.nameRequired', { type: t('manage.testName') }));
+      toast.warning(t('manage.nameRequired', { type: t('manage.testName') }));
       return;
     }
 
@@ -136,12 +138,12 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
         name: formName.trim(),
         category: formCategory,
       });
-      Alert.alert(t('common.success'), t('manage.addedSuccess', { type: t('manage.testName') }));
+      toast.success(t('manage.addedSuccess', { type: t('manage.testName') }));
       setShowAddModal(false);
       resetForm();
       await loadTests();
     } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || t('manage.addFailed', { type: t('manage.testName') }));
+      toast.error(error.message || t('manage.addFailed', { type: t('manage.testName') }));
     } finally {
       setSubmitting(false);
     }
@@ -161,7 +163,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
               await api.delete(`/data/custom-medicines/${id}`);
               await loadMedicines();
             } catch (error: any) {
-              Alert.alert(t('common.error'), error.message || t('manage.deleteFailed', { type: t('manage.medicineName') }));
+              toast.error(error.message || t('manage.deleteFailed', { type: t('manage.medicineName') }));
             }
           },
         },
@@ -183,7 +185,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
               await api.delete(`/data/custom-lab-tests/${id}`);
               await loadTests();
             } catch (error: any) {
-              Alert.alert(t('common.error'), error.message || t('manage.deleteFailed', { type: t('manage.testName') }));
+              toast.error(error.message || t('manage.deleteFailed', { type: t('manage.testName') }));
             }
           },
         },

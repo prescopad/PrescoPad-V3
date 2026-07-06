@@ -34,6 +34,7 @@ import { updateQueueStatus } from '../../services/dataService';
 import { QueueStatus } from '../../types/queue.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type Props = NativeStackScreenProps<DoctorStackParamList, 'PrescriptionPreview'>;
 
@@ -48,6 +49,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const { canAfford, loadBalance, balance } = useWalletStore();
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
   const { user } = useAuthStore();
+  const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
 
@@ -146,7 +148,7 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
       setShowPaymentModal(true);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to issue prescription';
-      Alert.alert('Error', msg);
+      toast.error(msg);
     } finally {
       setIsSigning(false);
     }

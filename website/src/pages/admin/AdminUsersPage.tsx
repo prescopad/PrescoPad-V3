@@ -1,17 +1,41 @@
 import { useEffect, useState } from 'react';
 import { fetchAdminUsers, setAdminUserActive, deleteAdminUser } from '../../api/adminService';
 import type { AdminUser } from '../../api/adminService';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
+const PAGE_SIZE = 50;
+
 export default function AdminUsersPage() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [total, setTotal] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [role, setRole] = useState<'doctor' | 'assistant' | 'admin' | ''>('');
   const [search, setSearch] = useState('');
 
   const load = () => {
-    fetchAdminUsers({ role: role || undefined, search: search || undefined, limit: 200 })
-      .then((r) => setUsers(r.users))
-      .catch(() => {});
+    fetchAdminUsers({ role: role || undefined, search: search || undefined, limit: PAGE_SIZE, offset: 0 })
+      .then((r) => {
+        setUsers(r.users);
+        setTotal(r.total);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load users'));
+  };
+
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    try {
+      const r = await fetchAdminUsers({ role: role || undefined, search: search || undefined, limit: PAGE_SIZE, offset: users.length });
+      setUsers((prev) => [...prev, ...r.users]);
+      setTotal(r.total);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load more users');
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -22,14 +46,22 @@ export default function AdminUsersPage() {
 
   const handleToggleActive = async (u: AdminUser) => {
     const active = u.is_active ?? u.isActive ?? true;
-    await setAdminUserActive(u.id, !active);
-    load();
+    try {
+      await setAdminUserActive(u.id, !active);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update user');
+    }
   };
 
   const handleDelete = async (u: AdminUser) => {
-    if (!confirm(`Delete user ${u.name ?? u.phone}?`)) return;
-    await deleteAdminUser(u.id);
-    load();
+    if (!(await confirm({ title: 'Delete user', message: `Delete user ${u.name ?? u.phone}?`, danger: true }))) return;
+    try {
+      await deleteAdminUser(u.id);
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete user');
+    }
   };
 
   return (
@@ -49,6 +81,7 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="card-list">
+        {users.length === 0 && <div className="empty-state">No users found</div>}
         {users.map((u) => {
           const active = u.is_active ?? u.isActive ?? true;
           return (
@@ -68,6 +101,11 @@ export default function AdminUsersPage() {
           );
         })}
       </div>
+      {users.length < total && (
+        <button type="button" className="secondary-btn" style={{ marginTop: 12, width: '100%' }} disabled={isLoadingMore} onClick={loadMore}>
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      )}
     </div>
   );
 }

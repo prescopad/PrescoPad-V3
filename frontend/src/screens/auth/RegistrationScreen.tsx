@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,12 +14,14 @@ import { useClinicStore } from '../../store/useClinicStore';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Registration'>;
 
 export default function RegistrationScreen({ route }: Props): React.JSX.Element {
   const keyboardHeight = useKeyboardHeight();
   const { t } = useTranslation();
+  const toast = useToast();
   const { role } = route.params;
   const isDoctor = role === 'doctor';
   const setUser = useAuthStore((s) => s.setUser);
@@ -72,7 +74,7 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
       await Promise.all([loadClinic(), loadDoctorProfile()]);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.registrationFailed');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

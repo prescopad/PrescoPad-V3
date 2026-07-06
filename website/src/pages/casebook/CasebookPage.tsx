@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as DataService from '../../api/dataService';
 import type { Patient } from '../../types/patient.types';
+import PageLoader from '../../components/PageLoader';
 import '../pages.css';
 
 export default function CasebookPage() {
@@ -45,7 +46,7 @@ export default function CasebookPage() {
       </div>
 
       {isLoading ? (
-        <div>Loading...</div>
+        <PageLoader />
       ) : (
         <div className="card-list">
           {filtered.length === 0 && <div className="empty-state">No patients found</div>}

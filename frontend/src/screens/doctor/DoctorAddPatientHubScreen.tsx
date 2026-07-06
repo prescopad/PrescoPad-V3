@@ -8,7 +8,6 @@ import {
   StatusBar,
   FlatList,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,6 +19,7 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Patient } from '../../types/patient.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type NavigationProp = NativeStackNavigationProp<Record<string, object | undefined>>;
 
@@ -28,6 +28,7 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
   const { searchPatients, searchResults, clearSearch } = usePatientStore();
   const user = useAuthStore((s) => s.user);
   const { addToQueue } = useQueueStore();
+  const toast = useToast();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState<string | null>(null);
@@ -65,10 +66,10 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
       await addToQueue(pendingPatientId, user.id, undefined, type);
       setSearchQuery('');
       clearSearch();
-      Alert.alert('Added to Queue', `${pendingPatientName} has been added to the queue.`);
+      toast.success(`${pendingPatientName} has been added to the queue.`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to add to queue';
-      Alert.alert('Error', message);
+      toast.error(message);
     } finally {
       setIsAdding(null);
       setPendingPatientId(null);

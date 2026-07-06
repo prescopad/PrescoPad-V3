@@ -176,6 +176,14 @@ export async function getPatients(search?: string, limit = 100, offset = 0): Pro
   return (res.data.patients as Record<string, unknown>[]).map(mapPatient);
 }
 
+export async function getPatientsPage(search?: string, limit = 50, offset = 0): Promise<{ patients: Patient[]; total: number }> {
+  const params: Record<string, string | number> = { limit, offset };
+  if (search) params.search = search;
+  const res = await api.get('/data/patients', { params });
+  const patients = (res.data.patients as Record<string, unknown>[]).map(mapPatient);
+  return { patients, total: res.data.total ?? patients.length };
+}
+
 export async function getPatientById(id: string): Promise<Patient | null> {
   try {
     const res = await api.get(`/data/patients/${id}`);

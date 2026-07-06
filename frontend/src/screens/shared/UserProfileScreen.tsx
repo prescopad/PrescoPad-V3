@@ -7,7 +7,6 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -21,6 +20,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { updateProfile } from '../../services/authService';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 interface Props {
   navigation: NativeStackNavigationProp<ParamListBase>;
@@ -28,6 +28,7 @@ interface Props {
 
 export default function UserProfileScreen({ navigation }: Props): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const { user, setUser, accessToken, refreshToken } = useAuthStore();
   const keyboardHeight = useKeyboardHeight();
   const isDoctor = user?.role === 'doctor';
@@ -69,11 +70,11 @@ export default function UserProfileScreen({ navigation }: Props): React.JSX.Elem
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert(t('common.required'), 'Name is required.');
+      toast.warning('Name is required.');
       return;
     }
     if (phone.trim().length > 0 && phone.trim().length < 10) {
-      Alert.alert(t('common.required'), 'Enter a valid 10-digit phone number.');
+      toast.warning('Enter a valid 10-digit phone number.');
       return;
     }
 
@@ -96,12 +97,11 @@ export default function UserProfileScreen({ navigation }: Props): React.JSX.Elem
       const updatedUser = await updateProfile(payload);
       // setUser persists to secure store and updates global state
       await setUser(updatedUser, accessToken!, refreshToken!);
-      Alert.alert(t('common.success'), 'Profile updated successfully!', [
-        { text: t('common.ok'), onPress: () => navigation.goBack() },
-      ]);
+      toast.success('Profile updated successfully!');
+      navigation.goBack();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }

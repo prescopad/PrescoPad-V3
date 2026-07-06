@@ -29,17 +29,15 @@ import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminClinicsPage from './pages/admin/AdminClinicsPage';
 import AdminPatientsPage from './pages/admin/AdminPatientsPage';
 import AdminRevenuePage from './pages/admin/AdminRevenuePage';
+import NotFoundPage from './pages/NotFoundPage';
+import PageLoader from './components/PageLoader';
 
 function RequireAuth() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   useDoctorHeartbeat();
 
   if (isLoading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Loading...
-      </div>
-    );
+    return <PageLoader fullScreen />;
   }
 
   if (!isAuthenticated || !user?.isProfileComplete) {
@@ -109,7 +107,7 @@ export function AppRouter() {
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   );

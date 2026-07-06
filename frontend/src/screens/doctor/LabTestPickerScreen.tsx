@@ -7,7 +7,6 @@ import {
   FlatList,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -31,6 +30,7 @@ import {
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { LabTest, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
+import { useToast } from '../../components/Toast/ToastContext';
 
 interface SelectedLabTest {
   test: LabTest;
@@ -44,6 +44,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const addLabTest = usePrescriptionStore((s) => s.addLabTest);
+  const toast = useToast();
 
   const [query, setQuery] = useState('');
   const [labTests, setLabTests] = useState<LabTest[]>([]);
@@ -155,7 +156,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
 
   const handleAddTests = async () => {
     if (selectedTests.size === 0) {
-      Alert.alert(t('labTest.noTestsSelected'), t('labTest.selectAtLeastOne'));
+      toast.warning(t('labTest.selectAtLeastOne'));
       return;
     }
 
@@ -178,7 +179,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
 
   const handleAddCustomTest = async () => {
     if (!customName.trim()) {
-      Alert.alert(t('common.required'), 'Please enter test name.');
+      toast.warning('Please enter test name.');
       return;
     }
 
@@ -194,7 +195,7 @@ export default function LabTestPickerScreen({ navigation }: LabTestPickerScreenP
       navigation.goBack();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to add custom test';
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     }
   };
 

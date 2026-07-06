@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getAnalytics } from '../../api/analyticsService';
 import type { ComprehensiveAnalytics, TimePeriod } from '../../types/analytics.types';
 import { APP_CONFIG } from '../../constants/config';
+import PageLoader from '../../components/PageLoader';
 import '../pages.css';
 
 const PERIODS: { value: TimePeriod; label: string }[] = [
@@ -37,7 +38,7 @@ export default function AnalyticsPage() {
       </div>
 
       {isLoading || !analytics ? (
-        <div>Loading...</div>
+        <PageLoader />
       ) : (
         <>
           <div className="stat-row">

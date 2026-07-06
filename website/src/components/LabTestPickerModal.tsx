@@ -3,6 +3,7 @@ import { LAB_TEST_CATEGORIES } from '../types/medicine.types';
 import type { LabTest } from '../types/medicine.types';
 import type { PrescriptionLabTest } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
+import { useToast } from './toast/ToastContext';
 import './modal.css';
 
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function LabTestPickerModal({ onClose, onAdd }: Props) {
+  const toast = useToast();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [tests, setTests] = useState<LabTest[]>([]);
@@ -47,7 +49,7 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
       setShowCustomForm(false);
       setCustomName('');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to add custom test');
+      toast.error(e instanceof Error ? e.message : 'Failed to add custom test');
     }
   };
 

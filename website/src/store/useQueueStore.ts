@@ -18,6 +18,7 @@ interface QueueStore {
   doctorReady: boolean;
   pollInterval: ReturnType<typeof setInterval> | null;
   filter: QueueFilter;
+  lastError: string | null;
 
   loadQueue: () => Promise<void>;
   loadStats: () => Promise<void>;
@@ -31,6 +32,7 @@ interface QueueStore {
   getNextPatient: () => QueueItem | undefined;
   startPolling: () => void;
   stopPolling: () => void;
+  clearError: () => void;
 }
 
 export const useQueueStore = create<QueueStore>((set, get) => ({
@@ -41,14 +43,19 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   doctorReady: false,
   pollInterval: null,
   filter: { todayOnly: true },
+  lastError: null,
 
   loadQueue: async () => {
     try {
       const queueItems = await DataService.getTodayQueue();
       const activeItem = queueItems.find((q) => q.status === QueueStatus.IN_PROGRESS) ?? null;
       set({ queueItems, activeItem });
-    } catch {
-      // keep existing data on error
+    } catch (e) {
+      // Only surface an error when we have no existing data to fall back on —
+      // a failed background poll should stay silent, not spam the user.
+      if (get().queueItems.length === 0) {
+        set({ lastError: e instanceof Error ? e.message : 'Failed to load queue' });
+      }
     }
   },
 
@@ -124,4 +131,6 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       set({ pollInterval: null });
     }
   },
+
+  clearError: () => set({ lastError: null }),
 }));

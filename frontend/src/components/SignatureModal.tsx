@@ -7,11 +7,11 @@ import {
   StyleSheet,
   PanResponder,
   GestureResponderEvent,
-  Alert,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useToast } from './Toast/ToastContext';
 
 interface SignatureModalProps {
   visible: boolean;
@@ -28,6 +28,7 @@ export default function SignatureModal({
   const [currentPath, setCurrentPath] = useState<string>('');
   const [saveToProfile, setSaveToProfile] = useState<boolean>(true);
   const canvasRef = useRef<View>(null);
+  const toast = useToast();
 
   const panResponder = useRef(
     PanResponder.create({
@@ -64,7 +65,7 @@ export default function SignatureModal({
     // Combine all drawn segments into a single SVG path string
     const combinedPath = [...paths, currentPath].filter(Boolean).join(' ');
     if (!combinedPath.trim()) {
-      Alert.alert('', 'Please draw your signature before confirming.');
+      toast.warning('Please draw your signature before confirming.');
       return;
     }
     onConfirm(combinedPath, saveToProfile);

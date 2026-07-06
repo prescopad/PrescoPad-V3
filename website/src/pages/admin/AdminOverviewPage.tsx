@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchAdminOverview } from '../../api/adminService';
 import type { AdminOverview } from '../../api/adminService';
 import { APP_CONFIG } from '../../constants/config';
+import PageLoader from '../../components/PageLoader';
 import '../pages.css';
 
 export default function AdminOverviewPage() {
@@ -11,7 +12,7 @@ export default function AdminOverviewPage() {
     fetchAdminOverview().then(setData).catch(() => {});
   }, []);
 
-  if (!data) return <div>Loading...</div>;
+  if (!data) return <PageLoader />;
 
   return (
     <div>

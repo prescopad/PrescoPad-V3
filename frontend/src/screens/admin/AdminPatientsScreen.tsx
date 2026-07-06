@@ -1,27 +1,34 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, ActivityIndicator,
-  RefreshControl, Alert, StatusBar,
+  RefreshControl, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { fetchAdminPatients, AdminPatient } from '../../services/adminService';
+import { useToast } from '../../components/Toast/ToastContext';
+
+const PAGE_SIZE = 50;
 
 export default function AdminPatientsScreen(): React.JSX.Element {
   const [patients, setPatients] = useState<AdminPatient[]>([]);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const insets = useSafeAreaInsets();
+  const toast = useToast();
 
   const load = useCallback(async () => {
     try {
-      const r = await fetchAdminPatients({ search: search.trim() || undefined, limit: 200 });
+      const r = await fetchAdminPatients({ search: search.trim() || undefined, limit: PAGE_SIZE, offset: 0 });
       setPatients(r.patients);
+      setTotal(r.total);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to load patients');
+      toast.error(e instanceof Error ? e.message : 'Failed to load patients');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -29,6 +36,20 @@ export default function AdminPatientsScreen(): React.JSX.Element {
   }, [search]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadMore = async () => {
+    if (loadingMore || patients.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const r = await fetchAdminPatients({ search: search.trim() || undefined, limit: PAGE_SIZE, offset: patients.length });
+      setPatients((prev) => [...prev, ...r.patients]);
+      setTotal(r.total);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load more patients');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -68,6 +89,9 @@ export default function AdminPatientsScreen(): React.JSX.Element {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={COLORS.primary} /> : null}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardRow}>

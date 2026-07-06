@@ -66,6 +66,12 @@
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.tab-btn:hover:not(.active) {
+  background: var(--color-surface);
+  color: var(--color-text);
 }
 
 .tab-btn.active {
@@ -93,6 +99,12 @@
 
 .item-card:hover {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.item-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .item-card-left {
@@ -146,6 +158,11 @@
   font-weight: 700;
   font-size: 0.875rem;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
 }
 
 .primary-btn:disabled {
@@ -162,6 +179,25 @@
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: var(--color-surface-secondary);
+  border-color: var(--color-primary);
+}
+
+.secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible,
+.tab-btn:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 .icon-btn {
@@ -171,6 +207,7 @@
   cursor: pointer;
   padding: 6px;
   border-radius: var(--radius-md);
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .icon-btn:hover {

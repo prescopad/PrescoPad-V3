@@ -9,6 +9,7 @@ import {
 import type { Medicine } from '../types/medicine.types';
 import type { PrescriptionMedicine } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
+import { useToast } from './toast/ToastContext';
 import './modal.css';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
@@ -37,6 +38,7 @@ interface Props {
 }
 
 export default function MedicinePickerModal({ onClose, onAdd }: Props) {
+  const toast = useToast();
   const [category, setCategory] = useState<Category | null>(null);
   const [query, setQuery] = useState('');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -86,7 +88,7 @@ export default function MedicinePickerModal({ onClose, onAdd }: Props) {
         const custom = await DataService.addCustomMedicine(customName.trim(), selectedType, customStrength);
         onAdd({ medicineName: custom.name, type: selectedType, dosage: customStrength, frequency, duration, timing, notes });
       } catch (e) {
-        alert(e instanceof Error ? e.message : 'Failed to add custom medicine');
+        toast.error(e instanceof Error ? e.message : 'Failed to add custom medicine');
         return;
       }
     } else if (selected) {

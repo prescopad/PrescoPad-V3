@@ -15,6 +15,7 @@ import { getPatientById, getPrescriptionsByPatient, deletePatient } from '../../
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/Toast/ToastContext';
 
 export default function PatientHistoryScreen({ navigation, route }: any): React.JSX.Element {
   const { patientId, patientName } = route.params;
@@ -25,6 +26,7 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
   const [showConsultModal, setShowConsultModal] = useState(false);
   const { addToQueue } = useQueueStore();
   const user = useAuthStore((s) => s.user);
+  const toast = useToast();
 
   useFocusEffect(
     useCallback(() => {
@@ -42,7 +44,7 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
       setPatient(p);
       setPrescriptions(rxList);
     } catch {
-      Alert.alert('Error', 'Failed to load patient history. Please try again.');
+      toast.error('Failed to load patient history. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -73,10 +75,10 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
     setIsAddingToQueue(true);
     try {
       await addToQueue(patientId, user!.id, undefined, type);
-      Alert.alert('Success', `${patientName} added to today's queue!`);
+      toast.success(`${patientName} added to today's queue!`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to add to queue';
-      Alert.alert('Error', msg);
+      toast.error(msg);
     } finally {
       setIsAddingToQueue(false);
     }
@@ -94,11 +96,11 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
           onPress: async () => {
             try {
               await deletePatient(patientId);
-              Alert.alert('Done', 'Patient and all history deleted successfully.');
+              toast.success('Patient and all history deleted successfully.');
               navigation.goBack();
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : 'Failed to delete patient';
-              Alert.alert('Error', msg);
+              toast.error(msg);
             }
           },
         },

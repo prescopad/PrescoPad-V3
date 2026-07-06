@@ -19,6 +19,7 @@ import { APP_CONFIG } from '../../constants/config';
 import { useAuthStore } from '../../store/useAuthStore';
 import { SUPPORTED_LANGUAGES, setAppLanguage, getCurrentLanguage, LanguageCode } from '../../i18n';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -36,6 +37,7 @@ interface SettingsScreenProps {
 export default function SettingsScreen({ navigation }: SettingsScreenProps): React.JSX.Element {
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
+  const toast = useToast();
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [currentLang, setCurrentLang] = useState<LanguageCode>(getCurrentLanguage());
 
@@ -148,8 +150,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
       label: t('settings.about'),
       subtitle: `Version ${APP_CONFIG.version}`,
       onPress: () => {
-        Alert.alert(
-          APP_CONFIG.name,
+        toast.success(
           `${APP_CONFIG.tagline}\n\nVersion: ${APP_CONFIG.version}\n\nDigital Prescription System for modern clinics.`,
         );
       },

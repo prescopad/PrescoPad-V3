@@ -13,11 +13,13 @@ import { ConnectionRequest, TeamMember, ClinicListItem, DoctorListItem } from '.
 import * as ConnectionService from '../../services/connectionService';
 import { refreshSession } from '../../services/authService';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 export default function ConnectionScreen(): React.JSX.Element {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { user, setUser } = useAuthStore();
+  const toast = useToast();
   const isDoctor = user?.role === 'doctor';
 
   const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
@@ -107,7 +109,7 @@ export default function ConnectionScreen(): React.JSX.Element {
       const result = await ConnectionService.listClinics(search);
       setClinics(result);
     } catch (error) {
-      Alert.alert(t('common.error'), 'Failed to load clinics');
+      toast.error('Failed to load clinics');
       setClinics([]);
     } finally {
       setLoadingClinics(false);
@@ -139,26 +141,26 @@ export default function ConnectionScreen(): React.JSX.Element {
   const handleCopyCode = async () => {
     if (user?.doctorCode) {
       await Clipboard.setStringAsync(user.doctorCode);
-      Alert.alert(t('common.done'), t('connection.codeCopied'));
+      toast.success(t('connection.codeCopied'));
     }
   };
 
   const handleInvite = async () => {
     const phone = invitePhone.trim().replace(/\D/g, '');
     if (phone.length < 10) {
-      Alert.alert(t('common.invalid'), t('connection.enterValidPhone'));
+      toast.warning(t('connection.enterValidPhone'));
       return;
     }
 
     setInviting(true);
     try {
       await ConnectionService.inviteAssistant(phone);
-      Alert.alert(t('common.success'), t('connection.invitationSent'));
+      toast.success(t('connection.invitationSent'));
       setInvitePhone('');
       loadData();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('connection.inviteSent');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setInviting(false);
     }
@@ -167,19 +169,19 @@ export default function ConnectionScreen(): React.JSX.Element {
   const handleRequestToJoin = async () => {
     const code = doctorCode.trim().toUpperCase();
     if (code.length !== 6) {
-      Alert.alert(t('common.invalid'), t('connection.enterValidCode'));
+      toast.warning(t('connection.enterValidCode'));
       return;
     }
 
     setRequesting(true);
     try {
       await ConnectionService.requestToJoin(code);
-      Alert.alert(t('common.success'), t('connection.joinRequestSent'));
+      toast.success(t('connection.joinRequestSent'));
       setDoctorCode('');
       loadData();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('connection.joinSent');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setRequesting(false);
     }
@@ -196,7 +198,7 @@ export default function ConnectionScreen(): React.JSX.Element {
     } catch (error) {
       console.error('Error loading doctors:', error);
       const errorMsg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), t('connection.failedLoadDoctors', { error: errorMsg }));
+      toast.error(t('connection.failedLoadDoctors', { error: errorMsg }));
       setDoctorsInHospital([]);
     } finally {
       setLoadingDoctors(false);
@@ -208,14 +210,14 @@ export default function ConnectionScreen(): React.JSX.Element {
 
     // Verify code matches selected doctor
     if (doctorCode.trim().toUpperCase() !== selectedDoctor.doctorCode.toUpperCase()) {
-      Alert.alert(t('common.invalid'), t('connection.enterCodeForDoctor', { name: selectedDoctor.name }));
+      toast.warning(t('connection.enterCodeForDoctor', { name: selectedDoctor.name }));
       return;
     }
 
     setRequesting(true);
     try {
       await ConnectionService.requestToJoin(doctorCode);
-      Alert.alert(t('common.success'), t('connection.requestSentMessage'));
+      toast.success(t('connection.requestSentMessage'));
 
       // Reset state
       setDoctorCode('');
@@ -227,7 +229,7 @@ export default function ConnectionScreen(): React.JSX.Element {
       loadData();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setRequesting(false);
     }
@@ -241,11 +243,11 @@ export default function ConnectionScreen(): React.JSX.Element {
       const session = await refreshSession();
       await setUser(session.user, session.accessToken, session.refreshToken);
 
-      Alert.alert(t('common.success'), t('connection.connectionEstablished'));
+      toast.success(t('connection.connectionEstablished'));
       loadData();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     }
   };
 
@@ -261,7 +263,7 @@ export default function ConnectionScreen(): React.JSX.Element {
             loadData();
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-            Alert.alert(t('common.error'), msg);
+            toast.error(msg);
           }
         },
       },
@@ -277,11 +279,11 @@ export default function ConnectionScreen(): React.JSX.Element {
         onPress: async () => {
           try {
             await ConnectionService.disconnectAssistant(memberId);
-            Alert.alert(t('common.done'), `${memberName} ${t('connection.connectionEstablished')}`);
+            toast.success(`${memberName} ${t('connection.connectionEstablished')}`);
             loadData();
           } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-            Alert.alert(t('common.error'), msg);
+            toast.error(msg);
           }
         },
       },

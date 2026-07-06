@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { updateProfile } from '../../api/authService';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 import '../auth/auth.css';
 
 export default function UserProfilePage() {
   const { user, setUser, accessToken, refreshToken } = useAuthStore();
+  const toast = useToast();
   const [name, setName] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [regNumber, setRegNumber] = useState('');
@@ -33,9 +35,9 @@ export default function UserProfilePage() {
         qualification: !isDoctor ? qualification : undefined,
       });
       if (accessToken && refreshToken) setUser(updated, accessToken, refreshToken);
-      alert('Profile updated.');
+      toast.success('Profile updated.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to update profile');
+      toast.error(e instanceof Error ? e.message : 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }

@@ -35,8 +35,8 @@ async def list_patients(
     if not user.clinic_id:
         return _err("No clinic associated", 400)
     try:
-        patients = await data_service.list_patients(user.clinic_id, search, limit, offset)
-        return _ok({"patients": patients})
+        result = await data_service.list_patients(user.clinic_id, search, limit, offset)
+        return _ok(result)
     except Exception as e:
         return _err(str(e), 500)
 

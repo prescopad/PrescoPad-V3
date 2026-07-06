@@ -149,38 +149,28 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
     try {
       const templates = await DataService.getPrescriptionTemplates();
       set({ templates });
-    } catch (error) {
-      console.error('Failed to load templates:', error);
+    } catch {
+      // keep existing templates on error
     }
   },
 
   saveTemplate: async (name) => {
-    try {
-      const draft = get().currentDraft;
-      const newTemplate = await DataService.savePrescriptionTemplate({
-        name,
-        diagnosis: draft.diagnosis,
-        advice: draft.advice,
-        symptoms: draft.symptoms,
-        referredTo: draft.referredTo,
-        medicines: draft.medicines,
-        labTests: draft.labTests,
-      });
-      set((state) => ({ templates: [...state.templates, newTemplate] }));
-    } catch (error) {
-      console.error('Failed to save template:', error);
-      throw error;
-    }
+    const draft = get().currentDraft;
+    const newTemplate = await DataService.savePrescriptionTemplate({
+      name,
+      diagnosis: draft.diagnosis,
+      advice: draft.advice,
+      symptoms: draft.symptoms,
+      referredTo: draft.referredTo,
+      medicines: draft.medicines,
+      labTests: draft.labTests,
+    });
+    set((state) => ({ templates: [...state.templates, newTemplate] }));
   },
 
   deleteTemplate: async (id) => {
-    try {
-      await DataService.deletePrescriptionTemplate(id);
-      set((state) => ({ templates: state.templates.filter((t) => t.id !== id) }));
-    } catch (error) {
-      console.error('Failed to delete template:', error);
-      throw error;
-    }
+    await DataService.deletePrescriptionTemplate(id);
+    set((state) => ({ templates: state.templates.filter((t) => t.id !== id) }));
   },
 
   applyTemplate: (template) => {

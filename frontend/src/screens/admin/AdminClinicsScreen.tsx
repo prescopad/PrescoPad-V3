@@ -11,29 +11,36 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import {
   fetchAdminClinics, AdminClinic, createAdminClinic, updateAdminClinic, deleteAdminClinic,
 } from '../../services/adminService';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type ClinicFormData = { name: string; address: string; phone: string; city: string };
 
 const emptyForm: ClinicFormData = { name: '', address: '', phone: '', city: '' };
 
+const PAGE_SIZE = 50;
+
 export default function AdminClinicsScreen(): React.JSX.Element {
   const [clinics, setClinics] = useState<AdminClinic[]>([]);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingClinic, setEditingClinic] = useState<AdminClinic | null>(null);
   const [form, setForm] = useState<ClinicFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const toast = useToast();
 
   const load = useCallback(async () => {
     try {
-      const r = await fetchAdminClinics({ search: search.trim() || undefined, limit: 200 });
+      const r = await fetchAdminClinics({ search: search.trim() || undefined, limit: PAGE_SIZE, offset: 0 });
       setClinics(r.clinics);
+      setTotal(r.total);
     } catch (e) {
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('admin.failedLoadClinics'));
+      toast.error(e instanceof Error ? e.message : t('admin.failedLoadClinics'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -41,6 +48,20 @@ export default function AdminClinicsScreen(): React.JSX.Element {
   }, [search, t]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadMore = async () => {
+    if (loadingMore || clinics.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const r = await fetchAdminClinics({ search: search.trim() || undefined, limit: PAGE_SIZE, offset: clinics.length });
+      setClinics((prev) => [...prev, ...r.clinics]);
+      setTotal(r.total);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('admin.failedLoadClinics'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const openCreate = () => {
     setEditingClinic(null);
@@ -62,7 +83,7 @@ export default function AdminClinicsScreen(): React.JSX.Element {
   const onSave = async () => {
     if (!form.name.trim()) {
       if (Platform.OS === 'web') { window.alert('Clinic name is required'); }
-      else { Alert.alert('Error', 'Clinic name is required'); }
+      else { toast.warning('Clinic name is required'); }
       return;
     }
     setSaving(true);
@@ -76,7 +97,7 @@ export default function AdminClinicsScreen(): React.JSX.Element {
         });
         setClinics((prev) => prev.map((c) => (c.id === editingClinic.id ? { ...c, ...updated } : c)));
         if (Platform.OS === 'web') { window.alert('Clinic updated successfully'); }
-        else { Alert.alert('Success', 'Clinic updated successfully'); }
+        else { toast.success('Clinic updated successfully'); }
       } else {
         const created = await createAdminClinic({
           name: form.name.trim(),
@@ -86,13 +107,13 @@ export default function AdminClinicsScreen(): React.JSX.Element {
         });
         setClinics((prev) => [{ ...created, doctorCount: 0, assistantCount: 0, prescriptionCount: 0 }, ...prev]);
         if (Platform.OS === 'web') { window.alert('Clinic created successfully'); }
-        else { Alert.alert('Success', 'Clinic created successfully'); }
+        else { toast.success('Clinic created successfully'); }
       }
       setModalVisible(false);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to save clinic';
       if (Platform.OS === 'web') { window.alert(`Error: ${msg}`); }
-      else { Alert.alert('Error', msg); }
+      else { toast.error(msg); }
     } finally {
       setSaving(false);
     }
@@ -106,7 +127,7 @@ export default function AdminClinicsScreen(): React.JSX.Element {
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Failed to delete clinic';
         if (Platform.OS === 'web') { window.alert(`Error: ${msg}`); }
-        else { Alert.alert('Error', msg); }
+        else { toast.error(msg); }
       }
     };
 
@@ -168,6 +189,9 @@ export default function AdminClinicsScreen(): React.JSX.Element {
           data={clinics}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={COLORS.primary} /> : null}
           renderItem={({ item }) => {
             const solo = item.soloMode ?? item.solo_mode;
             return (

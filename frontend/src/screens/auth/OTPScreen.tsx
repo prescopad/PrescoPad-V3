@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import { AuthStackParamList } from '../../types/navigation.types';
 import { useTranslation } from 'react-i18next';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
@@ -24,6 +25,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
   const keyboardHeight = useKeyboardHeight();
   const { phone, role } = route.params;
   const { t } = useTranslation();
+  const toast = useToast();
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(RESEND_COOLDOWN_SECONDS);
@@ -41,7 +43,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
 
   const handleVerify = async () => {
     if (otp.length !== 6) {
-      Alert.alert(t('common.invalid'), t('auth.invalidOtp'));
+      toast.warning(t('auth.invalidOtp'));
       return;
     }
 
@@ -63,7 +65,7 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
         setOtp('');
         inputRef.current?.focus();
       }
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -77,10 +79,10 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
       setResendCountdown(RESEND_COOLDOWN_SECONDS);
       setOtp('');
       inputRef.current?.focus();
-      Alert.alert(t('common.success'), t('auth.otpResent'));
+      toast.success(t('auth.otpResent'));
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.smsFailed');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsResending(false);
     }

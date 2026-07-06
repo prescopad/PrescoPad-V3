@@ -4,6 +4,7 @@ import * as DataService from '../../api/dataService';
 import { useWalletStore } from '../../store/useWalletStore';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
 import PrescriptionActions from '../../components/PrescriptionActions';
+import { useToast } from '../../components/toast/ToastContext';
 import type { Prescription } from '../../types/prescription.types';
 import './rxSuccess.css';
 import '../../pages/pages.css';
@@ -11,6 +12,7 @@ import '../../pages/pages.css';
 export default function RxSuccessPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const { balance, loadBalance } = useWalletStore();
   const resetDraft = usePrescriptionStore((s) => s.resetDraft);
 
@@ -30,8 +32,8 @@ export default function RxSuccessPage() {
         .then((rx) => {
           if (rx) setPrescription(rx);
         })
-        .catch((err) => {
-          console.error('Failed to fetch prescription details:', err);
+        .catch(() => {
+          toast.error('Could not load prescription details for sharing.');
         })
         .finally(() => {
           setIsLoading(false);
@@ -39,6 +41,7 @@ export default function RxSuccessPage() {
     } else {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loadBalance, resetDraft]);
 
   const handleBackToQueue = () => {

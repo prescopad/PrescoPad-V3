@@ -6,6 +6,7 @@ import type { QueueItem } from '../../types/queue.types';
 import type { Patient } from '../../types/patient.types';
 import MedicinePickerModal from '../../components/MedicinePickerModal';
 import LabTestPickerModal from '../../components/LabTestPickerModal';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 import '../auth/auth.css';
 
@@ -23,6 +24,7 @@ export default function ConsultWorkspace() {
   const location = useLocation();
   const { queueItem, patient } = (location.state ?? {}) as { queueItem?: QueueItem; patient?: Patient };
   const user = useAuthStore((s) => s.user);
+  const toast = useToast();
   const {
     currentDraft, updateDraft, removeMedicine, removeLabTest, addMedicine, addLabTest,
     createPrescription, setQueueItemId, resetDraft,
@@ -68,15 +70,15 @@ export default function ConsultWorkspace() {
 
   const handlePreview = async () => {
     if (symptoms.length === 0 && !currentDraft.diagnosis) {
-      alert('Please select at least one symptom or enter a diagnosis.');
+      toast.error('Please select at least one symptom or enter a diagnosis.');
       return;
     }
     if (currentDraft.medicines.length === 0 && currentDraft.labTests.length === 0) {
-      alert('Add at least one medicine or lab test before continuing.');
+      toast.error('Add at least one medicine or lab test before continuing.');
       return;
     }
     if (!user?.id) {
-      alert('Doctor session not found. Please re-login.');
+      toast.error('Doctor session not found. Please re-login.');
       return;
     }
     setIsCreating(true);
@@ -84,7 +86,7 @@ export default function ConsultWorkspace() {
       const prescription = await createPrescription(user.id);
       navigate(`/prescriptions/${prescription.id}/preview`);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to create prescription');
+      toast.error(e instanceof Error ? e.message : 'Failed to create prescription');
     } finally {
       setIsCreating(false);
     }

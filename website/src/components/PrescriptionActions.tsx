@@ -4,6 +4,7 @@ import { useClinicStore } from '../store/useClinicStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getShareToken, downloadPrescriptionPdf } from '../api/dataService';
 import { PRODUCTION_BACKEND_URL } from '../constants/config';
+import { useToast } from './toast/ToastContext';
 import './prescriptionActions.css';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 export default function PrescriptionActions({ prescription }: Props) {
   const { clinic, doctorProfile } = useClinicStore();
   const { user } = useAuthStore();
+  const toast = useToast();
   const [busy, setBusy] = useState<null | 'whatsapp' | 'download' | 'print'>(null);
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
@@ -21,7 +23,7 @@ export default function PrescriptionActions({ prescription }: Props) {
   const handleWhatsApp = async () => {
     if (busy) return;
     if (!prescription.patientPhone) {
-      alert('Patient phone number is not available.');
+      toast.error('Patient phone number is not available.');
       return;
     }
 
@@ -51,7 +53,7 @@ export default function PrescriptionActions({ prescription }: Props) {
       
       setShowSuccessOverlay(true);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to generate WhatsApp share link.');
+      toast.error(e instanceof Error ? e.message : 'Failed to generate WhatsApp share link.');
     } finally {
       setBusy(null);
     }
@@ -80,7 +82,7 @@ export default function PrescriptionActions({ prescription }: Props) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to download PDF.');
+      toast.error(e instanceof Error ? e.message : 'Failed to download PDF.');
     } finally {
       setBusy(null);
     }
@@ -94,7 +96,7 @@ export default function PrescriptionActions({ prescription }: Props) {
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to load PDF for printing.');
+      toast.error(e instanceof Error ? e.message : 'Failed to load PDF for printing.');
     } finally {
       setBusy(null);
     }

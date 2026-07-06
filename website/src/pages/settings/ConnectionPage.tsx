@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import { useAuthStore, useIsDoctor } from '../../store/useAuthStore';
 import * as ConnectionService from '../../api/connectionService';
 import type { ConnectionRequest, TeamMember, ClinicListItem, DoctorListItem } from '../../types/connection.types';
+import { useToast } from '../../components/toast/ToastContext';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
 import '../pages.css';
 import '../auth/auth.css';
 
 export default function ConnectionPage() {
   const user = useAuthStore((s) => s.user);
   const isDoctor = useIsDoctor();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [pending, setPending] = useState<ConnectionRequest[]>([]);
@@ -47,11 +51,11 @@ export default function ConnectionPage() {
     if (!assistantPhone.trim()) return;
     try {
       await ConnectionService.inviteAssistant(assistantPhone.trim());
-      alert('Invite sent.');
+      toast.success('Invite sent.');
       setAssistantPhone('');
       load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to invite assistant');
+      toast.error(e instanceof Error ? e.message : 'Failed to invite assistant');
     }
   };
 
@@ -66,7 +70,7 @@ export default function ConnectionPage() {
   };
 
   const handleDisconnect = async (assistantId: string) => {
-    if (!confirm('Disconnect this assistant?')) return;
+    if (!(await confirm({ title: 'Disconnect assistant', message: 'Disconnect this assistant?', danger: true }))) return;
     await ConnectionService.disconnectAssistant(assistantId);
     load();
   };
@@ -81,10 +85,10 @@ export default function ConnectionPage() {
     if (!doctorCode.trim()) return;
     try {
       await ConnectionService.requestToJoin(doctorCode.trim());
-      alert('Join request sent. Waiting for doctor approval.');
+      toast.success('Join request sent. Waiting for doctor approval.');
       setDoctorCode('');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to send join request');
+      toast.error(e instanceof Error ? e.message : 'Failed to send join request');
     }
   };
 

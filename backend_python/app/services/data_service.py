@@ -12,13 +12,15 @@ log = logging.getLogger(__name__)
 
 # ─── Patients ────────────────────────────────────────────────────────────────
 
-async def list_patients(clinic_id: str, search: str = None, limit: int = 100, offset: int = 0) -> list:
+async def list_patients(clinic_id: str, search: str = None, limit: int = 100, offset: int = 0) -> dict:
     db = get_db()
     query = {"clinic_id": clinic_id, "is_deleted": {"$ne": True}}
     if search:
         query["name"] = {"$regex": search, "$options": "i"}
+    total = await db.patients.count_documents(query)
     cursor = db.patients.find(query).sort("name", 1).skip(offset).limit(limit)
-    return [serialize_doc(p) async for p in cursor]
+    items = [serialize_doc(p) async for p in cursor]
+    return {"total": total, "patients": items}
 
 
 async def get_patient(clinic_id: str, patient_id: str) -> dict:

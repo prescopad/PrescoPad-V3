@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from fastapi.responses import JSONResponse
 from app.models.wallet import RechargeRequest, DeductRequest, AutoRefillRequest, RecordPaymentRequest
 from app.middleware.auth import get_current_user, require_doctor, TokenData
@@ -53,11 +53,15 @@ async def deduct(request: Request, body: DeductRequest):
 
 
 @router.get("/transactions")
-async def get_transactions(request: Request):
+async def get_transactions(
+    request: Request,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+):
     user: TokenData = await get_current_user(request)
     try:
-        transactions = await wallet_service.get_transactions(user.user_id)
-        return _ok({"transactions": transactions})
+        result = await wallet_service.get_transactions(user.user_id, limit, offset)
+        return _ok(result)
     except Exception as e:
         return _err(str(e), 500)
 

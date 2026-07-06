@@ -6,7 +6,6 @@ import {
   StyleSheet,
   StatusBar,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,12 +24,14 @@ import { Prescription } from '../../types/prescription.types';
 import { getPrescriptionsByPatient } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 type DetailRouteProp = RouteProp<AssistantStackParamList, 'PatientDetail'>;
 
 export default function PatientDetailScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<DetailRouteProp>();
   const { patientId } = route.params;
@@ -59,7 +60,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
       const data = await getPatientById(patientId);
       setPatient(data);
     } catch {
-      Alert.alert(t('common.error'), 'Failed to load patient information.');
+      toast.error('Failed to load patient information.');
     } finally {
       setIsLoadingPatient(false);
     }
@@ -83,13 +84,12 @@ export default function PatientDetailScreen(): React.JSX.Element {
     setAddingToQueue(true);
     try {
       await addToQueue(patient.id, user.id, undefined, type);
-      Alert.alert(t('common.success'), `${patient.name} has been added to the queue.`, [
-        { text: t('common.ok'), onPress: () => navigation.goBack() },
-      ]);
+      toast.success(`${patient.name} has been added to the queue.`);
+      navigation.goBack();
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : 'Failed to add to queue';
-      Alert.alert(t('common.error'), message);
+      toast.error(message);
     } finally {
       setAddingToQueue(false);
     }

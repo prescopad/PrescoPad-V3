@@ -29,6 +29,7 @@ import { uploadImageToCloudinary } from '../../services/cloudinaryService';
 import { updateProfile as updateAuthProfile } from '../../services/authService';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 const SIG_FILE_URI = `${FileSystem.documentDirectory}doctor_signature.svg`;
 
@@ -52,6 +53,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
   const { user } = useAuthStore();
   const canEdit = user?.role === 'doctor' || user?.role === 'admin';
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [clinicName, setClinicName] = useState('');
   const [address, setAddress] = useState('');
@@ -79,7 +81,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(t('common.error'), t('signature.permission'));
+        toast.error(t('signature.permission'));
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({
@@ -115,9 +117,9 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
       });
 
       setSignatureUrl(uploaded.secure_url);
-      Alert.alert(t('common.success'), t('signature.saved'));
+      toast.success(t('signature.saved'));
     } catch (e) {
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('signature.uploadFailed'));
+      toast.error(e instanceof Error ? e.message : t('signature.uploadFailed'));
     } finally {
       setIsUploadingSig(false);
     }
@@ -152,7 +154,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
 
             setSignatureUrl('');
           } catch (e) {
-            Alert.alert(t('common.error'), e instanceof Error ? e.message : t('common.somethingWrong'));
+            toast.error(e instanceof Error ? e.message : t('common.somethingWrong'));
           }
         },
       },
@@ -164,7 +166,7 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(t('common.error'), 'Permission to access media library is required to upload QR code.');
+        toast.error('Permission to access media library is required to upload QR code.');
         return;
       }
       const picked = await ImagePicker.launchImageLibraryAsync({
@@ -183,10 +185,10 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
       // Persist to backend immediately (like signature)
       await updateClinic({ qrCodeUrl: uploaded.secure_url });
       setQrCodeUrl(uploaded.secure_url);
-      Alert.alert(t('common.success'), 'QR code uploaded successfully!');
+      toast.success('QR code uploaded successfully!');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsUploadingQr(false);
     }
@@ -206,10 +208,10 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
             try {
               await updateClinic({ qrCodeUrl: null });
               setQrCodeUrl('');
-              Alert.alert(t('common.success'), 'QR code removed.');
+              toast.success('QR code removed.');
             } catch (error: unknown) {
               const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-              Alert.alert(t('common.error'), msg);
+              toast.error(msg);
             }
           },
         },
@@ -242,11 +244,11 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
 
   const handleSave = async () => {
     if (!clinicName.trim()) {
-      Alert.alert(t('common.required'), t('clinicProfile.clinicNameRequired'));
+      toast.warning(t('clinicProfile.clinicNameRequired'));
       return;
     }
     if (!doctorName.trim()) {
-      Alert.alert(t('common.required'), t('clinicProfile.doctorNameRequired'));
+      toast.warning(t('clinicProfile.doctorNameRequired'));
       return;
     }
 
@@ -265,12 +267,11 @@ export default function ClinicProfileScreen({ navigation }: ClinicProfileScreenP
         regNumber: regNumber.trim(),
       });
 
-      Alert.alert(t('common.success'), t('clinicProfile.savedSuccess'), [
-        { text: t('common.ok'), onPress: () => navigation.goBack() },
-      ]);
+      toast.success(t('clinicProfile.savedSuccess'));
+      navigation.goBack();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }

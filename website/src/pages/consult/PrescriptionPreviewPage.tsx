@@ -9,6 +9,7 @@ import * as walletService from '../../api/walletService';
 import { hashString } from '../../utils/cryptoUtil';
 import SignaturePad from '../../components/SignaturePad';
 import PrescriptionActions from '../../components/PrescriptionActions';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 import '../../components/modal.css';
 import '../auth/auth.css';
@@ -22,6 +23,7 @@ export default function PrescriptionPreviewPage() {
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
   const { user } = useAuthStore();
   const completeConsult = useQueueStore((s) => s.completeConsult);
+  const toast = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [showSignModeModal, setShowSignModeModal] = useState(false);
@@ -57,7 +59,7 @@ export default function PrescriptionPreviewPage() {
 
   const handleSignAndIssue = () => {
     if (!canAfford()) {
-      alert(`Insufficient wallet balance (₹${balance}). Please recharge before issuing a prescription.`);
+      toast.error(`Insufficient wallet balance (₹${balance}). Please recharge before issuing a prescription.`);
       navigate('/wallet');
       return;
     }
@@ -83,7 +85,7 @@ export default function PrescriptionPreviewPage() {
       await loadBalance();
       setShowPaymentModal(true);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to finalize prescription');
+      toast.error(e instanceof Error ? e.message : 'Failed to finalize prescription');
     } finally {
       setIsFinalizing(false);
     }

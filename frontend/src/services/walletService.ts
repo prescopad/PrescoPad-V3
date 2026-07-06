@@ -50,12 +50,13 @@ function normalizeTransaction(t: Record<string, unknown>): Transaction {
 export async function fetchTransactions(
   limit = 50,
   offset = 0
-): Promise<Transaction[]> {
+): Promise<{ transactions: Transaction[]; total: number }> {
   const response = await api.get('/wallet/transactions', {
     params: { limit, offset },
   });
   const raw: Record<string, unknown>[] = response.data.transactions ?? [];
-  return raw.map(normalizeTransaction);
+  const transactions = raw.map(normalizeTransaction);
+  return { transactions, total: response.data.total ?? transactions.length };
 }
 
 export async function recordConsultationPayment(

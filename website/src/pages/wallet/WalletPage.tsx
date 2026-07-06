@@ -3,13 +3,15 @@ import { useWalletStore } from '../../store/useWalletStore';
 import * as walletService from '../../api/walletService';
 import { APP_CONFIG } from '../../constants/config';
 import { TransactionType } from '../../types/wallet.types';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 import '../auth/auth.css';
 
 const RECHARGE_OPTIONS = [100, 500, 1000];
 
 export default function WalletPage() {
-  const { balance, transactions, loadBalance, loadTransactions, recharge } = useWalletStore();
+  const { balance, transactions, transactionsTotal, isLoadingMore, loadBalance, loadTransactions, loadMoreTransactions, recharge } = useWalletStore();
+  const toast = useToast();
   const [customAmount, setCustomAmount] = useState('');
   const [isRecharging, setIsRecharging] = useState(false);
   const [autoRefill, setAutoRefill] = useState(false);
@@ -31,7 +33,7 @@ export default function WalletPage() {
       await loadTransactions();
       setCustomAmount('');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Recharge failed');
+      toast.error(e instanceof Error ? e.message : 'Recharge failed');
     } finally {
       setIsRecharging(false);
     }
@@ -42,9 +44,9 @@ export default function WalletPage() {
       const threshold = parseInt(autoRefillThreshold, 10) || APP_CONFIG.wallet.lowBalanceThreshold;
       const amount = parseInt(autoRefillAmount, 10) || APP_CONFIG.wallet.defaultRechargeAmount;
       await walletService.updateAutoRefill(autoRefill, amount, threshold);
-      alert('Auto-refill settings saved.');
+      toast.success('Auto-refill settings saved.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save auto-refill settings');
+      toast.error(e instanceof Error ? e.message : 'Failed to save auto-refill settings');
     }
   };
 
@@ -124,6 +126,17 @@ export default function WalletPage() {
           </div>
         ))}
       </div>
+      {transactions.length < transactionsTotal && (
+        <button
+          type="button"
+          className="secondary-btn"
+          style={{ marginTop: 12, width: '100%' }}
+          disabled={isLoadingMore}
+          onClick={loadMoreTransactions}
+        >
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      )}
     </div>
   );
 }

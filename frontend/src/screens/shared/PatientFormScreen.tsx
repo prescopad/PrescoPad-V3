@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
   } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { getPatientById, updatePatient } from '../../services/dataService';
 import type { DoctorStackParamList } from '../../types/navigation.types';
 import { HEADER_PADDING_TOP, KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type EditRouteProp = RouteProp<DoctorStackParamList, 'EditPatient'>;
 
@@ -21,6 +22,7 @@ export default function PatientFormScreen(): React.JSX.Element {
   const navigation = useNavigation();
   const route = useRoute<EditRouteProp>();
   const { t } = useTranslation();
+  const toast = useToast();
   const { patientId } = route.params;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function PatientFormScreen(): React.JSX.Element {
         });
       }
     } catch {
-      Alert.alert(t('common.error'), t('patient.loadFailed'));
+      toast.error(t('patient.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -59,23 +61,22 @@ export default function PatientFormScreen(): React.JSX.Element {
 
   const handleSave = async () => {
     if (!form.name.trim()) {
-      Alert.alert(t('common.required'), t('patient.nameRequired'));
+      toast.warning(t('patient.nameRequired'));
       return;
     }
     if (!form.age.trim() || parseInt(form.age) <= 0) {
-      Alert.alert(t('common.required'), t('patient.ageRequired'));
+      toast.warning(t('patient.ageRequired'));
       return;
     }
 
     setIsSaving(true);
     try {
       await updatePatient(patientId, form);
-      Alert.alert(t('common.success'), t('patient.savedInfo'), [
-        { text: t('common.ok'), onPress: () => navigation.goBack() },
-      ]);
+      toast.success(t('patient.savedInfo'));
+      navigation.goBack();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('common.somethingWrong');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }

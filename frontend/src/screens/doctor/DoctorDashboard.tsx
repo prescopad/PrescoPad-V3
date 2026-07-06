@@ -28,6 +28,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useWalletStore } from '../../store/useWalletStore';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type DoctorDashboardProps = NativeStackScreenProps<DoctorStackParamList, 'DoctorDashboard'>;
 
@@ -39,6 +40,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const { loadClinic, loadDoctorProfile } = useClinicStore();
   const { queueItems, stats, isLoading, loadQueueFiltered, loadStatsFiltered, startConsult, startPolling, stopPolling, removeFromQueue } = useQueueStore();
   const { balance, loadBalance } = useWalletStore();
+  const toast = useToast();
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'waiting' | 'in_progress' | 'completed'>('all');
@@ -112,7 +114,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       return;
     }
     if (!item.patient) {
-      Alert.alert(t('common.error'), 'Patient data not available for this queue item');
+      toast.error('Patient data not available for this queue item');
       return;
     }
     if (item.status === QueueStatus.IN_PROGRESS) {
@@ -125,7 +127,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       navigation.navigate('Consult', { queueItem: item, patient: item.patient, consultType: item.consultationType || 'new' });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Failed to start consultation';
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     }
   };
 
@@ -142,7 +144,7 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
             try {
               await removeFromQueue(item.id);
             } catch (error: unknown) {
-              Alert.alert('Error', 'Failed to remove patient from queue');
+              toast.error('Failed to remove patient from queue');
             }
           }
         }

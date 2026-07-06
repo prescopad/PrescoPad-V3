@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView,
+  KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
   } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,11 +12,13 @@ import { sendOTP } from '../../services/authService';
 import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { HEADER_PADDING_TOP, ms } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation, route }: Props): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const [activeRole, setActiveRole] = useState<UserRole>(route.params.role as UserRole);
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +30,7 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
 
   const handleSendOTP = async () => {
     if (phone.length !== 10) {
-      Alert.alert(t('common.invalid'), t('auth.invalidPhone'));
+      toast.warning(t('auth.invalidPhone'));
       return;
     }
 
@@ -38,7 +40,7 @@ export default function LoginScreen({ navigation, route }: Props): React.JSX.Ele
       navigation.navigate('OTP', { phone, role });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.smsFailed');
-      Alert.alert(t('common.error'), msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

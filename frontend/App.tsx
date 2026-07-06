@@ -4,6 +4,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import RootNavigator from './src/navigation/RootNavigator';
 import NetworkBanner from './src/components/NetworkBanner';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { ToastProvider } from './src/components/Toast/ToastContext';
 import { getDatabase } from './src/database/database';
 import { COLORS } from './src/constants/theme';
 import { APP_CONFIG } from './src/constants/config';
@@ -64,9 +66,13 @@ export default function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
-        <NetworkBanner />
-        <RootNavigator />
+        <ErrorBoundary>
+          <ToastProvider>
+            <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+            <NetworkBanner />
+            <RootNavigator />
+          </ToastProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

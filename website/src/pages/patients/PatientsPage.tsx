@@ -4,12 +4,14 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import ConsultTypeModal from '../../components/ConsultTypeModal';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
 export default function PatientsPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
-  const { patients, searchResults, loadPatients, searchPatients, clearSearch } = usePatientStore();
+  const { patients, patientsTotal, isLoadingMore, searchResults, lastError, loadPatients, loadMorePatients, searchPatients, clearSearch, clearError } = usePatientStore();
   const addToQueue = useQueueStore((s) => s.addToQueue);
   const [query, setQuery] = useState('');
   
@@ -20,6 +22,13 @@ export default function PatientsPage() {
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
+
+  useEffect(() => {
+    if (lastError) {
+      toast.error(lastError);
+      clearError();
+    }
+  }, [lastError, toast, clearError]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -45,9 +54,9 @@ export default function PatientsPage() {
       await addToQueue(pendingPatient.id, user.id, notes, type);
       setIsModalOpen(false);
       setPendingPatient(null);
-      alert(`${pendingPatient.name} added to today's queue.`);
+      toast.success(`${pendingPatient.name} added to today's queue.`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to add to queue');
+      toast.error(err instanceof Error ? err.message : 'Failed to add to queue');
     } finally {
       setIsQueueSubmitting(false);
     }
@@ -93,6 +102,17 @@ export default function PatientsPage() {
           </div>
         ))}
       </div>
+      {!query.trim() && patients.length < patientsTotal && (
+        <button
+          type="button"
+          className="secondary-btn"
+          style={{ marginTop: 12, width: '100%' }}
+          disabled={isLoadingMore}
+          onClick={loadMorePatients}
+        >
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
+      )}
 
       <ConsultTypeModal
         isOpen={isModalOpen}

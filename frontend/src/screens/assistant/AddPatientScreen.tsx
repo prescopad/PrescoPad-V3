@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
@@ -28,11 +27,13 @@ import type { AssistantStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
 export default function AddPatientScreen(): React.JSX.Element {
   const { t } = useTranslation();
+  const toast = useToast();
   const keyboardHeight = useKeyboardHeight();
   const navigation = useNavigation<NavigationProp>();
   const { width } = useWindowDimensions();
@@ -127,7 +128,7 @@ export default function AddPatientScreen(): React.JSX.Element {
       setShowConsultModal(true);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to register patient';
-      Alert.alert(t('common.error'), message);
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +140,7 @@ export default function AddPatientScreen(): React.JSX.Element {
       setShowConsultModal(false);
       await addToQueue(pendingPatientId, user.id, undefined, type);
     } catch {
-      Alert.alert(t('common.error'), 'Patient registered but failed to add to queue.');
+      toast.error('Patient registered but failed to add to queue.');
     } finally {
       setPendingPatientId(null);
       setPendingPatientName(null);

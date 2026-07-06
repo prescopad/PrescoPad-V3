@@ -10,7 +10,7 @@
  * other two actions reuse it.
  */
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -23,6 +23,7 @@ import { exportPDFCopy, shareRxOnWhatsApp, shareViaPDF } from '../services/share
 import { getShareToken } from '../services/dataService';
 import { BASE_URL } from '../services/api';
 import { PRODUCTION_BACKEND_URL } from '../constants/config';
+import { useToast } from './Toast/ToastContext';
 
 interface Props {
   prescription: Prescription | null;
@@ -39,6 +40,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
   const [waStep, setWaStep] = useState<'idle' | 'text_sent' | 'completed'>('idle');
+  const toast = useToast();
 
   if (!prescription) return null;
   const want = { whatsapp: true, download: true, print: true, ...show };
@@ -55,7 +57,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
   const handleWhatsApp = async () => {
     if (busy) return;
     if (!prescription.patientPhone) {
-      Alert.alert(t('common.error'), t('share.noPhone'));
+      toast.error(t('share.noPhone'));
       return;
     }
 
@@ -97,7 +99,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
     } catch (e) {
       const msg = e instanceof Error ? e.message : t('common.somethingWrong');
       const looksLikeMissingWA = msg.toLowerCase().includes('whatsapp');
-      Alert.alert(t('common.error'), looksLikeMissingWA ? t('share.whatsappMissing') : msg);
+      toast.error(looksLikeMissingWA ? t('share.whatsappMissing') : msg);
     } finally {
       setBusy(null);
     }
@@ -117,7 +119,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
       // Surface to the user — also opens the share sheet so they can save to Files / Drive.
       await shareViaPDF(exported);
     } catch (e) {
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('share.saveFailed'));
+      toast.error(e instanceof Error ? e.message : t('share.saveFailed'));
     } finally {
       setBusy(null);
     }
@@ -131,7 +133,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
       const rxForPrint = { ...prescription, signature: user?.signatureUrl || prescription.signature || null };
       await printPrescription(rxForPrint, clinic, doctorProfile);
     } catch (e) {
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('share.printFailed'));
+      toast.error(e instanceof Error ? e.message : t('share.printFailed'));
     } finally {
       setBusy(null);
     }
@@ -206,7 +208,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
                     await shareViaPDF(path);
                     setWaStep('completed');
                   } catch (e) {
-                    Alert.alert(t('common.error'), e instanceof Error ? e.message : 'Failed to share PDF');
+                    toast.error(e instanceof Error ? e.message : 'Failed to share PDF');
                   }
                 }}
                 activeOpacity={0.7}

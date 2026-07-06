@@ -11,6 +11,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import {
   fetchAdminUsers, AdminUser, setAdminUserActive, promoteAdminUser, deleteAdminUser,
 } from '../../services/adminService';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type RoleFilter = 'all' | 'doctor' | 'assistant' | 'admin';
 
@@ -35,15 +36,20 @@ const ROLE_CONFIG = {
   },
 } as const;
 
+const PAGE_SIZE = 100;
+
 export default function AdminUsersScreen(): React.JSX.Element {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [activeRole, setActiveRole] = useState<RoleFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const toast = useToast();
 
   // Works on both native (Alert) and web (window.confirm).
   const webConfirm = (
@@ -66,10 +72,11 @@ export default function AdminUsersScreen(): React.JSX.Element {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetchAdminUsers({ role: roleParam, search: search.trim() || undefined, limit: 500 });
+      const r = await fetchAdminUsers({ role: roleParam, search: search.trim() || undefined, limit: PAGE_SIZE, offset: 0 });
       setUsers(r.users);
+      setTotal(r.total);
     } catch (e) {
-      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('admin.failedLoadUsers'));
+      toast.error(e instanceof Error ? e.message : t('admin.failedLoadUsers'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -77,6 +84,20 @@ export default function AdminUsersScreen(): React.JSX.Element {
   }, [roleParam, search, t]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadMore = async () => {
+    if (loadingMore || users.length >= total) return;
+    setLoadingMore(true);
+    try {
+      const r = await fetchAdminUsers({ role: roleParam, search: search.trim() || undefined, limit: PAGE_SIZE, offset: users.length });
+      setUsers((prev) => [...prev, ...r.users]);
+      setTotal(r.total);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('admin.failedLoadUsers'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const toggleSection = (role: string) => {
     setCollapsedSections((prev) => {
@@ -97,7 +118,7 @@ export default function AdminUsersScreen(): React.JSX.Element {
           const updated = await setAdminUserActive(u.id, !isActive);
           setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, ...updated } : x)));
         } catch (e) {
-          Alert.alert(t('common.error'), e instanceof Error ? e.message : t('admin.updateFailed'));
+          toast.error(e instanceof Error ? e.message : t('admin.updateFailed'));
         }
       },
       action,
@@ -113,7 +134,7 @@ export default function AdminUsersScreen(): React.JSX.Element {
           const updated = await promoteAdminUser(u.id);
           setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, ...updated } : x)));
         } catch (e) {
-          Alert.alert(t('common.error'), e instanceof Error ? e.message : t('admin.promoteFailed'));
+          toast.error(e instanceof Error ? e.message : t('admin.promoteFailed'));
         }
       },
       t('admin.promote'),
@@ -129,7 +150,7 @@ export default function AdminUsersScreen(): React.JSX.Element {
           await deleteAdminUser(u.id);
           setUsers((prev) => prev.filter((x) => x.id !== u.id));
         } catch (e) {
-          Alert.alert(t('common.error'), e instanceof Error ? e.message : 'Failed to delete user');
+          toast.error(e instanceof Error ? e.message : 'Failed to delete user');
         }
       },
       'Delete',
@@ -339,6 +360,9 @@ export default function AdminUsersScreen(): React.JSX.Element {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={loadingMore ? <ActivityIndicator style={{ marginVertical: SPACING.lg }} color={COLORS.primary} /> : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="people-outline" size={48} color={COLORS.textLight} />

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useIsDoctor } from '../../store/useAuthStore';
 import SignaturePad from '../../components/SignaturePad';
+import { useToast } from '../../components/toast/ToastContext';
+import { useConfirm } from '../../components/confirm/ConfirmContext';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
@@ -9,6 +11,8 @@ import '../../components/modal.css';
 export default function ClinicProfilePage() {
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile, updateClinic, updateDoctorProfile } = useClinicStore();
   const isDoctor = useIsDoctor();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   // Clinic Details
   const [name, setName] = useState('');
@@ -56,9 +60,9 @@ export default function ClinicProfilePage() {
           regNumber: regNumber.trim(),
         });
       }
-      alert('Clinic and doctor profile details updated.');
+      toast.success('Clinic and doctor profile details updated.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to update clinic profile');
+      toast.error(e instanceof Error ? e.message : 'Failed to update clinic profile');
     } finally {
       setIsSaving(false);
     }
@@ -68,9 +72,9 @@ export default function ClinicProfilePage() {
     setShowSignaturePad(false);
     try {
       await updateDoctorProfile({ signatureBase64: svgPath });
-      alert('Signature saved.');
+      toast.success('Signature saved.');
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to save signature');
+      toast.error(e instanceof Error ? e.message : 'Failed to save signature');
     }
   };
 
@@ -98,9 +102,9 @@ export default function ClinicProfilePage() {
       const qrUrl = data.secure_url;
 
       await updateClinic({ qrCodeUrl: qrUrl });
-      alert('Payment QR code uploaded successfully!');
+      toast.success('Payment QR code uploaded successfully!');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to upload QR code.');
+      toast.error(err instanceof Error ? err.message : 'Failed to upload QR code.');
     } finally {
       setIsUploadingQr(false);
       // Clear file input value to allow uploading same file again
@@ -109,12 +113,12 @@ export default function ClinicProfilePage() {
   };
 
   const handleRemoveQrCode = async () => {
-    if (!confirm('Are you sure you want to remove the QR code image?')) return;
+    if (!(await confirm({ title: 'Remove QR code', message: 'Are you sure you want to remove the QR code image?', danger: true }))) return;
     try {
       await updateClinic({ qrCodeUrl: null });
-      alert('QR code removed.');
+      toast.success('QR code removed.');
     } catch (err) {
-      alert('Failed to remove QR code.');
+      toast.error('Failed to remove QR code.');
     }
   };
 

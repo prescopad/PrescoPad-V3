@@ -7,11 +7,14 @@ import * as DataService from '../../api/dataService';
 import type { Patient } from '../../types/patient.types';
 import type { Prescription } from '../../types/prescription.types';
 import ConsultTypeModal from '../../components/ConsultTypeModal';
+import PageLoader from '../../components/PageLoader';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
 export default function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const { getPatientById } = usePatientStore();
   const addToQueue = useQueueStore((s) => s.addToQueue);
@@ -43,9 +46,9 @@ export default function PatientDetailPage() {
     try {
       await addToQueue(id, user.id, notes, type);
       setIsModalOpen(false);
-      alert(`${patient.name} added to today's queue.`);
+      toast.success(`${patient.name} added to today's queue.`);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to add to queue');
+      toast.error(e instanceof Error ? e.message : 'Failed to add to queue');
     } finally {
       setIsQueueSubmitting(false);
     }
@@ -56,7 +59,7 @@ export default function PatientDetailPage() {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <PageLoader />;
   if (!patient) return <div>Patient not found.</div>;
 
   return (

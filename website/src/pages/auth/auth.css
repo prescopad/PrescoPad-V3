@@ -98,6 +98,13 @@
 .auth-select:focus {
   outline: none;
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.auth-input:focus-visible,
+.auth-select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
 }
 
 .auth-phone-row {
@@ -129,6 +136,11 @@
 
 .auth-phone-row input:focus {
   outline: none;
+}
+
+.auth-phone-row:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .auth-button {

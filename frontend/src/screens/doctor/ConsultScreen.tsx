@@ -27,6 +27,7 @@ import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescript
 
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
+import { useToast } from '../../components/Toast/ToastContext';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -49,6 +50,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const { queueItem, patient: initialPatient } = route.params;
   const user = useAuthStore((s) => s.user);
   const getPatientById = usePatientStore((s) => s.getPatientById);
+  const toast = useToast();
 
   const {
     currentDraft,
@@ -206,15 +208,15 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const handlePreview = async () => {
     const symptoms = currentDraft.symptoms || [];
     if (symptoms.length === 0 && !currentDraft.diagnosis) {
-      Alert.alert(t('common.required'), 'Please select at least one symptom.');
+      toast.warning('Please select at least one symptom.');
       return;
     }
     if (currentDraft.medicines.length === 0 && currentDraft.labTests.length === 0) {
-      Alert.alert('Empty Prescription', t('consult.needMedOrTest'));
+      toast.warning(t('consult.needMedOrTest'));
       return;
     }
     if (!user?.id) {
-      Alert.alert(t('common.error'), 'Doctor session not found. Please re-login.');
+      toast.error('Doctor session not found. Please re-login.');
       return;
     }
 
@@ -224,7 +226,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
       navigation.navigate('PrescriptionPreview', { prescriptionId: prescription.id });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to create prescription';
-      Alert.alert(t('common.error'), message);
+      toast.error(message);
     } finally {
       setIsCreating(false);
     }
@@ -667,9 +669,9 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                     try {
                       await usePrescriptionStore.getState().saveTemplate(templateName.trim());
                       setTemplateName('');
-                      Alert.alert('Success', 'Template saved!');
+                      toast.success('Template saved!');
                     } catch (e: any) {
-                      Alert.alert('Error', e.message || 'Failed to save template');
+                      toast.error(e.message || 'Failed to save template');
                     }
                   }}
                 >

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { usePatientStore } from '../../store/usePatientStore';
 import { Gender, BLOOD_GROUPS } from '../../types/patient.types';
 import type { PatientFormData } from '../../types/patient.types';
+import PageLoader from '../../components/PageLoader';
 import '../auth/auth.css';
 import '../pages.css';
 
@@ -64,7 +65,7 @@ export default function PatientFormPage() {
     }
   };
 
-  if (isLoading) return <div>Loading...</div>;
+  if (isLoading) return <PageLoader />;
 
   return (
     <div style={{ maxWidth: 560 }}>

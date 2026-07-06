@@ -26,12 +26,10 @@ function normalizeTransaction(t: Record<string, unknown>): Transaction {
   };
 }
 
-export async function fetchTransactions(): Promise<Transaction[]> {
-  // Backend GET /wallet/transactions returns the full unpaginated list —
-  // no limit/offset params are accepted.
-  const response = await api.get('/wallet/transactions');
+export async function fetchTransactions(limit = 50, offset = 0): Promise<{ transactions: Transaction[]; total: number }> {
+  const response = await api.get('/wallet/transactions', { params: { limit, offset } });
   const raw: Record<string, unknown>[] = response.data.transactions ?? [];
-  return raw.map(normalizeTransaction);
+  return { transactions: raw.map(normalizeTransaction), total: response.data.total ?? raw.length };
 }
 
 export async function recordConsultationPayment(prescriptionId: string, amount: number, method: 'cash' | 'online'): Promise<void> {

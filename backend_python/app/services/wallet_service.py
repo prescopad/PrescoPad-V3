@@ -147,16 +147,17 @@ async def refund(
     return serialize_doc(result)
 
 
-async def get_transactions(user_id: str) -> list:
+async def get_transactions(user_id: str, limit: int = 50, offset: int = 0) -> dict:
     db = get_db()
     wallet = await db.wallets.find_one({"user_id": user_id})
     if not wallet:
-        return []
+        return {"total": 0, "transactions": []}
     # Backward-compat: older transactions stored wallet_id as a string.
-    cursor = db.transactions.find(
-        {"$or": [{"wallet_id": wallet["_id"]}, {"wallet_id": str(wallet["_id"])}]}
-    ).sort("created_at", -1)
-    return [serialize_doc(t) async for t in cursor]
+    query = {"$or": [{"wallet_id": wallet["_id"]}, {"wallet_id": str(wallet["_id"])}]}
+    total = await db.transactions.count_documents(query)
+    cursor = db.transactions.find(query).sort("created_at", -1).skip(offset).limit(limit)
+    items = [serialize_doc(t) async for t in cursor]
+    return {"total": total, "transactions": items}
 
 
 async def record_consultation_payment(
