@@ -68,7 +68,7 @@ export default function PatientFormPage() {
   if (isLoading) return <PageLoader />;
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">{isEdit ? 'Edit Patient' : 'Add Patient'}</div>
       </div>

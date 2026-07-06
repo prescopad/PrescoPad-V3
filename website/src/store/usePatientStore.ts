@@ -8,6 +8,7 @@ interface PatientStore {
   patients: Patient[];
   patientsTotal: number;
   searchResults: Patient[];
+  searchTotal: number;
   selectedPatient: Patient | null;
   isLoading: boolean;
   isLoadingMore: boolean;
@@ -28,6 +29,7 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
   patients: [],
   patientsTotal: 0,
   searchResults: [],
+  searchTotal: 0,
   selectedPatient: null,
   isLoading: false,
   isLoadingMore: false,
@@ -57,14 +59,14 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
 
   searchPatients: async (query: string) => {
     if (!query.trim()) {
-      set({ searchResults: [] });
+      set({ searchResults: [], searchTotal: 0 });
       return;
     }
     try {
-      const searchResults = await DataService.getPatients(query);
-      set({ searchResults: [...searchResults].sort((a, b) => a.name.localeCompare(b.name)) });
+      const { patients: searchResults, total } = await DataService.getPatientsPage(query, 100, 0);
+      set({ searchResults: [...searchResults].sort((a, b) => a.name.localeCompare(b.name)), searchTotal: total });
     } catch {
-      set({ searchResults: [] });
+      set({ searchResults: [], searchTotal: 0 });
     }
   },
 
@@ -90,6 +92,6 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
     return DataService.getPatientById(id);
   },
 
-  clearSearch: () => set({ searchResults: [] }),
+  clearSearch: () => set({ searchResults: [], searchTotal: 0 }),
   clearError: () => set({ lastError: null }),
 }));

@@ -23,7 +23,10 @@ export default function AppShell() {
     <div className="app-shell">
       {/* Mobile Top Header */}
       <header className="mobile-header">
-        <span className="mobile-brand">PrescoPad</span>
+        <span className="mobile-brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          PrescoPad
+        </span>
         <button
           type="button"
           className="mobile-menu-btn"
@@ -39,7 +42,10 @@ export default function AppShell() {
       </header>
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-brand">PrescoPad</div>
+        <div className="sidebar-brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          PrescoPad
+        </div>
         <nav className="sidebar-nav">
           <NavLink to="/queue" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
             Queue

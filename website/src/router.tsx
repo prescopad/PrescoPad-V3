@@ -30,14 +30,14 @@ import AdminClinicsPage from './pages/admin/AdminClinicsPage';
 import AdminPatientsPage from './pages/admin/AdminPatientsPage';
 import AdminRevenuePage from './pages/admin/AdminRevenuePage';
 import NotFoundPage from './pages/NotFoundPage';
-import PageLoader from './components/PageLoader';
+import AppSkeleton from './components/AppSkeleton';
 
 function RequireAuth() {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   useDoctorHeartbeat();
 
   if (isLoading) {
-    return <PageLoader fullScreen />;
+    return <AppSkeleton />;
   }
 
   if (!isAuthenticated || !user?.isProfileComplete) {

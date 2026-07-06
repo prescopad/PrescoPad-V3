@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import Skeleton from '../../components/Skeleton';
 import { usePatientStore } from '../../store/usePatientStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -206,8 +207,16 @@ export default function PatientSearchScreen({ route }: { route?: ScreenRouteProp
   const renderEmptyState = () => {
     if (isLoading || loadingRecent) {
       return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+        <View style={styles.listContent}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <View key={i} style={styles.patientCard}>
+              <Skeleton width={44} height={44} radius={22} />
+              <View style={{ flex: 1, marginLeft: SPACING.md, gap: 6 }}>
+                <Skeleton width="60%" height={14} />
+                <Skeleton width="40%" height={12} />
+              </View>
+            </View>
+          ))}
         </View>
       );
     }

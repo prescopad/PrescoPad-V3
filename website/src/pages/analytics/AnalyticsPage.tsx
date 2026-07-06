@@ -15,16 +15,22 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<TimePeriod>('today');
   const [analytics, setAnalytics] = useState<ComprehensiveAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     setIsLoading(true);
+    setError(null);
     getAnalytics(period)
       .then(setAnalytics)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'Failed to load analytics.');
+      })
       .finally(() => setIsLoading(false));
-  }, [period]);
+  }, [period, reloadKey]);
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Analytics</div>
       </div>
@@ -37,8 +43,15 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      {isLoading || !analytics ? (
-        <PageLoader />
+      {error ? (
+        <div className="empty-state">
+          <div style={{ marginBottom: 12 }}>{error}</div>
+          <button type="button" className="primary-btn" onClick={() => setReloadKey((k) => k + 1)}>
+            Retry
+          </button>
+        </div>
+      ) : isLoading || !analytics ? (
+        <PageLoader label="Loading analytics — this can take a little longer if the server is waking up..." />
       ) : (
         <>
           <div className="stat-row">

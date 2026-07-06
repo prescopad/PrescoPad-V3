@@ -1,3 +1,11 @@
+.page-container {
+  max-width: 1200px;
+}
+
+.page-container-narrow {
+  max-width: 720px;
+}
+
 .page-header {
   display: flex;
   align-items: center;

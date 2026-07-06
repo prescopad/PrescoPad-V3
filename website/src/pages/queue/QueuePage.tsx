@@ -6,6 +6,7 @@ import type { QueueItem } from '../../types/queue.types';
 import { COLORS } from '../../theme';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 
 type Tab = 'all' | 'waiting' | 'in_progress' | 'completed';
@@ -74,7 +75,7 @@ export default function QueuePage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div>
           <div className="page-title">Today's Queue</div>
@@ -136,7 +137,7 @@ export default function QueuePage() {
               </span>
               {item.status === QueueStatus.WAITING && (
                 <button type="button" className="icon-btn" onClick={(e) => handleRemove(e, item)} title="Remove from queue">
-                  ✕
+                  <CloseIcon size={14} />
                 </button>
               )}
             </div>

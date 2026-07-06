@@ -11,7 +11,7 @@ export default function PatientsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const user = useAuthStore((s) => s.user);
-  const { patients, patientsTotal, isLoadingMore, searchResults, lastError, loadPatients, loadMorePatients, searchPatients, clearSearch, clearError } = usePatientStore();
+  const { patients, patientsTotal, isLoadingMore, searchResults, searchTotal, lastError, loadPatients, loadMorePatients, searchPatients, clearSearch, clearError } = usePatientStore();
   const addToQueue = useQueueStore((s) => s.addToQueue);
   const [query, setQuery] = useState('');
   
@@ -63,7 +63,7 @@ export default function PatientsPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div>
           <div className="page-title">Patients</div>
@@ -83,6 +83,12 @@ export default function PatientsPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+
+      {query.trim() && searchTotal > list.length && (
+        <div className="page-subtitle" style={{ marginBottom: 12 }}>
+          Showing first {list.length} of {searchTotal} matches — refine your search to narrow results.
+        </div>
+      )}
 
       <div className="card-list">
         {list.length === 0 && <div className="empty-state">No patients found</div>}

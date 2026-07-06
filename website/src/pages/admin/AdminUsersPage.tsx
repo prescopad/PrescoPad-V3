@@ -3,6 +3,7 @@ import { fetchAdminUsers, setAdminUserActive, deleteAdminUser } from '../../api/
 import type { AdminUser } from '../../api/adminService';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
 import { useToast } from '../../components/toast/ToastContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 
 const PAGE_SIZE = 50;
@@ -65,7 +66,7 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Users</div>
       </div>
@@ -95,7 +96,7 @@ export default function AdminUsersPage() {
                   {active ? 'Active' : 'Disabled'}
                 </span>
                 <button className="secondary-btn" onClick={() => handleToggleActive(u)}>{active ? 'Disable' : 'Enable'}</button>
-                <button className="icon-btn" onClick={() => handleDelete(u)}>✕</button>
+                <button className="icon-btn" onClick={() => handleDelete(u)}><CloseIcon size={14} /></button>
               </div>
             </div>
           );

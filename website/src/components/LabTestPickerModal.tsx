@@ -4,6 +4,7 @@ import type { LabTest } from '../types/medicine.types';
 import type { PrescriptionLabTest } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
 import { useToast } from './toast/ToastContext';
+import { CloseIcon, CheckIcon } from './icons';
 import './modal.css';
 
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -69,7 +70,7 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">Add Lab Tests</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
         </div>
         <div className="modal-body">
           <input
@@ -97,7 +98,7 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
                   <div style={{ fontWeight: 600 }}>{t.name}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{t.category}</div>
                 </div>
-                {selected.has(t.id) && <span>✓</span>}
+                {selected.has(t.id) && <CheckIcon size={14} />}
               </div>
             ))}
             {!showCustomForm && (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CloseIcon } from './icons';
 import './modal.css';
 
 interface Props {
@@ -25,7 +26,7 @@ export default function ConsultTypeModal({ isOpen, patientName, onClose, onConfi
       <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
         <div className="modal-header">
           <div className="modal-title">Consultation Type</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

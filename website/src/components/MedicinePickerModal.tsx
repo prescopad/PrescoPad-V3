@@ -10,6 +10,7 @@ import type { Medicine } from '../types/medicine.types';
 import type { PrescriptionMedicine } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
 import { useToast } from './toast/ToastContext';
+import { CloseIcon } from './icons';
 import './modal.css';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
@@ -105,7 +106,7 @@ export default function MedicinePickerModal({ onClose, onAdd }: Props) {
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">Add Medicine</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
         </div>
         <div className="modal-body">
           {!category && (

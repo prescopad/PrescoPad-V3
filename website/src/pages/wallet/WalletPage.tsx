@@ -56,7 +56,7 @@ export default function WalletPage() {
   };
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">Wallet</div>
       </div>

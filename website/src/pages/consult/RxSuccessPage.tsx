@@ -59,7 +59,11 @@ export default function RxSuccessPage() {
   return (
     <div className="success-container">
       <div className="success-circle">
-        <div className="success-inner-circle">✓</div>
+        <div className="success-inner-circle">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </div>
       </div>
 
       <h1 className="success-title">Prescription Issued</h1>
@@ -77,7 +81,13 @@ export default function RxSuccessPage() {
       )}
 
       <div className="success-balance-card">
-        <div className="success-balance-icon">💰</div>
+        <div className="success-balance-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" />
+            <path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2" />
+            <circle cx="16" cy="14" r="2" />
+          </svg>
+        </div>
         <div className="success-balance-info">
           <span className="success-balance-label">Wallet Balance Updated</span>
           <strong className="success-balance-amount">₹{balance.toFixed(2)}</strong>

@@ -18,7 +18,9 @@ export const APP_CONFIG = {
 
   api: {
     baseUrl: resolveBackendUrl(),
-    timeout: 10000,
+    // Generous timeout to tolerate the hosted backend's cold starts (Render
+    // free tier can take 30s+ to wake from idle) rather than failing fast.
+    timeout: 30000,
   },
 
   wallet: {

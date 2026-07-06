@@ -7,6 +7,7 @@ import type { Patient } from '../../types/patient.types';
 import MedicinePickerModal from '../../components/MedicinePickerModal';
 import LabTestPickerModal from '../../components/LabTestPickerModal';
 import { useToast } from '../../components/toast/ToastContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 import '../auth/auth.css';
 
@@ -98,7 +99,7 @@ export default function ConsultWorkspace() {
   };
 
   return (
-    <div style={{ maxWidth: 760 }}>
+    <div className="page-container">
       <div className="page-header">
         <button className="secondary-btn" onClick={handleBack}>← Back to queue</button>
       </div>
@@ -111,8 +112,13 @@ export default function ConsultWorkspace() {
             {patient.weight ? ` · ${patient.weight} kg` : ''}
           </div>
           {patient.allergies && !['no', 'none', 'n/a', 'nil', '-'].includes(patient.allergies.toLowerCase().trim()) && (
-            <div style={{ color: 'var(--color-error)', fontSize: '0.8125rem', marginTop: 4 }}>
-              ⚠ Allergies: {patient.allergies}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--color-error)', fontSize: '0.8125rem', marginTop: 4 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Allergies: {patient.allergies}
             </div>
           )}
         </div>
@@ -162,7 +168,7 @@ export default function ConsultWorkspace() {
                 <div className="item-meta">{m.type}{m.dosage ? ` · ${m.dosage}` : ''}</div>
                 <div className="item-meta">{[m.frequency, m.duration, m.timing].filter(Boolean).join(' · ')}</div>
               </div>
-              <button className="icon-btn" onClick={() => removeMedicine(i)}>✕</button>
+              <button className="icon-btn" onClick={() => removeMedicine(i)}><CloseIcon size={14} /></button>
             </div>
           ))}
         </div>
@@ -180,7 +186,7 @@ export default function ConsultWorkspace() {
                 <div className="item-name">{t.testName}</div>
                 <div className="item-meta">{t.category}</div>
               </div>
-              <button className="icon-btn" onClick={() => removeLabTest(i)}>✕</button>
+              <button className="icon-btn" onClick={() => removeLabTest(i)}><CloseIcon size={14} /></button>
             </div>
           ))}
         </div>

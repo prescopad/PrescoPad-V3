@@ -4,6 +4,7 @@ import { MedicineType, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import type { Medicine, LabTest } from '../../types/medicine.types';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
@@ -96,7 +97,7 @@ export default function MedicineTestManagementPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Medicines & Tests</div>
         <button className="primary-btn" onClick={() => { resetForm(); setShowAddModal(true); }}>+ Add</button>
@@ -123,7 +124,7 @@ export default function MedicineTestManagementPage() {
                 <div className="item-name">{m.name}</div>
                 <div className="item-meta">{m.type}{m.strength ? ` · ${m.strength}` : ''}</div>
               </div>
-              <button className="icon-btn" onClick={() => handleDelete(m.id)}>✕</button>
+              <button className="icon-btn" onClick={() => handleDelete(m.id)}><CloseIcon size={14} /></button>
             </div>
           ))
         ) : (
@@ -133,7 +134,7 @@ export default function MedicineTestManagementPage() {
                 <div className="item-name">{t.name}</div>
                 <div className="item-meta">{t.category}</div>
               </div>
-              <button className="icon-btn" onClick={() => handleDelete(t.id)}>✕</button>
+              <button className="icon-btn" onClick={() => handleDelete(t.id)}><CloseIcon size={14} /></button>
             </div>
           ))
         )}
@@ -144,7 +145,7 @@ export default function MedicineTestManagementPage() {
           <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="modal-header">
               <div className="modal-title">Add {tab === 'medicines' ? 'Medicine' : 'Test'}</div>
-              <button className="modal-close" onClick={() => setShowAddModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowAddModal(false)}><CloseIcon /></button>
             </div>
             <div className="modal-body">
               <label className="auth-label">Name</label>

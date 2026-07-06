@@ -21,8 +21,9 @@ export default function PatientDetailPage() {
 
   const [patient, setPatient] = useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQueueSubmitting, setIsQueueSubmitting] = useState(false);
 
@@ -63,7 +64,7 @@ export default function PatientDetailPage() {
   if (!patient) return <div>Patient not found.</div>;
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div>
           <div className="page-title">{patient.name}</div>
@@ -101,7 +102,7 @@ export default function PatientDetailPage() {
       </div>
       <div className="card-list">
         {prescriptions.length === 0 && <div className="empty-state">No past prescriptions</div>}
-        {prescriptions.map((rx) => (
+        {prescriptions.slice(0, visibleCount).map((rx) => (
           <div key={rx.id} className="item-card" onClick={() => navigate(`/prescriptions/${rx.id}`)}>
             <div>
               <div className="item-name">{rx.diagnosis || 'Consultation'}</div>
@@ -116,6 +117,16 @@ export default function PatientDetailPage() {
           </div>
         ))}
       </div>
+      {visibleCount < prescriptions.length && (
+        <button
+          type="button"
+          className="secondary-btn"
+          style={{ marginTop: 12, width: '100%' }}
+          onClick={() => setVisibleCount((c) => c + 20)}
+        >
+          Load more
+        </button>
+      )}
 
       <ConsultTypeModal
         isOpen={isModalOpen}

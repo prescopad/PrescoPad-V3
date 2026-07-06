@@ -1,0 +1,58 @@
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-secondary) 25%,
+    var(--color-border-light) 37%,
+    var(--color-surface-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.app-skeleton {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-skeleton-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-skeleton-content {
+  flex: 1;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-skeleton-row {
+  display: flex;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .app-skeleton-sidebar {
+    display: none;
+  }
+
+  .app-skeleton-content {
+    padding: 16px 12px;
+  }
+}

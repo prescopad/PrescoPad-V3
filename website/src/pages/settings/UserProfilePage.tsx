@@ -44,7 +44,7 @@ export default function UserProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: 480 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">My Profile</div>
       </div>

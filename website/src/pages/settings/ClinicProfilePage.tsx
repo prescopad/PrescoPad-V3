@@ -4,6 +4,7 @@ import { useIsDoctor } from '../../store/useAuthStore';
 import SignaturePad from '../../components/SignaturePad';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
@@ -123,7 +124,7 @@ export default function ClinicProfilePage() {
   };
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">Clinic Profile</div>
       </div>
@@ -248,7 +249,7 @@ export default function ClinicProfilePage() {
           <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
             <div className="modal-header">
               <div className="modal-title">Draw your signature</div>
-              <button className="modal-close" onClick={() => setShowSignaturePad(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowSignaturePad(false)}><CloseIcon /></button>
             </div>
             <div className="modal-body">
               <SignaturePad onConfirm={handleSaveSignature} onCancel={() => setShowSignaturePad(false)} />

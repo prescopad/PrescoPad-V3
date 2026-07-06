@@ -23,6 +23,7 @@ import { Transaction, TransactionType } from '../../types/wallet.types';
 import * as walletService from '../../services/walletService';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
 import { useToast } from '../../components/Toast/ToastContext';
+import Skeleton from '../../components/Skeleton';
 
 const RECHARGE_OPTIONS = [100, 500, 1000];
 
@@ -154,8 +155,19 @@ export default function WalletScreen({ navigation }: WalletScreenProps): React.J
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.backBtn} />
+          <Skeleton width={100} height={18} />
+          <View style={styles.headerSpacer} />
+        </View>
+        <View style={{ padding: SPACING.lg, gap: SPACING.lg }}>
+          <Skeleton height={100} radius={RADIUS.lg} />
+          <Skeleton height={140} radius={RADIUS.lg} />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={56} radius={RADIUS.md} />
+          ))}
+        </View>
       </View>
     );
   }

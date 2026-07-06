@@ -2,20 +2,43 @@ import { useEffect, useState } from 'react';
 import * as DataService from '../../api/dataService';
 import type { Patient } from '../../types/patient.types';
 import PageLoader from '../../components/PageLoader';
+import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
+const PAGE_SIZE = 50;
+
 export default function CasebookPage() {
+  const toast = useToast();
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [total, setTotal] = useState(0);
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
-    DataService.getPatients().then((p) => {
-      setPatients(p);
-      setIsLoading(false);
-    });
+    DataService.getPatientsPage(undefined, PAGE_SIZE, 0)
+      .then(({ patients: p, total: t }) => {
+        setPatients(p);
+        setTotal(t);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load patients'))
+      .finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadMore = async () => {
+    setIsLoadingMore(true);
+    try {
+      const { patients: more, total: t } = await DataService.getPatientsPage(undefined, PAGE_SIZE, patients.length);
+      setPatients((prev) => [...prev, ...more]);
+      setTotal(t);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load more patients');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   const filtered = query.trim()
     ? patients.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
@@ -27,7 +50,7 @@ export default function CasebookPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div>
           <div className="page-title">Casebook</div>
@@ -82,6 +105,11 @@ export default function CasebookPage() {
             );
           })}
         </div>
+      )}
+      {!isLoading && !query.trim() && patients.length < total && (
+        <button type="button" className="secondary-btn" style={{ marginTop: 12, width: '100%' }} disabled={isLoadingMore} onClick={loadMore}>
+          {isLoadingMore ? 'Loading...' : 'Load more'}
+        </button>
       )}
     </div>
   );

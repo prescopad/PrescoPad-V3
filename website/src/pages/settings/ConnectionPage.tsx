@@ -4,6 +4,7 @@ import * as ConnectionService from '../../api/connectionService';
 import type { ConnectionRequest, TeamMember, ClinicListItem, DoctorListItem } from '../../types/connection.types';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 import '../auth/auth.css';
 
@@ -93,7 +94,7 @@ export default function ConnectionPage() {
   };
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">Connection</div>
       </div>
@@ -126,7 +127,7 @@ export default function ConnectionPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button className="secondary-btn" onClick={() => handleAccept(r.id)}>Accept</button>
-                      <button className="icon-btn" onClick={() => handleReject(r.id)}>✕</button>
+                      <button className="icon-btn" onClick={() => handleReject(r.id)}><CloseIcon size={14} /></button>
                     </div>
                   </div>
                 ))}
@@ -144,7 +145,7 @@ export default function ConnectionPage() {
                     <div className="item-name">{m.name}</div>
                     <div className="item-meta">{m.phone}</div>
                   </div>
-                  <button className="icon-btn" onClick={() => handleDisconnect(m.id)}>✕</button>
+                  <button className="icon-btn" onClick={() => handleDisconnect(m.id)}><CloseIcon size={14} /></button>
                 </div>
               ))}
             </div>

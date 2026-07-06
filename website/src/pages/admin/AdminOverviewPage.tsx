@@ -15,7 +15,7 @@ export default function AdminOverviewPage() {
   if (!data) return <PageLoader />;
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Platform Overview</div>
       </div>

@@ -19,7 +19,7 @@ export default function AdminRevenuePage() {
   }, [period]);
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Revenue</div>
       </div>

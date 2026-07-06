@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CloseIcon } from '../icons';
 import '../modal.css';
 import './confirm.css';
 
@@ -42,7 +43,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <div className="modal-header">
               <span className="modal-title">{pending.title}</span>
               <button type="button" className="modal-close" onClick={() => close(false)} aria-label="Close">
-                ✕
+                <CloseIcon />
               </button>
             </div>
             <div className="modal-body">

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { CloseIcon } from '../icons';
 import './toast.css';
 
 type ToastType = 'success' | 'error' | 'warning';
@@ -52,7 +53,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div key={t.id} className={`toast toast-${t.type}`}>
             <span className="toast-message">{t.message}</span>
             <button type="button" className="toast-close" onClick={() => dismiss(t.id)} aria-label="Dismiss">
-              ✕
+              <CloseIcon size={14} />
             </button>
           </div>
         ))}

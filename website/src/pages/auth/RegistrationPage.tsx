@@ -63,6 +63,10 @@ export default function RegistrationPage() {
 
   return (
     <div className="auth-page">
+      <div className="auth-wordmark">
+        <img src="/logo.png" alt="" />
+        <span>PrescoPad</span>
+      </div>
       <div className="auth-card" style={{ maxWidth: 520 }}>
         <div className="auth-title">Complete your profile</div>
         <div className="auth-subtitle">

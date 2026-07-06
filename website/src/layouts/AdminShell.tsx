@@ -19,7 +19,10 @@ export default function AdminShell() {
     <div className="app-shell">
       {/* Mobile Top Header */}
       <header className="mobile-header">
-        <span className="mobile-brand">PrescoPad Admin</span>
+        <span className="mobile-brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          PrescoPad Admin
+        </span>
         <button
           type="button"
           className="mobile-menu-btn"
@@ -35,7 +38,10 @@ export default function AdminShell() {
       </header>
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-brand">PrescoPad Admin</div>
+        <div className="sidebar-brand">
+          <img src="/logo.png" alt="" className="brand-logo" />
+          PrescoPad Admin
+        </div>
         <nav className="sidebar-nav">
           <NavLink to="/admin/overview" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>Overview</NavLink>
           <NavLink to="/admin/users" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>Users</NavLink>

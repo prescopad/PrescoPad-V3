@@ -3,6 +3,7 @@ import { fetchAdminClinics, deleteAdminClinic } from '../../api/adminService';
 import type { AdminClinic } from '../../api/adminService';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
 import { useToast } from '../../components/toast/ToastContext';
+import { CloseIcon } from '../../components/icons';
 import '../pages.css';
 
 const PAGE_SIZE = 50;
@@ -54,7 +55,7 @@ export default function AdminClinicsPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Clinics</div>
       </div>
@@ -69,7 +70,7 @@ export default function AdminClinicsPage() {
               <div className="item-name">{c.name}</div>
               <div className="item-meta">{c.address} · {c.doctorCount} doctors · {c.assistantCount} assistants · {c.prescriptionCount} Rx</div>
             </div>
-            <button className="icon-btn" onClick={() => handleDelete(c)}>✕</button>
+            <button className="icon-btn" onClick={() => handleDelete(c)}><CloseIcon size={14} /></button>
           </div>
         ))}
       </div>

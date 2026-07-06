@@ -75,6 +75,10 @@ export default function OTPPage() {
 
   return (
     <div className="auth-page">
+      <div className="auth-wordmark">
+        <img src="/logo.png" alt="" />
+        <span>PrescoPad</span>
+      </div>
       <div className="auth-card">
         <div className="auth-title">Verify OTP</div>
         <div className="auth-subtitle">Enter the 6-digit code sent to +91 {phone}</div>

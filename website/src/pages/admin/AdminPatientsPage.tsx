@@ -40,7 +40,7 @@ export default function AdminPatientsPage() {
   };
 
   return (
-    <div>
+    <div className="page-container">
       <div className="page-header">
         <div className="page-title">Patients</div>
       </div>

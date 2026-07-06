@@ -17,7 +17,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 560 }}>
+    <div className="page-container-narrow">
       <div className="page-header">
         <div className="page-title">Settings</div>
       </div>
