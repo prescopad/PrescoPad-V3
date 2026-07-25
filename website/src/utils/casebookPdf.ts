@@ -1,0 +1,149 @@
+import { PDFDocument, rgb, StandardFonts, type PDFFont } from "pdf-lib";
+
+const PAGE_WIDTH = 595.27;
+const PAGE_HEIGHT = 841.89;
+const MARGIN = 50;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+
+const COLORS = {
+  tealPrimary: rgb(0x0b / 255, 0x6e / 255, 0x6e / 255),
+  tealLight: rgb(0xf0 / 255, 0xf7 / 255, 0xf7 / 255),
+  textPrimary: rgb(0x11 / 255, 0x18 / 255, 0x27 / 255),
+  textMuted: rgb(0x6b / 255, 0x72 / 255, 0x80 / 255),
+  textFaint: rgb(0x9c / 255, 0xa3 / 255, 0xaf / 255),
+  gridLine: rgb(0xe5 / 255, 0xe7 / 255, 0xeb / 255),
+};
+
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(trial, size) > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = trial;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+}
+
+export interface CasebookVisit {
+  date: string;
+  diagnosis?: string;
+  medicines: string[];
+  referredTo?: string;
+  followUpDate?: string;
+}
+
+export interface CasebookPdfInput {
+  clinicName: string;
+  patientName: string;
+  patientAge?: number | string;
+  patientGender?: string;
+  bloodGroup?: string;
+  allergies?: string;
+  caseSummary?: string;
+  visits?: CasebookVisit[];
+  logoPngBytes?: Uint8Array;
+}
+
+export async function renderCasebookPdf(input: CasebookPdfInput): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Case Summary - ${input.patientName}`);
+  doc.setCreator("PrescoPad");
+
+  let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  let y = PAGE_HEIGHT - MARGIN;
+
+  const newPageIfNeeded = (needed: number) => {
+    if (y - needed < MARGIN + 40) {
+      page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      y = PAGE_HEIGHT - MARGIN;
+    }
+  };
+
+  if (input.logoPngBytes) {
+    try {
+      const logoImage = await doc.embedPng(input.logoPngBytes);
+      const scaled = logoImage.scaleToFit(44, 44);
+      page.drawImage(logoImage, { x: MARGIN, y: y - scaled.height, width: scaled.width, height: scaled.height });
+    } catch {
+      // Skip
+    }
+  }
+  y -= 50;
+
+  page.drawText("Case Summary", { x: MARGIN, y, size: 20, font: fontBold, color: COLORS.tealPrimary });
+  y -= 20;
+  page.drawText(input.clinicName, { x: MARGIN, y, size: 11, font: fontRegular, color: COLORS.textMuted });
+  y -= 20;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 2, color: COLORS.tealPrimary });
+  y -= 20;
+
+  page.drawText("Patient Information", { x: MARGIN, y, size: 12, font: fontBold, color: COLORS.tealPrimary });
+  y -= 16;
+  const infoLine = `${input.patientName}   |   Age: ${input.patientAge ?? "-"}   |   Gender: ${input.patientGender ?? "-"}${input.bloodGroup ? `   |   Blood Group: ${input.bloodGroup}` : ""}`;
+  page.drawText(infoLine, { x: MARGIN, y, size: 10, font: fontRegular, color: COLORS.textPrimary });
+  y -= 14;
+
+  if (input.allergies) {
+    page.drawText(`Known Allergies: ${input.allergies}`, { x: MARGIN, y, size: 10, font: fontRegular, color: COLORS.textMuted });
+    y -= 16;
+  } else {
+    y -= 4;
+  }
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.5, color: COLORS.gridLine });
+  y -= 16;
+
+  if (input.caseSummary) {
+    page.drawText("Clinical Overview", { x: MARGIN, y, size: 12, font: fontBold, color: COLORS.tealPrimary });
+    y -= 16;
+    const lines = wrapText(input.caseSummary, fontRegular, 10, CONTENT_WIDTH);
+    for (const line of lines) {
+      newPageIfNeeded(14);
+      page.drawText(line, { x: MARGIN, y, size: 10, font: fontRegular, color: COLORS.textPrimary });
+      y -= 14;
+    }
+    y -= 10;
+  }
+
+  if (input.visits?.length) {
+    newPageIfNeeded(30);
+    page.drawText("Visit History", { x: MARGIN, y, size: 12, font: fontBold, color: COLORS.tealPrimary });
+    y -= 16;
+
+    for (const v of input.visits) {
+      newPageIfNeeded(40);
+      page.drawText(v.date, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+      if (v.diagnosis) {
+        page.drawText(`Diagnosis: ${v.diagnosis}`, { x: MARGIN + 120, y, size: 10, font: fontRegular, color: COLORS.textPrimary });
+      }
+      y -= 14;
+
+      if (v.medicines.length) {
+        for (const m of v.medicines) {
+          newPageIfNeeded(14);
+          page.drawText(`- ${m}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+          y -= 13;
+        }
+      }
+      y -= 8;
+    }
+  }
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.5, color: COLORS.gridLine });
+  y -= 16;
+  const footerText = "Generated by PrescoPad AI Casebook Engine";
+  page.drawText(footerText, { x: MARGIN, y, size: 8, font: fontRegular, color: COLORS.textFaint });
+
+  return doc.save();
+}

@@ -3,6 +3,7 @@ import type { Prescription } from '../types/prescription.types';
 import { useClinicStore } from '../store/useClinicStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getShareToken, downloadPrescriptionPdf } from '../api/dataService';
+import { printPrescriptionClient, downloadPrescriptionClient } from '../utils/clientPdfUtil';
 import { supabase } from '../api/supabase';
 import { useToast } from './toast/ToastContext';
 import './prescriptionActions.css';
@@ -83,8 +84,9 @@ export default function PrescriptionActions({ prescription }: Props) {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to download PDF.');
+    } catch {
+      // Edge Function unavailable — fallback seamlessly to official pdf-lib renderer
+      await downloadPrescriptionClient(prescription, clinic, doctorProfile);
     } finally {
       setBusy(null);
     }
@@ -97,8 +99,9 @@ export default function PrescriptionActions({ prescription }: Props) {
       const blob = await downloadPrescriptionPdf(prescription.id);
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to load PDF for printing.');
+    } catch {
+      // Edge Function unavailable — fallback seamlessly to instant client print/PDF generator
+      printPrescriptionClient(prescription, clinic, doctorProfile);
     } finally {
       setBusy(null);
     }

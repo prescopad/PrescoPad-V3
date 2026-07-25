@@ -152,6 +152,42 @@
   transform: translateY(-1px);
 }
 
+.item-card-setting {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.setting-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-lg);
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setting-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-chevron {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.item-card:hover .setting-chevron {
+  transform: translateX(3px);
+  color: var(--color-primary);
+}
+
 .item-card:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as DataService from '../../api/dataService';
 import { downloadCasebookPdf } from '../../api/casebookService';
+import { printCasebookClient } from '../../utils/clientPdfUtil';
 import type { Patient } from '../../types/patient.types';
 import PageLoader from '../../components/PageLoader';
 import { useToast } from '../../components/toast/ToastContext';
@@ -63,8 +64,9 @@ export default function CasebookPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to download casebook PDF.');
+    } catch {
+      // Edge Function unavailable — fallback seamlessly to instant client print/PDF generator
+      printCasebookClient(patient);
     } finally {
       setDownloadingId(null);
     }
