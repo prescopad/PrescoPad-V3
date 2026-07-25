@@ -36,7 +36,22 @@ export function useDoctorStatus(): DoctorStatus[] {
 
     load();
     const interval = setInterval(load, APP_CONFIG.polling.doctorStatusIntervalMs);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('presence_status_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'presence' },
+        () => {
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [isAssistant]);
 
   return doctors;

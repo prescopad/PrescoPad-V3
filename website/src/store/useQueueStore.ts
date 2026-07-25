@@ -3,6 +3,9 @@ import { QueueStatus } from '../types/queue.types';
 import type { QueueItem } from '../types/queue.types';
 import * as DataService from '../api/dataService';
 import { APP_CONFIG } from '../constants/config';
+import { supabase } from '../api/supabase';
+import { useAuthStore } from './useAuthStore';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface QueueFilter {
   status?: string;
@@ -17,11 +20,14 @@ interface QueueStore {
   isLoading: boolean;
   doctorReady: boolean;
   pollInterval: ReturnType<typeof setInterval> | null;
+  realtimeChannel: RealtimeChannel | null;
   filter: QueueFilter;
   lastError: string | null;
 
   loadQueue: () => Promise<void>;
   loadStats: () => Promise<void>;
+  loadQueueFiltered: (filter?: QueueFilter) => Promise<void>;
+  loadStatsFiltered: (todayOnly?: boolean, date?: string) => Promise<void>;
   setFilter: (filter: QueueFilter) => void;
   addToQueue: (patientId: string, addedBy: string, notes?: string, consultationType?: 'new' | 'follow_up') => Promise<QueueItem>;
   startConsult: (queueItemId: string) => Promise<void>;
@@ -42,6 +48,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   isLoading: false,
   doctorReady: false,
   pollInterval: null,
+  realtimeChannel: null,
   filter: { todayOnly: true },
   lastError: null,
 
@@ -51,8 +58,6 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       const activeItem = queueItems.find((q) => q.status === QueueStatus.IN_PROGRESS) ?? null;
       set({ queueItems, activeItem });
     } catch (e) {
-      // Only surface an error when we have no existing data to fall back on —
-      // a failed background poll should stay silent, not spam the user.
       if (get().queueItems.length === 0) {
         set({ lastError: e instanceof Error ? e.message : 'Failed to load queue' });
       }
@@ -68,42 +73,70 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     }
   },
 
+  loadQueueFiltered: async (filterOverride) => {
+    try {
+      const f = filterOverride || get().filter;
+      const queueItems = await DataService.getQueueFiltered({
+        status: f.status,
+        todayOnly: f.todayOnly,
+        date: f.date,
+      });
+      const activeItem = queueItems.find((q) => q.status === QueueStatus.IN_PROGRESS) ?? null;
+      set({ queueItems, activeItem });
+    } catch (e) {
+      if (get().queueItems.length === 0) {
+        set({ lastError: e instanceof Error ? e.message : 'Failed to load queue' });
+      }
+    }
+  },
+
+  loadStatsFiltered: async (todayOnly, date) => {
+    try {
+      const t = todayOnly ?? get().filter.todayOnly;
+      const d = date ?? get().filter.date;
+      const stats = await DataService.getQueueStatsFiltered(t, d);
+      set({ stats });
+    } catch {
+      // keep existing stats on error
+    }
+  },
+
   setFilter: (filter) => {
     set({ filter });
-    get().loadQueue();
-    get().loadStats();
+    get().loadQueueFiltered(filter);
+    get().loadStatsFiltered(filter.todayOnly, filter.date);
   },
 
   addToQueue: async (patientId, addedBy, notes, consultationType) => {
     const item = await DataService.addToQueue(patientId, addedBy, notes, consultationType);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
     return item;
   },
 
   startConsult: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.IN_PROGRESS);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   completeConsult: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.COMPLETED);
     set({ activeItem: null });
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   cancelQueueItem: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.CANCELLED);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   removeFromQueue: async (queueItemId) => {
     await DataService.removeFromQueue(queueItemId);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   setDoctorReady: (ready) => set({ doctorReady: ready }),
@@ -115,21 +148,51 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   startPolling: () => {
     if (get().pollInterval) return;
-    get().loadQueue();
-    get().loadStats();
+
+    // Trigger initial load
+    get().loadQueueFiltered();
+    get().loadStatsFiltered();
+
+    // 1. Periodic Heartbeat / Fallback Polling
     const interval = setInterval(() => {
-      get().loadQueue();
-      get().loadStats();
+      get().loadQueueFiltered();
+      get().loadStatsFiltered();
     }, APP_CONFIG.polling.queueIntervalMs);
-    set({ pollInterval: interval });
+
+    // 2. Real-time Supabase WebSocket Subscription for Sub-Second Sync
+    let channel: RealtimeChannel | null = null;
+    const clinicId = useAuthStore.getState().user?.clinicId;
+    if (clinicId) {
+      channel = supabase
+        .channel(`web_queue_sync_${clinicId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'queue',
+            filter: `clinic_id=eq.${clinicId}`,
+          },
+          () => {
+            get().loadQueueFiltered();
+            get().loadStatsFiltered();
+          }
+        )
+        .subscribe();
+    }
+
+    set({ pollInterval: interval, realtimeChannel: channel });
   },
 
   stopPolling: () => {
-    const { pollInterval } = get();
+    const { pollInterval, realtimeChannel } = get();
     if (pollInterval) {
       clearInterval(pollInterval);
-      set({ pollInterval: null });
     }
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+    }
+    set({ pollInterval: null, realtimeChannel: null });
   },
 
   clearError: () => set({ lastError: null }),

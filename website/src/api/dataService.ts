@@ -354,6 +354,15 @@ export async function removeFromQueue(id: string): Promise<void> {
   throwOnError(error, 'Failed to remove from queue.');
 }
 
+export async function getQueueFiltered(options?: { status?: string; todayOnly?: boolean; date?: string; limit?: number; offset?: number }): Promise<QueueItem[]> {
+  return fetchQueue({ status: options?.status, date: options?.date, todayOnly: options?.todayOnly });
+}
+
+export async function getQueueStatsFiltered(todayOnly?: boolean, date?: string): Promise<{ total: number; waiting: number; inProgress: number; completed: number }> {
+  return computeStats(await fetchQueue({ todayOnly, date }));
+}
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PRESCRIPTIONS
 // ═══════════════════════════════════════════════════════════════════════════════

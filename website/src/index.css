@@ -1,46 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
 :root {
-  --color-primary: #0077b6;
-  --color-primary-dark: #005a8c;
-  --color-primary-light: #e0f7fa;
+  /* Medical & Clinical HSL Color Tokens */
+  --color-primary: #0284c7;
+  --color-primary-dark: #0369a1;
+  --color-primary-light: #e0f2fe;
   --color-primary-surface: #f0f9ff;
-
-  --color-white: #ffffff;
-  --color-black: #000000;
-
+  
+  --color-accent: #0d9488;
+  --color-accent-light: #ccfbf1;
+  
+  --color-secondary: #475569;
+  --color-secondary-light: #f8fafc;
+  
+  --color-success: #10b981;
+  --color-success-light: #d1fae5;
+  
+  --color-warning: #f59e0b;
+  --color-warning-light: #fef3c7;
+  
+  --color-error: #ef4444;
+  --color-error-light: #fee2e2;
+  
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #f1f5f9;
+  
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+  
   --color-text: #0f172a;
   --color-text-secondary: #334155;
   --color-text-muted: #64748b;
   --color-text-light: #94a3b8;
-
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-secondary: #f1f5f9;
-  --color-border: #e2e8f0;
-  --color-border-light: #f1f5f9;
-
-  --color-success: #16a34a;
-  --color-success-light: #dcfce7;
-  --color-error: #dc2626;
-  --color-error-light: #fee2e2;
-  --color-warning: #d97706;
-  --color-warning-light: #fef3c7;
-
+  
+  --color-white: #ffffff;
+  
+  /* Modern Spacing & Radius System */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 20px;
   --radius-full: 9999px;
+  
+  /* Glassmorphism & Elevation Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  --shadow-glow: 0 0 20px rgba(2, 132, 199, 0.18);
+}
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.15);
-
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light;
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--color-text);
-  background: var(--color-background);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -52,6 +65,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: var(--color-background);
 }
 
 #root {
@@ -60,13 +74,56 @@ body {
 
 h1, h2, h3, h4, h5, h6, p {
   margin: 0;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 button {
   font-family: inherit;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 input, select, textarea {
   font-family: inherit;
   font-size: inherit;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-light);
+}
+
+/* Opacity-only fadeIn — does NOT use transform: translateY(...) so position: fixed overlays cover 100vw/100vh window */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px var(--color-success-light);
+  animation: pulseGlow 2s infinite ease-in-out;
 }

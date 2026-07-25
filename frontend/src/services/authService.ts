@@ -22,7 +22,7 @@ function normalizeProfile(p: Record<string, unknown>): User {
     signatureUrl: (p.signature_url ?? undefined) as string | undefined,
     specialty: (p.specialty ?? undefined) as string | undefined,
     regNumber: (p.reg_number ?? undefined) as string | undefined,
-    qualification: (p.specialty ?? undefined) as string | undefined,
+    qualification: (p.qualification ?? undefined) as string | undefined,
     experienceYears: (p.experience_years ?? undefined) as number | undefined,
     city: (p.city ?? undefined) as string | undefined,
     address: (p.address ?? undefined) as string | undefined,

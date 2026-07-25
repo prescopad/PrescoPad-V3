@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { QueueItem, QueueStatus } from '../types/queue.types';
 import * as DataService from '../services/dataService';
+import { supabase } from '../services/supabase';
+import { useAuthStore } from './useAuthStore';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface QueueFilter {
   status?: string;
@@ -15,6 +18,7 @@ interface QueueStore {
   isLoading: boolean;
   doctorReady: boolean;
   pollInterval: ReturnType<typeof setInterval> | null;
+  realtimeChannel: RealtimeChannel | null;
   filter: QueueFilter;
 
   loadQueue: () => Promise<void>;
@@ -40,6 +44,7 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   isLoading: false,
   doctorReady: false,
   pollInterval: null,
+  realtimeChannel: null,
   filter: { todayOnly: true },
 
   loadQueue: async () => {
@@ -95,34 +100,34 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   addToQueue: async (patientId, addedBy, notes, consultationType) => {
     const item = await DataService.addToQueue(patientId, addedBy, notes, consultationType);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
     return item;
   },
 
   startConsult: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.IN_PROGRESS);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   completeConsult: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.COMPLETED);
     set({ activeItem: null });
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   cancelQueueItem: async (queueItemId) => {
     await DataService.updateQueueStatus(queueItemId, QueueStatus.CANCELLED);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   removeFromQueue: async (queueItemId) => {
     await DataService.removeFromQueue(queueItemId);
-    await get().loadQueue();
-    await get().loadStats();
+    await get().loadQueueFiltered();
+    await get().loadStatsFiltered();
   },
 
   setDoctorReady: (ready) => set({ doctorReady: ready }),
@@ -134,20 +139,50 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
 
   startPolling: () => {
     if (get().pollInterval) return;
-    get().loadQueue();
-    get().loadStats();
+
+    // Trigger initial load
+    get().loadQueueFiltered();
+    get().loadStatsFiltered();
+
+    // 1. Periodic Heartbeat / Fallback Polling
     const interval = setInterval(() => {
-      get().loadQueue();
-      get().loadStats();
+      get().loadQueueFiltered();
+      get().loadStatsFiltered();
     }, 10_000);
-    set({ pollInterval: interval });
+
+    // 2. Real-time Supabase WebSocket Subscription for Sub-Second Sync
+    let channel: RealtimeChannel | null = null;
+    const clinicId = useAuthStore.getState().user?.clinicId;
+    if (clinicId) {
+      channel = supabase
+        .channel(`app_queue_sync_${clinicId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'queue',
+            filter: `clinic_id=eq.${clinicId}`,
+          },
+          () => {
+            get().loadQueueFiltered();
+            get().loadStatsFiltered();
+          }
+        )
+        .subscribe();
+    }
+
+    set({ pollInterval: interval, realtimeChannel: channel });
   },
 
   stopPolling: () => {
-    const { pollInterval } = get();
+    const { pollInterval, realtimeChannel } = get();
     if (pollInterval) {
       clearInterval(pollInterval);
-      set({ pollInterval: null });
     }
+    if (realtimeChannel) {
+      supabase.removeChannel(realtimeChannel);
+    }
+    set({ pollInterval: null, realtimeChannel: null });
   },
 }));

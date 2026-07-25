@@ -20,7 +20,7 @@ export default function ClinicProfilePage() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  
+
   // Doctor Details
   const [doctorName, setDoctorName] = useState('');
   const [specialty, setSpecialty] = useState('');
@@ -29,6 +29,7 @@ export default function ClinicProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   useEffect(() => {
     loadClinic();
@@ -79,42 +80,55 @@ export default function ClinicProfilePage() {
     }
   };
 
+  const handleImageUpload = async (file: File) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) {
+      throw new Error('Cloudinary is not configured in website/.env (missing VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET)');
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('upload_preset', uploadPreset);
+
+    const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+    const response = await fetch(endpoint, { method: 'POST', body: form });
+
+    if (!response.ok) throw new Error('Cloudinary upload failed.');
+    const data = await response.json();
+    return data.secure_url as string;
+  };
+
   const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploadingQr(true);
     try {
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-      if (!cloudName || !uploadPreset) {
-        throw new Error('Cloudinary is not configured in website/.env (missing VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET)');
-      }
-
-      const form = new FormData();
-      form.append('file', file);
-      form.append('upload_preset', uploadPreset);
-
-      const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: form,
-      });
-
-      if (!response.ok) {
-        throw new Error('Cloudinary upload failed.');
-      }
-
-      const data = await response.json();
-      const qrUrl = data.secure_url;
-
-      await updateClinic({ qrCodeUrl: qrUrl });
+      const url = await handleImageUpload(file);
+      await updateClinic({ qrCodeUrl: url });
       toast.success('Payment QR code uploaded successfully!');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to upload QR code.');
     } finally {
       setIsUploadingQr(false);
-      // Clear file input value to allow uploading same file again
+      e.target.value = '';
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingLogo(true);
+    try {
+      const url = await handleImageUpload(file);
+      await updateClinic({ logoBase64: url });
+      toast.success('Clinic logo uploaded successfully!');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to upload clinic logo.');
+    } finally {
+      setIsUploadingLogo(false);
       e.target.value = '';
     }
   };
@@ -124,42 +138,55 @@ export default function ClinicProfilePage() {
     try {
       await updateClinic({ qrCodeUrl: null });
       toast.success('QR code removed.');
-    } catch (err) {
+    } catch {
       toast.error('Failed to remove QR code.');
     }
   };
 
+  const handleRemoveLogo = async () => {
+    if (!(await confirm({ title: 'Remove Logo', message: 'Are you sure you want to remove the clinic logo?', danger: true }))) return;
+    try {
+      await updateClinic({ logoBase64: null });
+      toast.success('Clinic logo removed.');
+    } catch {
+      toast.error('Failed to remove clinic logo.');
+    }
+  };
+
   return (
-    <div className="page-container-narrow">
+    <div className="page-container-narrow animate-fade-in">
       <div className="page-header">
-        <div className="page-title">Clinic Profile</div>
+        <div>
+          <div className="page-title">Clinic Profile</div>
+          <div className="page-subtitle">Configure clinic branding, prescription headers, and UPI payments</div>
+        </div>
       </div>
 
       {/* Clinic Section */}
-      <h3 style={{ fontSize: '1.1rem', margin: '20px 0 10px', color: 'var(--color-primary)' }}>Clinic Information</h3>
-      
+      <h3 style={{ fontSize: '1.1rem', margin: '20px 0 10px', color: 'var(--color-primary)', fontWeight: 800 }}>🏥 Clinic Details</h3>
+
       <div className="auth-field">
-        <label className="auth-label">Clinic name *</label>
-        <input className="auth-input" value={name} onChange={(e) => setName(e.target.value)} disabled={!isDoctor} />
+        <label className="auth-label">Clinic Name *</label>
+        <input className="auth-input" value={name} onChange={(e) => setName(e.target.value)} disabled={!isDoctor} placeholder="e.g. HealthCare Super Clinic" />
       </div>
       <div className="auth-field">
         <label className="auth-label">Address</label>
-        <input className="auth-input" value={address} onChange={(e) => setAddress(e.target.value)} disabled={!isDoctor} />
+        <input className="auth-input" value={address} onChange={(e) => setAddress(e.target.value)} disabled={!isDoctor} placeholder="Full clinic address" />
       </div>
       <div className="auth-form-row">
         <div className="auth-field">
-          <label className="auth-label">Phone</label>
+          <label className="auth-label">Clinic Phone</label>
           <input className="auth-input" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!isDoctor} />
         </div>
         <div className="auth-field">
-          <label className="auth-label">Email</label>
+          <label className="auth-label">Clinic Email</label>
           <input className="auth-input" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isDoctor} />
         </div>
       </div>
 
-      {/* Doctor Section (Only for doctor editing / assistant viewing) */}
-      <h3 style={{ fontSize: '1.1rem', margin: '28px 0 10px', color: 'var(--color-primary)' }}>Doctor Details</h3>
-      
+      {/* Doctor Section */}
+      <h3 style={{ fontSize: '1.1rem', margin: '28px 0 10px', color: 'var(--color-primary)', fontWeight: 800 }}>👨‍⚕️ Doctor Credentials</h3>
+
       <div className="auth-field">
         <label className="auth-label">Doctor Name *</label>
         <input className="auth-input" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} disabled={!isDoctor} />
@@ -181,69 +208,64 @@ export default function ClinicProfilePage() {
         </button>
       )}
 
-      {/* Digital Signature Section */}
-      <h3 style={{ fontSize: '1.1rem', margin: '36px 0 10px', color: 'var(--color-primary)' }}>Signatures & Customizations</h3>
+      {/* Branding & Media Section */}
+      <h3 style={{ fontSize: '1.1rem', margin: '36px 0 14px', color: 'var(--color-primary)', fontWeight: 800 }}>🎨 Branding & Prescription Customization</h3>
 
-      <div style={{ marginBottom: 20 }}>
-        <div className="auth-label" style={{ marginBottom: 6 }}>Digital Signature</div>
-        {doctorProfile?.signatureBase64 ? (
-          <div style={{ marginBottom: 10, padding: 12, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-secondary)', display: 'inline-block' }}>
-            {doctorProfile.signatureBase64.startsWith('M') ? (
-              <svg width={200} height={60} style={{ display: 'block' }}>
-                <path d={doctorProfile.signatureBase64} stroke="var(--color-text)" strokeWidth={3} fill="none" />
-              </svg>
-            ) : (
-              <img src={doctorProfile.signatureBase64} alt="signature" style={{ maxHeight: 60, display: 'block' }} />
+      {/* Clinic Logo */}
+      <div style={{ marginBottom: 24, background: 'var(--color-surface)', padding: 18, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)' }}>
+        <div className="auth-label" style={{ marginBottom: 4 }}>Clinic Logo Image</div>
+        <p style={{ fontSize: '0.775rem', color: 'var(--color-text-muted)', margin: '0 0 12px' }}>
+          Appears on top header of generated A4 prescriptions.
+        </p>
+
+        {clinic?.logoBase64 ? (
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
+            <img src={clinic.logoBase64} alt="Clinic Logo" style={{ height: 60, maxWidth: 180, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--color-border)' }} />
+            {isDoctor && (
+              <button className="secondary-btn" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error-light)' }} onClick={handleRemoveLogo}>
+                Remove Logo
+              </button>
             )}
           </div>
         ) : (
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: 10 }}>No digital signature drawn yet.</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: 12 }}>No logo uploaded yet.</div>
         )}
+
         {isDoctor && (
-          <button className="secondary-btn" onClick={() => setShowSignaturePad(true)}>
-            {doctorProfile?.signatureBase64 ? 'Draw New Signature' : 'Draw Digital Signature'}
-          </button>
+          <div>
+            <input type="file" id="logo-file-picker" accept="image/*" style={{ display: 'none' }} onChange={handleLogoUpload} disabled={isUploadingLogo} />
+            <button className="secondary-btn" onClick={() => document.getElementById('logo-file-picker')?.click()} disabled={isUploadingLogo}>
+              {isUploadingLogo ? 'Uploading logo...' : clinic?.logoBase64 ? 'Replace Logo' : 'Upload Clinic Logo'}
+            </button>
+          </div>
         )}
       </div>
 
-      {/* QR Code Section */}
-      <div style={{ marginBottom: 30 }}>
-        <div className="auth-label" style={{ marginBottom: 6 }}>Payment QR Code</div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: '0 0 10px' }}>
-          Upload a UPI QR code image. This QR code will print on A4 prescriptions for patient payment scans.
+      {/* Payment QR Code */}
+      <div style={{ marginBottom: 30, background: 'var(--color-surface)', padding: 18, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl)' }}>
+        <div className="auth-label" style={{ marginBottom: 4 }}>UPI Payment QR Code</div>
+        <p style={{ fontSize: '0.775rem', color: 'var(--color-text-muted)', margin: '0 0 12px' }}>
+          Printed on bottom corner of prescriptions for instant patient UPI payment scanning.
         </p>
-        
+
         {clinic?.qrCodeUrl ? (
-          <div style={{ marginBottom: 10, display: 'flex', gap: 14, alignItems: 'flex-end' }}>
-            <div style={{ padding: 8, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', background: 'var(--color-white)' }}>
-              <img src={clinic.qrCodeUrl} alt="UPI QR" style={{ height: 100, width: 100, objectFit: 'contain' }} />
-            </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
+            <img src={clinic.qrCodeUrl} alt="UPI QR" style={{ height: 100, width: 100, objectFit: 'contain', borderRadius: 8, border: '1px solid var(--color-border)' }} />
             {isDoctor && (
-              <button className="secondary-btn" style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)', background: '#fff1f2' }} onClick={handleRemoveQrCode}>
+              <button className="secondary-btn" style={{ color: 'var(--color-error)', borderColor: 'var(--color-error-light)' }} onClick={handleRemoveQrCode}>
                 Delete QR
               </button>
             )}
           </div>
         ) : (
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: 10 }}>No QR code uploaded yet.</div>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: 12 }}>No QR code uploaded yet.</div>
         )}
 
         {isDoctor && (
           <div>
-            <input
-              type="file"
-              id="qr-file-picker"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleQrUpload}
-              disabled={isUploadingQr}
-            />
-            <button
-              className="secondary-btn"
-              onClick={() => document.getElementById('qr-file-picker')?.click()}
-              disabled={isUploadingQr}
-            >
-              {isUploadingQr ? 'Uploading code...' : clinic?.qrCodeUrl ? 'Replace QR Code' : 'Upload QR Code'}
+            <input type="file" id="qr-file-picker" accept="image/*" style={{ display: 'none' }} onChange={handleQrUpload} disabled={isUploadingQr} />
+            <button className="secondary-btn" onClick={() => document.getElementById('qr-file-picker')?.click()} disabled={isUploadingQr}>
+              {isUploadingQr ? 'Uploading QR...' : clinic?.qrCodeUrl ? 'Replace QR Code' : 'Upload UPI QR Code'}
             </button>
           </div>
         )}
@@ -252,10 +274,10 @@ export default function ClinicProfilePage() {
       {/* Signature Draw Modal */}
       {showSignaturePad && (
         <div className="modal-backdrop" onClick={() => setShowSignaturePad(false)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
             <div className="modal-header">
-              <div className="modal-title">Draw your signature</div>
-              <button className="modal-close" onClick={() => setShowSignaturePad(false)}><CloseIcon /></button>
+              <span className="modal-title">Draw Digital Signature</span>
+              <button className="modal-close-btn" onClick={() => setShowSignaturePad(false)}><CloseIcon size={18} /></button>
             </div>
             <div className="modal-body">
               <SignaturePad onConfirm={handleSaveSignature} onCancel={() => setShowSignaturePad(false)} />

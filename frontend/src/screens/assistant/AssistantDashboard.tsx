@@ -72,7 +72,22 @@ export default function AssistantDashboard(): React.JSX.Element {
 
     checkDoctorStatus();
     const interval = setInterval(checkDoctorStatus, 30_000);
-    return () => clearInterval(interval);
+
+    const channel = supabase
+      .channel('app_presence_status_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'presence' },
+        () => {
+          checkDoctorStatus();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [setDoctorReady]);
 
   useFocusEffect(
