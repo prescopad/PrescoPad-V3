@@ -77,7 +77,9 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ prescriptionId: rx.id }),
     });
     if (!genRes.ok) {
-      return new Response(JSON.stringify({ error: "Failed to generate PDF" }), { status: 500 });
+      const errDetail = await genRes.text();
+      console.error("generate-prescription-pdf failed:", genRes.status, errDetail);
+      return new Response(JSON.stringify({ error: "Failed to generate PDF", details: errDetail }), { status: 500 });
     }
     const genBody = await genRes.json();
     storagePath = genBody.path;
@@ -96,7 +98,12 @@ Deno.serve(async (req) => {
     .update({ download_count: share.download_count + 1 })
     .eq("id", share.id);
 
-  return new Response(JSON.stringify({ url: signed.signedUrl }), {
-    headers: { "Content-Type": "application/json" },
-  });
+  const wantsJson = url.searchParams.get("format") === "json" || req.headers.get("accept")?.includes("application/json");
+  if (wantsJson) {
+    return new Response(JSON.stringify({ url: signed.signedUrl }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return Response.redirect(signed.signedUrl, 302);
 });

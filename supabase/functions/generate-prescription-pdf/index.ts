@@ -46,11 +46,12 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 400 });
   }
 
-  // RLS-scoped client — uses the caller's own JWT, so the SELECT below only
-  // succeeds if the caller is a member of the prescription's clinic.
-  const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const isServiceRole = authHeader.includes(SERVICE_ROLE_KEY);
+  const callerClient = isServiceRole
+    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
+    : createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
 
   const { data: rx, error: rxError } = await callerClient
     .from("prescriptions")

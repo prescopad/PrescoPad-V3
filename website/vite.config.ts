@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://prescopad-v2.onrender.com',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       }
     }

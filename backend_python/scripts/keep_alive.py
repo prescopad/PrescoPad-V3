@@ -21,7 +21,7 @@ import sys
 import os
 
 # ─── CONFIG ──────────────────────────────────────────────────────────────────
-PING_URL = "https://prescopad-backend.onrender.com/api/health"
+PING_URL = "http://localhost:3000/api/health"
 INTERVAL_SECONDS = 10 * 60  # 10 minutes — well within Render's 15-min idle window
 LOG_FILE = "keep_alive.log"   # set to None to disable file logging
 # ─────────────────────────────────────────────────────────────────────────────
