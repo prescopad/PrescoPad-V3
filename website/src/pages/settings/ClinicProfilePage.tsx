@@ -85,11 +85,17 @@ export default function ClinicProfilePage() {
 
     setIsUploadingQr(true);
     try {
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+      if (!cloudName || !uploadPreset) {
+        throw new Error('Cloudinary is not configured in website/.env (missing VITE_CLOUDINARY_CLOUD_NAME / VITE_CLOUDINARY_UPLOAD_PRESET)');
+      }
+
       const form = new FormData();
       form.append('file', file);
-      form.append('upload_preset', 'itzjvzjx'); // Using unsigned upload preset
+      form.append('upload_preset', uploadPreset);
 
-      const endpoint = `https://api.cloudinary.com/v1_1/dkyby5fyw/image/upload`;
+      const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
       const response = await fetch(endpoint, {
         method: 'POST',
         body: form,

@@ -1,64 +1,69 @@
-# dependencies
-node_modules/
+# Local Environment files
+.env
+.env.*
+.env*.local
+.env.keys
+!.env.example
 
-# Expo
+# Node Dependencies & Package Manager
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Expo & Frontend Build Outputs
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
+*.tsbuildinfo
+/frontend/ios
+/frontend/android
 
-# Native
-.kotlin/
-*.orig.*
+# Native Credentials & Build Artifacts
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.keystore
+*.apk
+*.aab
+*.orig.*
 
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/frontend/ios
-/frontend/android
-
-# Backend build output
-/backend/dist/
-
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-Thumbs.db
-
-# Python Virtual Environment
+# Python Virtual Environments & Cache
 .venv/
 venv/
 env/
 ENV/
-
-# Python Cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Audio / Transcripts & Test Outputs
+medical_report.json
+*.m4a
+*.wav
+*.mp3
+
+# Supabase & Temporary folders
+.branches/
+.temp/
+.tmp_check/
+
+# macOS / Windows / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.pem

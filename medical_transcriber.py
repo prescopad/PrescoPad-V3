@@ -13,7 +13,9 @@ from groq import Groq
 
 # ── Config ────────────────────────────────────────────────────────────────────
 AUDIO_FILE   = "audio.m4a"          # change path as needed
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "YOUR_API_KEY_HERE")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY environment variable is required")
 
 WHISPER_MODEL = "whisper-large-v3-turbo"
 LLAMA_MODEL   = "meta-llama/llama-4-scout-17b-16e-instruct"

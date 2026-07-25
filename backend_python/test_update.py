@@ -1,10 +1,14 @@
+import os
 import asyncio
 import json
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 
 async def test_update():
-    client = AsyncIOMotorClient("mongodb+srv://prescopadin_db_user:xDONJ7pN2Qzb1Qu1@cluster0.wrl4qxc.mongodb.net/?appName=Cluster0")
+    uri = os.environ.get("MONGODB_URI")
+    if not uri:
+        raise ValueError("MONGODB_URI environment variable is required")
+    client = AsyncIOMotorClient(uri)
     db = client["prescopad"]
     
     # Let's find Karan

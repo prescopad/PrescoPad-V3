@@ -1,13 +1,16 @@
+# Environment files
 .env
 .env.*
-!.env.example
-.temp/
-
-# Supabase
-.branches
-.temp
-
-# dotenvx
+.env*.local
 .env.keys
-.env.local
-.env.*.local
+!.env.example
+
+# Supabase Temporary files & CLI state
+.branches/
+.temp/
+.tmp_check/
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
