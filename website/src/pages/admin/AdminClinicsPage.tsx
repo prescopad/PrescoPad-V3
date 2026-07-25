@@ -68,7 +68,7 @@ export default function AdminClinicsPage() {
           <div key={c.id} className="item-card" style={{ cursor: 'default' }}>
             <div>
               <div className="item-name">{c.name}</div>
-              <div className="item-meta">{c.address} · {c.doctorCount} doctors · {c.assistantCount} assistants · {c.prescriptionCount} Rx</div>
+              <div className="item-meta">{c.address}{c.city ? ` · ${c.city}` : ''} · {c.doctorCount} doctors · {c.assistantCount} assistants · {c.prescriptionCount} Rx</div>
             </div>
             <button className="icon-btn" onClick={() => handleDelete(c)}><CloseIcon size={14} /></button>
           </div>

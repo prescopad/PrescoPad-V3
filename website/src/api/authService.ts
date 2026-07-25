@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { UserRole, AuthResponse, User } from '../types/auth.types';
+import { UserRole } from '../types/auth.types';
+import type { AuthResponse, User } from '../types/auth.types';
 
 /** Re-throw with a clear message so UI catch blocks get readable text. */
 function throwWithMessage(error: unknown, fallback: string): never {

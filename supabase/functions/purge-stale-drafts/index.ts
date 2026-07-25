@@ -14,7 +14,9 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CRON_SECRET = Deno.env.get("PURGE_CRON_SECRET");
 
 Deno.serve(async (req) => {
-  if (CRON_SECRET && req.headers.get("X-Cron-Secret") !== CRON_SECRET) {
+  // Fail closed: an unset PURGE_CRON_SECRET must never mean "open to anyone"
+  // — it means this function refuses every request until configured.
+  if (!CRON_SECRET || req.headers.get("X-Cron-Secret") !== CRON_SECRET) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 

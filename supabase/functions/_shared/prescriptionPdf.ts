@@ -345,7 +345,12 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
   // ── Medicines table ──
   if (input.medicines?.length) {
     newPageIfNeeded(40);
-    page.drawText("℞  Medicines", { x: MARGIN, y, size: 16, font: fontBold, color: COLORS.tealPrimary });
+    // "Rx" not the U+211E ℞ glyph — pdf-lib's standard fonts use WinAnsi
+    // encoding, which has no glyph for ℞, and throws (uncaught, surfaces as
+    // a bare 500) rather than silently dropping the character. Confirmed by
+    // a live production-readiness audit: any prescription with medicines
+    // crashed PDF generation entirely.
+    page.drawText("Rx  Medicines", { x: MARGIN, y, size: 16, font: fontBold, color: COLORS.tealPrimary });
     y -= 20;
 
     const colWidths = [0.05, 0.28, 0.18, 0.12, 0.20, 0.17].map((f) => f * CONTENT_WIDTH);

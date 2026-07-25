@@ -51,13 +51,8 @@ export default function AssistantDashboard(): React.JSX.Element {
   const { queueItems, stats, isLoading, doctorReady, loadQueue, loadStats, startPolling, stopPolling } =
     useQueueStore();
   const user = useAuthStore((s) => s.user);
-  const { searchPatients, searchResults, clearSearch } = usePatientStore();
-
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [showConsultModal, setShowConsultModal] = useState(false);
-  const [pendingPatientId, setPendingPatientId] = useState<string | null>(null);
-  const [pendingPatientName, setPendingPatientName] = useState<string | null>(null);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
 
   const { setDoctorReady } = useQueueStore();
@@ -101,33 +96,6 @@ export default function AssistantDashboard(): React.JSX.Element {
     },
     [],
   );
-
-  const handleAddPatientFromSearch = useCallback(
-    (patientId: string, patientName: string) => {
-      if (!user) return;
-      setPendingPatientId(patientId);
-      setPendingPatientName(patientName);
-      setShowConsultModal(true);
-    },
-    [user]
-  );
-
-  const processAdd = async (type: 'new' | 'follow_up') => {
-    if (!user || !pendingPatientId) return;
-    try {
-      setShowConsultModal(false);
-      const { addToQueue } = useQueueStore.getState();
-      await addToQueue(pendingPatientId, user.id, undefined, type);
-      setPendingPatientId(null);
-      setPendingPatientName(null);
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to add to queue';
-      console.error(message);
-      setPendingPatientId(null);
-      setPendingPatientName(null);
-    }
-  };
 
   const handleRemoveQueueItem = useCallback((item: QueueItem) => {
     Alert.alert(
@@ -223,26 +191,6 @@ export default function AssistantDashboard(): React.JSX.Element {
       </TouchableOpacity>
     );
   };
-
-  const renderSearchResult = ({
-    item,
-  }: {
-    item: { id: string; name: string; age: number; gender: string; phone: string };
-  }) => (
-    <TouchableOpacity
-      style={styles.searchResultItem}
-      activeOpacity={0.7}
-      onPress={() => handleAddPatientFromSearch(item.id, item.name)}
-    >
-      <View style={styles.searchResultInfo}>
-        <Text style={styles.searchResultName}>{item.name}</Text>
-        <Text style={styles.searchResultMeta}>
-          {item.age}y / {item.gender} | {item.phone}
-        </Text>
-      </View>
-      <Ionicons name="add-circle" size={28} color={COLORS.primary} />
-    </TouchableOpacity>
-  );
 
   const renderEmptyQueue = () => (
     <View style={styles.emptyContainer}>

@@ -52,6 +52,18 @@ function RoleShell() {
   return <AppShell />;
 }
 
+// RLS/assert_admin() on the backend remains the real security boundary —
+// this guard exists so the router doesn't even attempt to render admin pages
+// for a non-admin (avoids a flash of an RLS-empty page and keeps navigation
+// consistent with what the role can actually do).
+function RequireAdmin() {
+  const user = useAuthStore((s) => s.user);
+  if (user?.role !== UserRole.ADMIN) {
+    return <Navigate to="/queue" replace />;
+  }
+  return <Outlet />;
+}
+
 function RoleIndexRedirect() {
   const user = useAuthStore((s) => s.user);
   return <Navigate to={user?.role === UserRole.ADMIN ? '/admin/overview' : '/queue'} replace />;
@@ -88,11 +100,13 @@ export function AppRouter() {
             <Route path="/settings/connection" element={<ConnectionPage />} />
             <Route path="/settings/medicines-tests" element={<MedicineTestManagementPage />} />
 
-            <Route path="/admin/overview" element={<AdminOverviewPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/clinics" element={<AdminClinicsPage />} />
-            <Route path="/admin/patients" element={<AdminPatientsPage />} />
-            <Route path="/admin/revenue" element={<AdminRevenuePage />} />
+            <Route element={<RequireAdmin />}>
+              <Route path="/admin/overview" element={<AdminOverviewPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/admin/clinics" element={<AdminClinicsPage />} />
+              <Route path="/admin/patients" element={<AdminPatientsPage />} />
+              <Route path="/admin/revenue" element={<AdminRevenuePage />} />
+            </Route>
           </Route>
 
           {/* Consult flow renders full-bleed (no sidebar), matching mobile's

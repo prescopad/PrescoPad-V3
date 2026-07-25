@@ -91,7 +91,12 @@ export default function PrescriptionPreviewPage() {
   const handleRecordPayment = async (method: 'cash' | 'online') => {
     const amount = parseFloat(paymentAmount) || 0;
     if (amount > 0) {
-      recordConsultationPayment(rx.id, amount, method).catch(() => {});
+      try {
+        await recordConsultationPayment(rx.id, amount, method);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to record payment');
+        return;
+      }
     }
     setShowPaymentModal(false);
     resetDraft();

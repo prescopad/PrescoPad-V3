@@ -136,11 +136,16 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   };
 
   // Step 3a: Cash selected — doctor enters amount received, then proceed
-  const handleCashDone = () => {
+  const handleCashDone = async () => {
     const issued = issuedRxRef.current ?? rx!;
     const amount = parseFloat(cashAmount);
     if (amount > 0) {
-      recordConsultationPayment(issued.id, amount, 'cash').catch(() => {});
+      try {
+        await recordConsultationPayment(issued.id, amount, 'cash');
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+        return;
+      }
     }
     setShowPaymentModal(false);
     navigation.replace('RxSuccess', { prescription: issued });
@@ -158,11 +163,16 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     // cash: stay in modal to show amount input
   };
 
-  const handleQRDone = () => {
+  const handleQRDone = async () => {
     const issued = issuedRxRef.current ?? rx!;
     const amount = parseFloat(onlineAmount);
     if (amount > 0) {
-      recordConsultationPayment(issued.id, amount, 'online').catch(() => {});
+      try {
+        await recordConsultationPayment(issued.id, amount, 'online');
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+        return;
+      }
     }
     setShowQRModal(false);
     navigation.replace('RxSuccess', { prescription: issued });

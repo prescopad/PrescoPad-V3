@@ -191,6 +191,7 @@ export async function updateAdminClinic(
     p_name: data.name ?? null,
     p_address: data.address ?? null,
     p_phone: data.phone ?? null,
+    p_city: data.city ?? null,
   });
   throwOnError(error, 'Failed to update clinic.');
   return row as AdminClinic;
