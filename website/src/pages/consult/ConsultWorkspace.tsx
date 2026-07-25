@@ -10,6 +10,7 @@ import LabTestPickerModal from '../../components/LabTestPickerModal';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon } from '../../components/icons';
 import * as DataService from '../../api/dataService';
+import Portal from '../../components/Portal';
 import '../pages.css';
 import '../auth/auth.css';
 
@@ -374,76 +375,81 @@ export default function ConsultWorkspace() {
 
       {/* AI Assistant Modal */}
       {showAiModal && (
-        <div className="modal-backdrop" onClick={() => setShowAiModal(false)}>
-          <div className="modal-dialog" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">🎙️ AI Consultation Recording</span>
-              <button className="modal-close-btn" onClick={() => setShowAiModal(false)}><CloseIcon size={18} /></button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ background: 'var(--color-primary-surface)', padding: 16, borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
-                {isRecording ? (
-                  <div>
-                    <span className="pulse-dot" style={{ width: 14, height: 14, background: 'var(--color-error)' }} />
-                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-error)', margin: '8px 0' }}>
-                      Recording... {formatSeconds(recordingSeconds)}
-                    </div>
-                    <button className="secondary-btn" onClick={stopRecording}>Stop Recording</button>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
-                      Speak doctor-patient conversation or paste transcript text below.
-                    </div>
-                    <button className="primary-btn" onClick={startRecording}>Start Audio Recording</button>
-                  </div>
-                )}
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setShowAiModal(false)}>
+            <div className="modal-dialog" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-title">🎙️ AI Consultation Recording</span>
+                <button className="modal-close-btn" onClick={() => setShowAiModal(false)}><CloseIcon size={18} /></button>
               </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ background: 'var(--color-primary-surface)', padding: 16, borderRadius: 'var(--radius-lg)', textAlign: 'center' }}>
+                  {isRecording ? (
+                    <div>
+                      <span className="pulse-dot" style={{ width: 14, height: 14, background: 'var(--color-error)' }} />
+                      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-error)', margin: '8px 0' }}>
+                        Recording... {formatSeconds(recordingSeconds)}
+                      </div>
+                      <button className="secondary-btn" onClick={stopRecording}>Stop Recording</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>
+                        Speak doctor-patient conversation or paste transcript text below.
+                      </div>
+                      <button className="primary-btn" onClick={startRecording}>Start Audio Recording</button>
+                    </div>
+                  )}
+                </div>
 
-              <div>
-                <label className="auth-label">Transcript Text</label>
-                <textarea
-                  className="auth-input"
-                  rows={4}
-                  placeholder="Doctor: What symptoms are you experiencing?... Patient: I have severe headache and fever..."
-                  value={transcriptText}
-                  onChange={(e) => setTranscriptText(e.target.value)}
-                />
+                <div>
+                  <label className="auth-label">Transcript Text</label>
+                  <textarea
+                    className="auth-input"
+                    rows={4}
+                    placeholder="Doctor: What symptoms are you experiencing?... Patient: I have severe headache and fever..."
+                    value={transcriptText}
+                    onChange={(e) => setTranscriptText(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowAiModal(false)}>Cancel</button>
-              <button className="primary-btn" disabled={isAnalyzing} onClick={handleAnalyzeTranscript}>
-                {isAnalyzing ? 'Analyzing...' : 'Auto-Fill Prescription'}
-              </button>
+              <div className="modal-footer">
+                <button className="secondary-btn" onClick={() => setShowAiModal(false)}>Cancel (Esc)</button>
+                <button className="primary-btn" disabled={isAnalyzing} onClick={handleAnalyzeTranscript}>
+                  {isAnalyzing ? 'Analyzing...' : 'Auto-Fill Prescription'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Save Template Modal */}
       {showTemplateModal && (
-        <div className="modal-backdrop" onClick={() => setShowTemplateModal(false)}>
-          <div className="modal-dialog" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">💾 Save Prescription Template</span>
-              <button className="modal-close-btn" onClick={() => setShowTemplateModal(false)}><CloseIcon size={18} /></button>
-            </div>
-            <div className="modal-body">
-              <label className="auth-label">Template Name</label>
-              <input
-                className="auth-input"
-                placeholder="e.g. Viral Fever Standard Rx"
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-              />
-            </div>
-            <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowTemplateModal(false)}>Cancel</button>
-              <button className="primary-btn" disabled={!newTemplateName.trim()} onClick={handleSaveTemplate}>Save Template</button>
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setShowTemplateModal(false)}>
+            <div className="modal-dialog" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-title">💾 Save Prescription Template</span>
+                <button className="modal-close-btn" onClick={() => setShowTemplateModal(false)}><CloseIcon size={18} /></button>
+              </div>
+              <div className="modal-body">
+                <label className="auth-label">Template Name</label>
+                <input
+                  className="auth-input"
+                  placeholder="e.g. Viral Fever Standard Rx"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="modal-footer">
+                <button className="secondary-btn" onClick={() => setShowTemplateModal(false)}>Cancel (Esc)</button>
+                <button className="primary-btn" disabled={!newTemplateName.trim()} onClick={handleSaveTemplate}>Save Template</button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {showMedicineModal && (

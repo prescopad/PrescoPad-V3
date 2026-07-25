@@ -11,6 +11,7 @@ import type { PrescriptionMedicine } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
 import { useToast } from './toast/ToastContext';
 import { CloseIcon } from './icons';
+import Portal from './Portal';
 import './modal.css';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
@@ -55,6 +56,15 @@ export default function MedicinePickerModal({ onClose, onAdd }: Props) {
   const [timing, setTiming] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   useEffect(() => {
     if (!category) return;
     const fetcher = category.label === 'Other'
@@ -65,161 +75,177 @@ export default function MedicinePickerModal({ onClose, onAdd }: Props) {
 
   const handleSelectCategory = (c: Category) => {
     setCategory(c);
-    setSelectedType(c.types[0] ?? MedicineType.TABLET);
+    if (c.types.length > 0) setSelectedType(c.types[0]);
   };
 
-  const handleSelectMedicine = (med: Medicine) => {
-    setSelected(med);
-    setSelectedType(med.type || MedicineType.TABLET);
-    setDosage(med.strength || '');
-    setShowCustomForm(false);
+  const handleSelectMedicine = (m: Medicine) => {
+    setSelected(m);
+    setSelectedType(m.type);
+    setDosage(getDosageHint(m.type));
   };
 
-  const handleShowCustomForm = () => {
-    setSelected(null);
+  const handleCreateCustom = () => {
     setShowCustomForm(true);
-    setCustomName(query);
-    setSelectedType(category?.types[0] ?? MedicineType.TABLET);
+    if (category && category.types.length > 0) setSelectedType(category.types[0]);
   };
 
-  const handleAdd = async () => {
-    if (showCustomForm) {
-      if (!customName.trim()) return;
-      try {
-        const custom = await DataService.addCustomMedicine(customName.trim(), selectedType, customStrength);
-        onAdd({ medicineName: custom.name, type: selectedType, dosage: customStrength, frequency, duration, timing, notes });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Failed to add custom medicine');
-        return;
-      }
-    } else if (selected) {
-      onAdd({ medicineName: selected.name, type: selectedType, dosage, frequency, duration, timing, notes });
-      DataService.incrementMedicineUsage(selected.name, selected.isCustom).catch(() => {});
+  const handleAdd = () => {
+    const name = selected ? selected.name : customName.trim();
+    if (!name) {
+      toast.error('Medicine name is required');
+      return;
     }
+    const strength = selected ? selected.strength : customStrength;
+    onAdd({
+      medicineName: strength ? `${name} ${strength}` : name,
+      type: selectedType,
+      dosage,
+      frequency,
+      duration,
+      timing,
+      notes,
+    });
+    toast.success(`Added ${name}`);
     onClose();
   };
 
   const showDosageForm = selected || showCustomForm;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">Add Medicine</div>
-          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
-        </div>
-        <div className="modal-body">
-          {!category && (
-            <div className="category-grid">
-              {CATEGORIES.map((c) => (
-                <div key={c.label} className="category-card" onClick={() => handleSelectCategory(c)}>
-                  {c.label}
-                </div>
-              ))}
-            </div>
-          )}
+    <Portal>
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">Add Medicine</div>
+            <button className="modal-close" onClick={onClose}><CloseIcon /></button>
+          </div>
+          <div className="modal-body">
+            {!category && (
+              <div className="category-grid">
+                {CATEGORIES.map((c) => (
+                  <div key={c.label} className="category-card" onClick={() => handleSelectCategory(c)}>
+                    {c.label}
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {category && !showDosageForm && (
-            <>
-              <input
-                className="auth-input"
-                placeholder={`Search ${category.label.toLowerCase()}...`}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus
-                style={{ marginBottom: 12 }}
-              />
-              <div className="pick-list">
-                {medicines.map((m) => (
-                  <div key={m.id} className="pick-item" onClick={() => handleSelectMedicine(m)}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{m.name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                        {m.type}{m.strength ? ` · ${m.strength}` : ''}
+            {category && !showDosageForm && (
+              <>
+                <input
+                  className="auth-input"
+                  placeholder={`Search ${category.label.toLowerCase()}...`}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  autoFocus
+                  style={{ marginBottom: 12 }}
+                />
+                <div className="pick-list">
+                  {medicines.map((m) => (
+                    <div key={m.id} className="pick-item" onClick={() => handleSelectMedicine(m)}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{m.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                          {m.type}{m.strength ? ` · ${m.strength}` : ''}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                  <div className="pick-item" style={{ fontStyle: 'italic', color: 'var(--color-primary)' }} onClick={handleCreateCustom}>
+                    + Add custom medicine...
                   </div>
-                ))}
-                <div className="pick-item" onClick={handleShowCustomForm} style={{ borderStyle: 'dashed' }}>
-                  + Add custom medicine{query ? `: "${query}"` : ''}
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
 
-          {showDosageForm && (
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 12 }}>
-                {selected ? selected.name : customName} — Dosage Details
-              </div>
+            {showDosageForm && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {!selected && (
+                  <>
+                    <input
+                      className="auth-input"
+                      placeholder="Medicine name *"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="auth-form-row">
+                      <select className="auth-select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
+                        {Object.values(MedicineType).map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input className="auth-input" placeholder="Strength (e.g. 500mg)" value={customStrength} onChange={(e) => setCustomStrength(e.target.value)} />
+                    </div>
+                  </>
+                )}
 
-              {showCustomForm && (
-                <>
-                  <label className="auth-label">Medicine name *</label>
-                  <input className="auth-input" value={customName} onChange={(e) => setCustomName(e.target.value)} style={{ marginBottom: 12 }} />
-                  <label className="auth-label">Type</label>
+                {selected && (
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-primary)' }}>
+                    {selected.name} {selected.strength}
+                  </div>
+                )}
+
+                <div>
+                  <div className="auth-label">Dosage</div>
+                  <input className="auth-input" placeholder="e.g. 1 tab, 5 ml" value={dosage} onChange={(e) => setDosage(e.target.value)} />
+                </div>
+
+                <div>
+                  <div className="auth-label">Frequency</div>
                   <div className="chip-row">
-                    {Object.values(MedicineType).map((t) => (
-                      <div key={t} className={`chip ${selectedType === t ? 'selected' : ''}`} onClick={() => setSelectedType(t)}>
-                        {t}
-                      </div>
+                    {FREQUENCY_OPTIONS.map((f) => (
+                      <button key={f} type="button" className={`chip ${frequency === f ? 'selected' : ''}`} onClick={() => setFrequency(f)}>
+                        {f}
+                      </button>
                     ))}
                   </div>
-                </>
-              )}
+                </div>
 
-              <label className="auth-label">{showCustomForm ? 'Strength' : 'Dosage'}</label>
-              <input
-                className="auth-input"
-                placeholder={getDosageHint(selectedType)}
-                value={showCustomForm ? customStrength : dosage}
-                onChange={(e) => (showCustomForm ? setCustomStrength(e.target.value) : setDosage(e.target.value))}
-                style={{ marginBottom: 12 }}
-              />
+                <div>
+                  <div className="auth-label">Duration</div>
+                  <div className="chip-row">
+                    {DURATION_OPTIONS.map((d) => (
+                      <button key={d} type="button" className={`chip ${duration === d ? 'selected' : ''}`} onClick={() => setDuration(d)}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <label className="auth-label">Frequency</label>
-              <div className="chip-row">
-                {FREQUENCY_OPTIONS.map((f) => (
-                  <div key={f} className={`chip ${frequency === f ? 'selected' : ''}`} onClick={() => setFrequency(f)}>{f}</div>
-                ))}
+                <div>
+                  <div className="auth-label">Timing</div>
+                  <div className="chip-row">
+                    {TIMING_OPTIONS.map((t) => (
+                      <button key={t} type="button" className={`chip ${timing === t ? 'selected' : ''}`} onClick={() => setTiming(t)}>
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="auth-label">Notes (Optional)</div>
+                  <input className="auth-input" placeholder="e.g. If pain persists" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                </div>
               </div>
+            )}
+          </div>
 
-              <label className="auth-label">Duration</label>
-              <div className="chip-row">
-                {DURATION_OPTIONS.map((d) => (
-                  <div key={d} className={`chip ${duration === d ? 'selected' : ''}`} onClick={() => setDuration(d)}>{d}</div>
-                ))}
-              </div>
-
-              <label className="auth-label">Timing</label>
-              <div className="chip-row">
-                {TIMING_OPTIONS.map((t) => (
-                  <div key={t} className={`chip ${timing === t ? 'selected' : ''}`} onClick={() => setTiming(t)}>{t}</div>
-                ))}
-              </div>
-
-              <label className="auth-label">Notes (optional)</label>
-              <input className="auth-input" value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
-          )}
-        </div>
-        <div className="modal-footer">
-          {(category || showDosageForm) && (
-            <button
-              className="secondary-btn"
-              onClick={() => {
-                if (showDosageForm) { setSelected(null); setShowCustomForm(false); }
-                else setCategory(null);
-              }}
-            >
+          <div className="modal-footer">
+            <button type="button" className="secondary-btn" onClick={() => {
+              if (showDosageForm) { setSelected(null); setShowCustomForm(false); }
+              else if (category) { setCategory(null); }
+              else { onClose(); }
+            }}>
               Back
             </button>
-          )}
-          {showDosageForm && (
-            <button className="primary-btn" onClick={handleAdd}>Add Medicine</button>
-          )}
+            {showDosageForm && (
+              <button type="button" className="primary-btn" onClick={handleAdd}>
+                Add to Prescription
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }

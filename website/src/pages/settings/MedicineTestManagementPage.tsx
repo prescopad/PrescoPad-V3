@@ -12,6 +12,7 @@ import type { Medicine, LabTest } from '../../types/medicine.types';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
 import { CloseIcon } from '../../components/icons';
+import Portal from '../../components/Portal';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
@@ -154,46 +155,48 @@ export default function MedicineTestManagementPage() {
       </div>
 
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-            <div className="modal-header">
-              <span className="modal-title">Add Custom {tab === 'medicines' ? 'Medicine' : 'Lab Test'}</span>
-              <button className="modal-close-btn" onClick={() => setShowAddModal(false)}><CloseIcon size={18} /></button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div className="auth-field">
-                <label className="auth-label">Name *</label>
-                <input className="auth-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Paracetamol 650mg" autoFocus />
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+            <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+              <div className="modal-header">
+                <span className="modal-title">Add Custom {tab === 'medicines' ? 'Medicine' : 'Lab Test'}</span>
+                <button className="modal-close-btn" onClick={() => setShowAddModal(false)}><CloseIcon size={18} /></button>
               </div>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="auth-field">
+                  <label className="auth-label">Name *</label>
+                  <input className="auth-input" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="e.g. Paracetamol 650mg" autoFocus />
+                </div>
 
-              {tab === 'medicines' ? (
-                <>
+                {tab === 'medicines' ? (
+                  <>
+                    <div className="auth-field">
+                      <label className="auth-label">Medicine Form / Type</label>
+                      <select className="auth-input" value={formType} onChange={(e) => setFormType(e.target.value)}>
+                        {Object.values(MedicineType).map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div className="auth-field">
+                      <label className="auth-label">Dose / Strength</label>
+                      <input className="auth-input" value={formStrength} onChange={(e) => setFormStrength(e.target.value)} placeholder="e.g. 500mg or 10ml" />
+                    </div>
+                  </>
+                ) : (
                   <div className="auth-field">
-                    <label className="auth-label">Medicine Form / Type</label>
-                    <select className="auth-input" value={formType} onChange={(e) => setFormType(e.target.value)}>
-                      {Object.values(MedicineType).map((t) => <option key={t} value={t}>{t}</option>)}
+                    <label className="auth-label">Category</label>
+                    <select className="auth-input" value={formCategory} onChange={(e) => setFormCategory(e.target.value)}>
+                      {LAB_TEST_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
-                  <div className="auth-field">
-                    <label className="auth-label">Dose / Strength</label>
-                    <input className="auth-input" value={formStrength} onChange={(e) => setFormStrength(e.target.value)} placeholder="e.g. 500mg or 10ml" />
-                  </div>
-                </>
-              ) : (
-                <div className="auth-field">
-                  <label className="auth-label">Category</label>
-                  <select className="auth-input" value={formCategory} onChange={(e) => setFormCategory(e.target.value)}>
-                    {LAB_TEST_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="secondary-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="primary-btn" disabled={!formName.trim()} onClick={handleAdd}>Save to Catalog</button>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button className="secondary-btn" onClick={() => setShowAddModal(false)}>Cancel (Esc)</button>
+                <button className="primary-btn" disabled={!formName.trim()} onClick={handleAdd}>Save to Catalog</button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );

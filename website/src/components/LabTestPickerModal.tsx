@@ -5,6 +5,7 @@ import type { PrescriptionLabTest } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
 import { useToast } from './toast/ToastContext';
 import { CloseIcon, CheckIcon } from './icons';
+import Portal from './Portal';
 import './modal.css';
 
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -23,6 +24,15 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState<string>(LAB_TEST_CATEGORIES[0]);
+
+  // Close modal on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     const fetcher = query.trim()
@@ -49,6 +59,7 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
       setSelected((prev) => new Map(prev).set(custom.id, { testName: custom.name, category: custom.category, notes: '' }));
       setShowCustomForm(false);
       setCustomName('');
+      toast.success(`Created custom test "${custom.name}"`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add custom test');
     }
@@ -66,67 +77,69 @@ export default function LabTestPickerModal({ onClose, onAdd }: Props) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">Add Lab Tests</div>
-          <button className="modal-close" onClick={onClose}><CloseIcon /></button>
-        </div>
-        <div className="modal-body">
-          <input
-            className="auth-input"
-            placeholder="Search lab tests..."
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setCategory(null); }}
-            style={{ marginBottom: 12 }}
-            autoFocus
-          />
-          {!query.trim() && (
-            <div className="chip-row">
-              {LAB_TEST_CATEGORIES.map((c) => (
-                <div key={c} className={`chip ${category === c ? 'selected' : ''}`} onClick={() => setCategory(category === c ? null : c)}>
-                  {c}
+    <Portal>
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="modal-title">Add Lab Tests</div>
+            <button className="modal-close" onClick={onClose}><CloseIcon /></button>
+          </div>
+          <div className="modal-body">
+            <input
+              className="auth-input"
+              placeholder="Search lab tests..."
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setCategory(null); }}
+              style={{ marginBottom: 12 }}
+              autoFocus
+            />
+            {!query.trim() && (
+              <div className="chip-row">
+                {LAB_TEST_CATEGORIES.map((c) => (
+                  <div key={c} className={`chip ${category === c ? 'selected' : ''}`} onClick={() => setCategory(category === c ? null : c)}>
+                    {c}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="pick-list">
+              {tests.map((t) => (
+                <div key={t.id} className={`pick-item ${selected.has(t.id) ? 'selected' : ''}`} onClick={() => toggleSelect(t)}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{t.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{t.category}</div>
+                  </div>
+                  {selected.has(t.id) && <CheckIcon size={14} />}
                 </div>
               ))}
-            </div>
-          )}
-
-          <div className="pick-list">
-            {tests.map((t) => (
-              <div key={t.id} className={`pick-item ${selected.has(t.id) ? 'selected' : ''}`} onClick={() => toggleSelect(t)}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{t.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{t.category}</div>
+              {!showCustomForm && (
+                <div className="pick-item" onClick={() => { setShowCustomForm(true); setCustomName(query); }} style={{ borderStyle: 'dashed' }}>
+                  + Add custom test{query ? `: "${query}"` : ''}
                 </div>
-                {selected.has(t.id) && <CheckIcon size={14} />}
-              </div>
-            ))}
-            {!showCustomForm && (
-              <div className="pick-item" onClick={() => { setShowCustomForm(true); setCustomName(query); }} style={{ borderStyle: 'dashed' }}>
-                + Add custom test{query ? `: "${query}"` : ''}
+              )}
+            </div>
+
+            {showCustomForm && (
+              <div style={{ marginTop: 12 }}>
+                <label className="auth-label">Test name</label>
+                <input className="auth-input" value={customName} onChange={(e) => setCustomName(e.target.value)} style={{ marginBottom: 10 }} />
+                <label className="auth-label">Category</label>
+                <select className="auth-select" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} style={{ marginBottom: 10 }}>
+                  {LAB_TEST_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <button className="secondary-btn" onClick={handleAddCustom}>Save custom test</button>
               </div>
             )}
           </div>
-
-          {showCustomForm && (
-            <div style={{ marginTop: 12 }}>
-              <label className="auth-label">Test name</label>
-              <input className="auth-input" value={customName} onChange={(e) => setCustomName(e.target.value)} style={{ marginBottom: 10 }} />
-              <label className="auth-label">Category</label>
-              <select className="auth-select" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} style={{ marginBottom: 10 }}>
-                {LAB_TEST_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <button className="secondary-btn" onClick={handleAddCustom}>Save custom test</button>
-            </div>
-          )}
-        </div>
-        <div className="modal-footer">
-          <button className="secondary-btn" onClick={onClose}>Cancel</button>
-          <button className="primary-btn" disabled={selected.size === 0} onClick={handleConfirm}>
-            Add {selected.size > 0 ? `(${selected.size})` : ''}
-          </button>
+          <div className="modal-footer">
+            <button className="secondary-btn" onClick={onClose}>Cancel (Esc)</button>
+            <button className="primary-btn" disabled={selected.size === 0} onClick={handleConfirm}>
+              Add {selected.size > 0 ? `(${selected.size})` : ''}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }

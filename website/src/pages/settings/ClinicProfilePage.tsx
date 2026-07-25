@@ -5,6 +5,7 @@ import SignaturePad from '../../components/SignaturePad';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
 import { CloseIcon } from '../../components/icons';
+import Portal from '../../components/Portal';
 import '../pages.css';
 import '../auth/auth.css';
 import '../../components/modal.css';
@@ -273,17 +274,19 @@ export default function ClinicProfilePage() {
 
       {/* Signature Draw Modal */}
       {showSignaturePad && (
-        <div className="modal-backdrop" onClick={() => setShowSignaturePad(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
-            <div className="modal-header">
-              <span className="modal-title">Draw Digital Signature</span>
-              <button className="modal-close-btn" onClick={() => setShowSignaturePad(false)}><CloseIcon size={18} /></button>
-            </div>
-            <div className="modal-body">
-              <SignaturePad onConfirm={handleSaveSignature} onCancel={() => setShowSignaturePad(false)} />
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setShowSignaturePad(false)}>
+            <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
+              <div className="modal-header">
+                <span className="modal-title">Draw Digital Signature</span>
+                <button className="modal-close-btn" onClick={() => setShowSignaturePad(false)}><CloseIcon size={18} /></button>
+              </div>
+              <div className="modal-body">
+                <SignaturePad onConfirm={handleSaveSignature} onCancel={() => setShowSignaturePad(false)} />
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
