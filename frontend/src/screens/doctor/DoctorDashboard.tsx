@@ -18,14 +18,11 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
-import api from '../../services/api';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
-import { APP_CONFIG } from '../../constants/config';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useWalletStore } from '../../store/useWalletStore';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { useToast } from '../../components/Toast/ToastContext';
@@ -39,7 +36,6 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
   const doctorProfile = useClinicStore((s) => s.doctorProfile);
   const { loadClinic, loadDoctorProfile } = useClinicStore();
   const { queueItems, stats, isLoading, loadQueueFiltered, loadStatsFiltered, startConsult, startPolling, stopPolling, removeFromQueue } = useQueueStore();
-  const { balance, loadBalance } = useWalletStore();
   const toast = useToast();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -62,11 +58,10 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
     await Promise.all([
       loadQueueFiltered({ status, todayOnly, date: dateStr }),
       loadStatsFiltered(todayOnly, dateStr),
-      loadBalance(),
       loadClinic(),
       loadDoctorProfile(),
     ]);
-  }, [loadQueueFiltered, loadStatsFiltered, loadBalance, loadClinic, loadDoctorProfile, selectedDate, activeTab]);
+  }, [loadQueueFiltered, loadStatsFiltered, loadClinic, loadDoctorProfile, selectedDate, activeTab]);
 
   // Start queue polling on focus, stop on blur
   useFocusEffect(
@@ -290,38 +285,29 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
       {/* Stats Row */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: COLORS.primaryLight }]}>
-            <Ionicons name="people-outline" size={18} color={COLORS.primary} />
+          <View style={[styles.statIconCircle, { backgroundColor: COLORS.surfaceSecondary }]}>
+            <Ionicons name="people-outline" size={18} color={COLORS.textSecondary} />
           </View>
           <Text style={styles.statValue}>{stats.total}</Text>
           <Text style={styles.statLabel}>{t('common.today')}</Text>
         </View>
 
         <View style={styles.statCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: COLORS.warningLight }]}>
-            <Ionicons name="time-outline" size={18} color={COLORS.warning} />
+          <View style={[styles.statIconCircle, { backgroundColor: COLORS.surfaceSecondary }]}>
+            <Ionicons name="time-outline" size={18} color={COLORS.textSecondary} />
           </View>
           <Text style={styles.statValue}>{stats.waiting}</Text>
           <Text style={styles.statLabel}>{t('queue.waiting')}</Text>
         </View>
 
         <View style={styles.statCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: COLORS.successLight }]}>
-            <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.success} />
+          <View style={[styles.statIconCircle, { backgroundColor: COLORS.surfaceSecondary }]}>
+            <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.textSecondary} />
           </View>
           <Text style={styles.statValue}>{stats.completed}</Text>
           <Text style={styles.statLabel}>Done</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <View style={[styles.statIconCircle, { backgroundColor: COLORS.primarySurface }]}>
-            <Ionicons name="wallet-outline" size={18} color={COLORS.primary} />
-          </View>
-          <Text style={styles.statValue}>
-            {APP_CONFIG.wallet.currencySymbol}{balance}
-          </Text>
-          <Text style={styles.statLabel}>{t('wallet.title')}</Text>
-        </View>
       </View>
 
       {/* Queue Title + History Toggle */}
@@ -330,9 +316,9 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
           {selectedDate ? `Patient Queue - ${selectedDate.toLocaleDateString()}` : t('queue.title')}
         </Text>
         <TouchableOpacity style={styles.historyToggle} onPress={handleToggleHistory}>
-          <Ionicons name={selectedDate ? 'close-circle' : 'calendar'} size={16} color={COLORS.primary} />
+          <Ionicons name={selectedDate ? 'today-outline' : 'calendar'} size={16} color={COLORS.primary} />
           <Text style={styles.historyToggleText}>
-            {selectedDate ? 'Clear History' : 'Select Date'}
+            {selectedDate ? 'Today' : 'Select Date'}
           </Text>
         </TouchableOpacity>
       </View>

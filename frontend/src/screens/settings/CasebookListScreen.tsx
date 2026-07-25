@@ -10,12 +10,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ParamListBase } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Patient } from '../../types/patient.types';
 import { getPatients } from '../../services/dataService';
+import { downloadCasebookPdf } from '../../services/casebookService';
+import { exportPDFCopy, shareViaPDF } from '../../services/shareService';
+import { useToast } from '../../components/Toast/ToastContext';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
 interface CasebookListScreenProps {
@@ -26,7 +30,8 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const toast = useToast();
 
   useFocusEffect(
     useCallback(() => {
@@ -48,57 +53,57 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
     ? patients.filter((p) => p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : patients;
 
-  const handleTapPatient = (id: string) => {
-    setExpandedId((current) => (current === id ? null : id));
-  };
+  const handleDownloadPdf = async (patient: Patient) => {
+    if (downloadingId) return;
+    setDownloadingId(patient.id);
+    try {
+      const signedUrl = await downloadCasebookPdf(patient.id);
 
-  const formatDate = (dateStr: string): string => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
+      // Download the remote PDF into a temp local file first (same approach
+      // used elsewhere in the app for pulling a remote asset onto disk),
+      // then reuse the existing export/share pattern.
+      const tempFilename = `casebook_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
+      const localUri = `${FileSystem.cacheDirectory}${tempFilename}`;
+      const result = await FileSystem.downloadAsync(signedUrl, localUri);
+      if (result.status !== 200) {
+        throw new Error('Failed to download casebook PDF.');
+      }
+
+      const safeName = (patient.name || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+      const exported = await exportPDFCopy(result.uri, `Casebook_${safeName}`);
+      await shareViaPDF(exported);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to download casebook PDF.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const renderPatient = ({ item }: { item: Patient }) => {
-    const isExpanded = expandedId === item.id;
-    const entries = item.casebookEntries ?? [];
+    const isDownloading = downloadingId === item.id;
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handleTapPatient(item.id)}
-        activeOpacity={0.7}
-      >
+      <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.patientName}>{item.name}</Text>
-          <Ionicons
-            name={isExpanded ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={COLORS.textMuted}
-          />
+          <TouchableOpacity
+            style={styles.downloadBtn}
+            onPress={() => handleDownloadPdf(item)}
+            disabled={isDownloading}
+            activeOpacity={0.7}
+          >
+            {isDownloading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : (
+              <Ionicons name="download-outline" size={20} color={COLORS.primary} />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {!isExpanded && (
-          <Text style={styles.previewText} numberOfLines={1}>
-            {entries[0]?.summary || 'No visits yet'}
-          </Text>
-        )}
-
-        {isExpanded && (
-          entries.length > 0 ? (
-            <View style={styles.historyList}>
-              {entries.map((entry) => (
-                <View key={entry.prescriptionId} style={styles.historyEntry}>
-                  <Text style={styles.historyDate}>{formatDate(entry.date)}</Text>
-                  <Text style={styles.fullText}>{entry.summary}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.fullText}>No visits yet</Text>
-          )
-        )}
-      </TouchableOpacity>
+        <Text style={styles.previewText} numberOfLines={3}>
+          {item.caseSummary || 'No case summary yet'}
+        </Text>
+      </View>
     );
   };
 
@@ -212,34 +217,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   patientName: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
+    marginRight: SPACING.sm,
+  },
+  downloadBtn: {
+    padding: SPACING.xs,
   },
   previewText: {
     marginTop: SPACING.xs,
     fontSize: 13,
     color: COLORS.textMuted,
-  },
-  fullText: {
-    fontSize: 14,
-    color: COLORS.text,
-    lineHeight: 20,
-  },
-  historyList: {
-    marginTop: SPACING.sm,
-    gap: SPACING.md,
-  },
-  historyEntry: {
-    borderLeftWidth: 2,
-    borderLeftColor: COLORS.primary,
-    paddingLeft: SPACING.sm,
-  },
-  historyDate: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 2,
+    lineHeight: 18,
   },
   emptyContainer: {
     alignItems: 'center',

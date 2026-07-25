@@ -1,48 +1,11 @@
-import Constants from 'expo-constants';
-
-// Backend URL: read from Expo config (set via BACKEND_URL env var or app.config.ts)
-const configuredUrl = Constants.expoConfig?.extra?.backendUrl as string | undefined;
-export const PRODUCTION_BACKEND_URL = 'https://prescopad-v2.onrender.com/api';
-
-function resolveBackendUrl(): string {
-  // 1. If explicitly configured (production / EAS build), use that
-  if (configuredUrl) {
-    return configuredUrl;
-  }
-
-  // 2. In dev mode, auto-detect LAN IP from Expo debug server
-  if (__DEV__) {
-    const debuggerHost =
-      Constants.expoConfig?.hostUri ??
-      (Constants.manifest2 as Record<string, unknown> & { extra?: { expoGo?: { debuggerHost?: string } } })
-        ?.extra?.expoGo?.debuggerHost;
-    if (typeof debuggerHost === 'string') {
-      const host = debuggerHost.split(':')[0];
-      return `http://${host}:3000/api`;
-    }
-  }
-
-  // 3. Fallback to the deployed backend so release builds work out of the box.
-  console.warn('[PrescoPad] No backend URL configured. Falling back to the deployed Render backend.');
-  return PRODUCTION_BACKEND_URL;
-}
-
 export const APP_CONFIG = {
   name: 'PrescoPad',
   tagline: 'Digital Clinic for Modern Doctors',
   version: '2.0.0',
 
-  api: {
-    baseUrl: resolveBackendUrl(),
-    timeout: 10000,
-  },
-
-  wallet: {
-    costPerPrescription: 1,
-    defaultRechargeAmount: 100,
-    lowBalanceThreshold: 10,
+  billing: {
     currency: 'INR',
-    currencySymbol: '\u20B9',
+    currencySymbol: '₹',
   },
 
   polling: {

@@ -59,11 +59,6 @@ export default function AppShell() {
             </NavLink>
           )}
           {isDoctor && (
-            <NavLink to="/wallet" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
-              Wallet
-            </NavLink>
-          )}
-          {isDoctor && (
             <NavLink to="/analytics" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
               Analytics
             </NavLink>

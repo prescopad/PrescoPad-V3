@@ -21,7 +21,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePatientStore } from '../../store/usePatientStore';
-import api from '../../services/api';
+import { supabase } from '../../services/supabase';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
@@ -66,9 +66,9 @@ export default function AssistantDashboard(): React.JSX.Element {
   useEffect(() => {
     const checkDoctorStatus = async () => {
       try {
-        const res = await api.get('/clinic/doctor-status');
-        // doctors is an array — online if at least one doctor is active
-        const doctors: { is_online: boolean }[] = res.data.doctors ?? [];
+        const { data, error } = await supabase.rpc('get_doctor_status');
+        if (error) throw error;
+        const doctors: { is_online: boolean }[] = data ?? [];
         setDoctorReady(doctors.some((d) => d.is_online));
       } catch {
         setDoctorReady(false);
@@ -304,13 +304,13 @@ export default function AssistantDashboard(): React.JSX.Element {
           <Text style={styles.statLabel}>In Queue</Text>
         </View>
         <View style={[styles.statCard, styles.statCardMiddle]}>
-          <Text style={[styles.statValue, { color: COLORS.warning }]}>
+          <Text style={styles.statValue}>
             {stats.waiting}
           </Text>
           <Text style={styles.statLabel}>{t('queue.waiting')}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: COLORS.primary }]}>
+          <Text style={styles.statValue}>
             {stats.inProgress}
           </Text>
           <Text style={styles.statLabel}>{t('queue.inProgress')}</Text>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../api/client';
+import { supabase } from '../api/supabase';
 import { useIsAssistant } from '../store/useAuthStore';
 import { APP_CONFIG } from '../constants/config';
 
@@ -21,8 +21,9 @@ export function useDoctorStatus(): DoctorStatus[] {
 
     const load = async () => {
       try {
-        const res = await api.get('/clinic/doctor-status');
-        const raw = (res.data.doctors ?? []) as Record<string, unknown>[];
+        const { data, error } = await supabase.rpc('get_doctor_status');
+        if (error) throw error;
+        const raw = (data ?? []) as Record<string, unknown>[];
         setDoctors(raw.map((d) => ({
           id: d.id as string,
           name: (d.name as string) ?? '',

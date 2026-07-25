@@ -20,13 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
-import { APP_CONFIG } from '../../constants/config';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
-import { useWalletStore } from '../../store/useWalletStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { generatePrescriptionPDF } from '../../services/pdfService';
-import { recordConsultationPayment } from '../../services/walletService';
+import { recordConsultationPayment } from '../../services/paymentService';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import SignatureModal from '../../components/SignatureModal';
 import { hashPDF } from '../../services/cryptoService';
@@ -46,7 +44,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { currentPrescription, loadPrescription, finalizePrescription } = usePrescriptionStore();
-  const { canAfford, loadBalance, balance } = useWalletStore();
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
   const { user } = useAuthStore();
   const toast = useToast();
@@ -83,23 +80,9 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
     });
   };
 
-  // Step 1: Doctor taps "Sign & Issue" → check wallet → show sign mode
+  // Step 1: Doctor taps "Sign & Issue" → show sign mode
   const handleSignAndIssue = async () => {
     if (!rx) return;
-
-    await loadBalance();
-    const affordable = canAfford();
-    if (!affordable) {
-      Alert.alert(
-        'Insufficient Balance',
-        `You need ${APP_CONFIG.wallet.currencySymbol}${APP_CONFIG.wallet.costPerPrescription} to issue a prescription. Current balance: ${APP_CONFIG.wallet.currencySymbol}${balance}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Recharge', onPress: () => navigation.getParent()?.navigate('DoctorSettings', { screen: 'WalletMain' }) },
-        ],
-      );
-      return;
-    }
 
     // Show sign mode selection — payment comes AFTER issuing
     setShowSignModeModal(true);
@@ -135,8 +118,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
           console.warn('[PrescriptionPreview] Failed to mark queue item completed:', msg);
         });
       }
-
-      await loadBalance();
 
       // Store the issued Rx so we can navigate after payment is recorded
       issuedRxRef.current = usePrescriptionStore.getState().currentPrescription ?? rx;
@@ -392,15 +373,6 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
       {/* Sign & Issue Button — hidden in read-only mode */}
       {!readOnly && (
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : SPACING.lg }]}>
-          <View style={styles.costInfo}>
-            <Ionicons name="wallet-outline" size={18} color={COLORS.textMuted} />
-            <Text style={styles.costText}>
-              Cost: {APP_CONFIG.wallet.currencySymbol}{APP_CONFIG.wallet.costPerPrescription}
-            </Text>
-            <Text style={styles.balanceText}>
-              Balance: {APP_CONFIG.wallet.currencySymbol}{balance}
-            </Text>
-          </View>
           <TouchableOpacity
             style={[styles.signButton, isSigning && styles.buttonDisabled]}
             onPress={handleSignAndIssue}
@@ -949,23 +921,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
     ...SHADOWS.lg,
-  },
-  costInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.xs,
-  },
-  costText: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
-  balanceText: {
-    fontSize: 12,
-    color: COLORS.success,
-    fontWeight: '600',
-    marginLeft: SPACING.sm,
   },
   signButton: {
     flexDirection: 'row',

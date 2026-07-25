@@ -1,94 +1,86 @@
-import api from './api';
-import axios from 'axios';
+import { supabase } from './supabase';
 import { UserRole, AuthResponse, User } from '../types/auth.types';
 
-/** Extract the user-facing message from a backend error response. */
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError(error)) {
-    const msg = error.response?.data?.message;
-    if (msg && typeof msg === 'string') return msg;
-  }
-  if (error instanceof Error) return error.message;
-  return fallback;
-}
-
-/** Re-throw with the backend's message so UI catch blocks get clear text. */
+/** Re-throw with a clear message so UI catch blocks get readable text. */
 function throwWithMessage(error: unknown, fallback: string): never {
-  throw new Error(extractErrorMessage(error, fallback));
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+    throw new Error((error as { message: string }).message || fallback);
+  }
+  throw new Error(fallback);
 }
 
-// Normalize Python backend snake_case response → camelCase AuthResponse
-function normalizeAuthResponse(data: Record<string, unknown>): AuthResponse {
-  const raw = data as Record<string, unknown>;
-  const user = (raw.user ?? {}) as Record<string, unknown>;
+function normalizeProfile(p: Record<string, unknown>): User {
   return {
-    accessToken: (raw.access_token ?? raw.accessToken ?? '') as string,
-    refreshToken: (raw.refresh_token ?? raw.refreshToken ?? '') as string,
-    user: normalizeUser(user),
+    id: (p.id ?? '') as string,
+    phone: (p.phone ?? '') as string,
+    name: (p.name ?? '') as string,
+    role: (p.role ?? '') as User['role'],
+    clinicId: (p.clinic_id ?? '') as string,
+    doctorCode: (p.doctor_code ?? undefined) as string | undefined,
+    isProfileComplete: Boolean(p.is_profile_complete ?? false),
+    soloMode: undefined, // resolved separately via useClinicStore (clinics.solo_mode)
+    signatureUrl: (p.signature_url ?? undefined) as string | undefined,
+    specialty: (p.specialty ?? undefined) as string | undefined,
+    regNumber: (p.reg_number ?? undefined) as string | undefined,
+    qualification: (p.specialty ?? undefined) as string | undefined,
+    experienceYears: (p.experience_years ?? undefined) as number | undefined,
+    city: (p.city ?? undefined) as string | undefined,
+    address: (p.address ?? undefined) as string | undefined,
+    createdAt: (p.created_at ?? '') as string,
   };
 }
 
-function normalizeUser(u: Record<string, unknown>): User {
+/** Fetch the caller's own profile row and the current session's tokens. */
+async function currentAuthResponse(): Promise<AuthResponse> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('No active session');
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', sessionData.session.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw new Error('Failed to load profile');
+  }
+
   return {
-    id: (u.id ?? u._id ?? '') as string,
-    phone: (u.phone ?? '') as string,
-    name: (u.name ?? '') as string,
-    role: (u.role ?? '') as User['role'],
-    clinicId: (u.clinic_id ?? u.clinicId ?? '') as string,
-    doctorCode: (u.doctor_code ?? u.doctorCode ?? undefined) as string | undefined,
-    isProfileComplete: Boolean(u.is_profile_complete ?? u.isProfileComplete ?? false),
-    soloMode: Boolean(u.solo_mode ?? u.soloMode ?? false),
-    signatureUrl: (u.signature_url ?? u.signatureUrl ?? undefined) as string | undefined,
-    specialty: (u.specialty ?? undefined) as string | undefined,
-    regNumber: (u.reg_number ?? u.regNumber ?? undefined) as string | undefined,
-    qualification: (u.qualification ?? undefined) as string | undefined,
-    experienceYears: (u.experience_years ?? u.experienceYears ?? undefined) as number | undefined,
-    city: (u.city ?? undefined) as string | undefined,
-    address: (u.address ?? undefined) as string | undefined,
-    createdAt: (u.created_at ?? u.createdAt ?? '') as string,
+    user: normalizeProfile(profile),
+    accessToken: sessionData.session.access_token,
+    refreshToken: sessionData.session.refresh_token,
   };
 }
 
 export async function sendOTP(
   phone: string,
   role: UserRole,
-  purpose: string = 'login'
-): Promise<{ success: boolean; expires_in?: number }> {
-  try {
-    const response = await api.post('/auth/send-otp', { phone, role, purpose });
-    return response.data;
-  } catch (error) {
-    throwWithMessage(error, 'Failed to send OTP. Please try again.');
-  }
+  _purpose: string = 'login'
+): Promise<{ success: boolean }> {
+  const { error } = await supabase.auth.signInWithOtp({
+    phone,
+    options: { data: { role } },
+  });
+  if (error) throwWithMessage(error, 'Failed to send OTP. Please try again.');
+  return { success: true };
 }
 
 export async function verifyOTP(
   phone: string,
   otp: string,
-  role: UserRole,
-  purpose: string = 'login'
+  _role: UserRole,
+  _purpose: string = 'login'
 ): Promise<AuthResponse> {
-  try {
-    const response = await api.post('/auth/verify-otp', { phone, otp, role, purpose });
-    return normalizeAuthResponse(response.data);
-  } catch (error) {
-    throwWithMessage(error, 'Verification failed. Please try again.');
-  }
-}
-
-export async function loginWithPassword(
-  phone: string,
-  password: string,
-  role: UserRole
-): Promise<AuthResponse> {
-  const response = await api.post('/auth/login', { phone, password, role });
-  return normalizeAuthResponse(response.data);
+  const { error } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' });
+  if (error) throwWithMessage(error, 'Verification failed. Please try again.');
+  return currentAuthResponse();
 }
 
 export async function getMe(): Promise<User> {
-  const response = await api.get('/auth/me');
-  const raw = response.data.user ?? response.data;
-  return normalizeUser(raw as Record<string, unknown>);
+  const { user } = await currentAuthResponse();
+  return user;
 }
 
 export async function updateProfile(data: {
@@ -102,9 +94,28 @@ export async function updateProfile(data: {
   address?: string;
   signatureUrl?: string;
 }): Promise<User> {
-  const response = await api.put('/auth/profile', data);
-  const raw = response.data.user ?? response.data;
-  return normalizeUser(raw as Record<string, unknown>);
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error('No active session');
+
+  const update: Record<string, unknown> = {};
+  if (data.name !== undefined) update.name = data.name;
+  if (data.specialty !== undefined) update.specialty = data.specialty;
+  if (data.qualification !== undefined) update.specialty = data.qualification;
+  if (data.regNumber !== undefined) update.reg_number = data.regNumber;
+  if (data.experienceYears !== undefined) update.experience_years = data.experienceYears;
+  if (data.city !== undefined) update.city = data.city;
+  if (data.address !== undefined) update.address = data.address;
+  if (data.signatureUrl !== undefined) update.signature_url = data.signatureUrl;
+
+  const { data: updated, error } = await supabase
+    .from('profiles')
+    .update(update)
+    .eq('id', sessionData.session.user.id)
+    .select()
+    .single();
+
+  if (error || !updated) throwWithMessage(error, 'Failed to update profile.');
+  return normalizeProfile(updated);
 }
 
 export async function completeRegistration(data: {
@@ -119,13 +130,44 @@ export async function completeRegistration(data: {
   experienceYears?: number;
   address?: string;
   city?: string;
-  selectedClinicId?: string;
+  joinClinicCode?: string;
 }): Promise<AuthResponse> {
-  const response = await api.post('/auth/complete-registration', data);
-  return normalizeAuthResponse(response.data);
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) throw new Error('No active session');
+  const role = sessionData.session.user.user_metadata?.role as UserRole | undefined;
+
+  if (role === UserRole.ASSISTANT) {
+    const { error } = await supabase.rpc('complete_assistant_registration', {
+      p_name: data.name,
+      p_qualification: data.qualification,
+      p_experience_years: data.experienceYears,
+      p_city: data.city,
+      p_address: data.address,
+    });
+    if (error) throwWithMessage(error, 'Failed to complete registration.');
+  } else {
+    const { error } = await supabase.rpc('complete_doctor_registration', {
+      p_name: data.name,
+      p_specialty: data.specialty,
+      p_reg_number: data.regNumber,
+      p_clinic_name: data.clinicName,
+      p_clinic_address: data.clinicAddress,
+      p_clinic_phone: data.clinicPhone,
+      p_clinic_email: data.clinicEmail,
+      p_join_clinic_code: data.joinClinicCode ?? null,
+    });
+    if (error) throwWithMessage(error, 'Failed to complete registration.');
+  }
+
+  return currentAuthResponse();
 }
 
 export async function refreshSession(): Promise<AuthResponse> {
-  const response = await api.post('/auth/refresh-session');
-  return normalizeAuthResponse(response.data);
+  const { error } = await supabase.auth.refreshSession();
+  if (error) throwWithMessage(error, 'Failed to refresh session.');
+  return currentAuthResponse();
+}
+
+export async function signOut(): Promise<void> {
+  await supabase.auth.signOut();
 }

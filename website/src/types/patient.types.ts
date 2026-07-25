@@ -17,15 +17,11 @@ export interface Patient {
   allergies: string;
   createdAt: string;
   updatedAt: string;
-  casebookSummary?: string | null;
-  casebookSummaryUpdatedAt?: string | null;
-  casebookEntries?: CasebookEntry[];
-}
-
-export interface CasebookEntry {
-  date: string;
-  summary: string;
-  prescriptionId: string;
+  /** Consolidated one-paragraph case summary, regenerated whenever a
+   * prescription is finalized — replaces the old per-prescription
+   * casebookEntries[] timeline. */
+  caseSummary?: string | null;
+  caseSummaryUpdatedAt?: string | null;
 }
 
 export interface PatientFormData {

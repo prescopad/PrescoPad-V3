@@ -124,13 +124,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps): Rea
     },
     ...(isDoctor ? [
       {
-        icon: 'wallet-outline' as keyof typeof Ionicons.glyphMap,
-        label: t('nav.wallet'),
-        subtitle: 'Manage wallet balance and recharge',
-        onPress: () => navigation.navigate('WalletMain'),
-        showArrow: true,
-      },
-      {
         icon: 'bar-chart-outline' as keyof typeof Ionicons.glyphMap,
         label: t('nav.analytics'),
         subtitle: 'View prescription analytics and revenue',

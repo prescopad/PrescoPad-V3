@@ -47,7 +47,6 @@ export type AssistantStackParamList = {
 };
 
 export type SharedStackParamList = {
-  Wallet: undefined;
   Settings: undefined;
   ClinicProfile: undefined;
   MedicineTestManagement: undefined;

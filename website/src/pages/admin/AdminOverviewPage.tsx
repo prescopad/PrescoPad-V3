@@ -53,7 +53,7 @@ export default function AdminOverviewPage() {
           <div className="stat-label">Today</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{APP_CONFIG.wallet.currencySymbol}{data.revenue.platformGross}</div>
+          <div className="stat-value">{APP_CONFIG.billing.currencySymbol}{data.revenue.platformGross}</div>
           <div className="stat-label">Platform gross</div>
         </div>
       </div>

@@ -39,13 +39,22 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
   const [clinicPhone, setClinicPhone] = useState('');
   const [clinicEmail, setClinicEmail] = useState('');
 
+  // Doctor: new clinic vs. join existing clinic
+  const [clinicMode, setClinicMode] = useState<'new' | 'join'>('new');
+  const [joinClinicCode, setJoinClinicCode] = useState('');
+
   // Assistant fields
   const [qualification, setQualification] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
 
-  const canSubmit = name.trim().length >= 2 && (!isDoctor || clinicName.trim().length >= 2);
+  const isJoiningClinic = isDoctor && clinicMode === 'join';
+
+  const canSubmit = name.trim().length >= 2 && (
+    !isDoctor
+    || (isJoiningClinic ? joinClinicCode.trim().length === 6 : clinicName.trim().length >= 2)
+  );
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -57,10 +66,14 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
       if (isDoctor) {
         if (specialty.trim()) data.specialty = specialty.trim();
         if (regNumber.trim()) data.regNumber = regNumber.trim();
-        data.clinicName = clinicName.trim();
-        if (clinicAddress.trim()) data.clinicAddress = clinicAddress.trim();
-        if (clinicPhone.trim()) data.clinicPhone = clinicPhone.trim();
-        if (clinicEmail.trim()) data.clinicEmail = clinicEmail.trim();
+        if (isJoiningClinic) {
+          data.joinClinicCode = joinClinicCode.trim().toUpperCase();
+        } else {
+          data.clinicName = clinicName.trim();
+          if (clinicAddress.trim()) data.clinicAddress = clinicAddress.trim();
+          if (clinicPhone.trim()) data.clinicPhone = clinicPhone.trim();
+          if (clinicEmail.trim()) data.clinicEmail = clinicEmail.trim();
+        }
       } else {
         if (qualification.trim()) data.qualification = qualification.trim();
         if (experienceYears.trim()) data.experienceYears = parseInt(experienceYears) || 0;
@@ -158,56 +171,94 @@ export default function RegistrationScreen({ route }: Props): React.JSX.Element 
                   <View style={styles.dividerLine} />
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>{t('auth.clinicNameRequired')}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={clinicName}
-                    onChangeText={setClinicName}
-                    placeholder={t('auth.clinicNamePlaceholder')}
-                    placeholderTextColor={COLORS.textLight}
-                  />
+                <View style={styles.clinicModeToggle}>
+                  <TouchableOpacity
+                    style={[styles.clinicModeBtn, clinicMode === 'new' && styles.clinicModeBtnActive]}
+                    onPress={() => setClinicMode('new')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.clinicModeBtnText, clinicMode === 'new' && styles.clinicModeBtnTextActive]}>
+                      New Clinic
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.clinicModeBtn, clinicMode === 'join' && styles.clinicModeBtnActive]}
+                    onPress={() => setClinicMode('join')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.clinicModeBtnText, clinicMode === 'join' && styles.clinicModeBtnTextActive]}>
+                      Join Existing Clinic
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Clinic Address</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={clinicAddress}
-                    onChangeText={setClinicAddress}
-                    placeholder="e.g. 12, MG Road, Pune"
-                    placeholderTextColor={COLORS.textLight}
-                    multiline
-                    numberOfLines={2}
-                  />
-                </View>
+                {isJoiningClinic ? (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Doctor Code</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={joinClinicCode}
+                      onChangeText={(text) => setJoinClinicCode(text.toUpperCase().slice(0, 6))}
+                      placeholder="Enter clinic owner's doctor code"
+                      placeholderTextColor={COLORS.textLight}
+                      autoCapitalize="characters"
+                      maxLength={6}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>{t('auth.clinicNameRequired')}</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={clinicName}
+                        onChangeText={setClinicName}
+                        placeholder={t('auth.clinicNamePlaceholder')}
+                        placeholderTextColor={COLORS.textLight}
+                      />
+                    </View>
 
-                <View style={styles.row}>
-                  <View style={[styles.inputGroup, styles.rowHalf]}>
-                    <Text style={styles.label}>Clinic Phone</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={clinicPhone}
-                      onChangeText={setClinicPhone}
-                      placeholder="Phone number"
-                      placeholderTextColor={COLORS.textLight}
-                      keyboardType="phone-pad"
-                      maxLength={15}
-                    />
-                  </View>
-                  <View style={[styles.inputGroup, styles.rowHalf]}>
-                    <Text style={styles.label}>Clinic Email</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={clinicEmail}
-                      onChangeText={setClinicEmail}
-                      placeholder="Email"
-                      placeholderTextColor={COLORS.textLight}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Clinic Address</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        value={clinicAddress}
+                        onChangeText={setClinicAddress}
+                        placeholder="e.g. 12, MG Road, Pune"
+                        placeholderTextColor={COLORS.textLight}
+                        multiline
+                        numberOfLines={2}
+                      />
+                    </View>
+
+                    <View style={styles.row}>
+                      <View style={[styles.inputGroup, styles.rowHalf]}>
+                        <Text style={styles.label}>Clinic Phone</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={clinicPhone}
+                          onChangeText={setClinicPhone}
+                          placeholder="Phone number"
+                          placeholderTextColor={COLORS.textLight}
+                          keyboardType="phone-pad"
+                          maxLength={15}
+                        />
+                      </View>
+                      <View style={[styles.inputGroup, styles.rowHalf]}>
+                        <Text style={styles.label}>Clinic Email</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={clinicEmail}
+                          onChangeText={setClinicEmail}
+                          placeholder="Email"
+                          placeholderTextColor={COLORS.textLight}
+                          keyboardType="email-address"
+                          autoCapitalize="none"
+                        />
+                      </View>
+                    </View>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -362,6 +413,34 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  clinicModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.surfaceSecondary,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 4,
+    marginBottom: SPACING.xl,
+    gap: 4,
+  },
+  clinicModeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: RADIUS.md,
+  },
+  clinicModeBtnActive: {
+    backgroundColor: COLORS.primary,
+  },
+  clinicModeBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  clinicModeBtnTextActive: {
+    color: COLORS.white,
   },
   button: {
     backgroundColor: COLORS.primary,

@@ -12,7 +12,6 @@ export default function SettingsPage() {
     { label: 'Medicines & Tests', subtitle: 'Add or remove custom medicines and lab tests', to: '/settings/medicines-tests' },
     { label: 'Connection', subtitle: 'Connect doctor and assistant accounts', to: '/settings/connection' },
     ...(isDoctor ? [{ label: 'Casebook', subtitle: 'Quick patient summaries', to: '/casebook' }] : []),
-    ...(isDoctor ? [{ label: 'Wallet', subtitle: 'Manage wallet balance and recharge', to: '/wallet' }] : []),
     ...(isDoctor ? [{ label: 'Analytics', subtitle: 'View prescription analytics and revenue', to: '/analytics' }] : []),
   ];
 

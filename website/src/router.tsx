@@ -17,7 +17,6 @@ import ConsultWorkspace from './pages/consult/ConsultWorkspace';
 import PrescriptionPreviewPage from './pages/consult/PrescriptionPreviewPage';
 import RxSuccessPage from './pages/consult/RxSuccessPage';
 import CasebookPage from './pages/casebook/CasebookPage';
-import WalletPage from './pages/wallet/WalletPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import UserProfilePage from './pages/settings/UserProfilePage';
@@ -82,7 +81,6 @@ export function AppRouter() {
             <Route path="/patients/:id/edit" element={<PatientFormPage />} />
             <Route path="/patients/:id/history" element={<PatientDetailPage />} />
             <Route path="/casebook" element={<CasebookPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/profile" element={<UserProfilePage />} />

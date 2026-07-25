@@ -3,7 +3,7 @@ import type { Prescription } from '../types/prescription.types';
 import { useClinicStore } from '../store/useClinicStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { getShareToken, downloadPrescriptionPdf } from '../api/dataService';
-import { PRODUCTION_BACKEND_URL } from '../constants/config';
+import { supabase } from '../api/supabase';
 import { useToast } from './toast/ToastContext';
 import './prescriptionActions.css';
 
@@ -29,12 +29,14 @@ export default function PrescriptionActions({ prescription }: Props) {
 
     setBusy('whatsapp');
     try {
-      // 1. Fetch the share token from backend
+      // 1. Fetch the share token
       const { share_token } = await getShareToken(prescription.id);
 
-      // 2. Build download URL pointing to production backend
-      const cleanBaseUrl = PRODUCTION_BACKEND_URL.replace(/\/api\/?$/, '');
-      const downloadUrl = `${cleanBaseUrl}/rx/${share_token}`;
+      // 2. Build download URL pointing at the public get-shared-prescription
+      // Edge Function (no JWT required — the share_token itself is the
+      // authorization, mirroring the old /rx/{share_token} backend route).
+      const supabaseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+      const downloadUrl = `${supabaseUrl}/functions/v1/get-shared-prescription?token=${share_token}`;
 
       // 3. Build message matching the app exactly
       const docName = doctorProfile?.name || user?.name || 'Doctor';

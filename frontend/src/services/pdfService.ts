@@ -441,8 +441,8 @@ function buildPrescriptionHTML(
 <body>
 
   <!-- ═══════ HEADER ═══════ -->
-  <div style="text-align: center; margin-bottom: 6px;">
-    <img src="${prescopadLogo}" alt="PrescoPad Logo" style="height: 28px; width: auto;" />
+  <div style="text-align: left; margin-bottom: 6px;">
+    <img src="${prescopadLogo}" alt="PrescoPad Logo" style="height: 44px; width: auto;" />
   </div>
   <div class="clinic-name">${clinicName}</div>
   <div class="doctor-line">${doctorLine}</div>

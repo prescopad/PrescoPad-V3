@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { getAnalytics } from '../../api/analyticsService';
 import type { ComprehensiveAnalytics, TimePeriod } from '../../types/analytics.types';
 import { APP_CONFIG } from '../../constants/config';
@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
           </button>
         </div>
       ) : isLoading || !analytics ? (
-        <PageLoader label="Loading analytics — this can take a little longer if the server is waking up..." />
+        <PageLoader label="Loading analytics â€” this can take a little longer if the server is waking up..." />
       ) : (
         <>
           <div className="stat-row">
@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
               <div className="stat-label">Finalized</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value">{APP_CONFIG.wallet.currencySymbol}{analytics.earnings.netEarnings}</div>
+              <div className="stat-value">{APP_CONFIG.billing.currencySymbol}{analytics.earnings.netEarnings}</div>
               <div className="stat-label">Net earnings</div>
             </div>
             <div className="stat-card">
@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
                 {analytics.popular.topMedicines.map((m) => (
                   <div key={m.name} className="item-card" style={{ cursor: 'default' }}>
                     <div className="item-name">{m.name}</div>
-                    <div className="item-meta">{m.count}×</div>
+                    <div className="item-meta">{m.count}Ã—</div>
                   </div>
                 ))}
               </div>
@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
                 {analytics.popular.topTests.map((t) => (
                   <div key={t.name} className="item-card" style={{ cursor: 'default' }}>
                     <div className="item-name">{t.name}</div>
-                    <div className="item-meta">{t.count}×</div>
+                    <div className="item-meta">{t.count}Ã—</div>
                   </div>
                 ))}
               </div>

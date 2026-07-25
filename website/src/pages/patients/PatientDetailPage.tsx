@@ -4,6 +4,7 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import * as DataService from '../../api/dataService';
+import { APP_CONFIG } from '../../constants/config';
 import type { Patient } from '../../types/patient.types';
 import type { Prescription } from '../../types/prescription.types';
 import ConsultTypeModal from '../../components/ConsultTypeModal';
@@ -107,6 +108,11 @@ export default function PatientDetailPage() {
             <div>
               <div className="item-name">{rx.diagnosis || 'Consultation'}</div>
               <div className="item-meta">{formatDate(rx.createdAt)}</div>
+              {rx.chargeAmount !== null && rx.chargeAmount !== undefined && (
+                <div className="item-meta" style={{ color: 'var(--color-success)', fontWeight: 600, marginTop: 2 }}>
+                  Charge: {APP_CONFIG.billing.currencySymbol}{rx.chargeAmount}
+                </div>
+              )}
             </div>
             <span className="status-pill" style={{
               background: rx.status === 'finalized' ? 'var(--color-success-light)' : 'var(--color-warning-light)',

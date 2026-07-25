@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
+import { APP_CONFIG } from '../../constants/config';
 import { usePatientStore } from '../../store/usePatientStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -307,6 +308,19 @@ export default function PatientDetailScreen(): React.JSX.Element {
                     </View>
                   )}
                 </View>
+
+                {rx.chargeAmount !== null && rx.chargeAmount !== undefined ? (
+                  <View style={styles.rxChargeRow}>
+                    <Ionicons
+                      name="cash-outline"
+                      size={14}
+                      color={COLORS.success}
+                    />
+                    <Text style={styles.rxChargeText}>
+                      Charge: {APP_CONFIG.billing.currencySymbol}{rx.chargeAmount}
+                    </Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             ))
           )}
@@ -617,5 +631,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textSecondary,
     fontWeight: '500',
+  },
+  rxChargeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  rxChargeText: {
+    fontSize: 12,
+    color: COLORS.success,
+    fontWeight: '600',
   },
 });

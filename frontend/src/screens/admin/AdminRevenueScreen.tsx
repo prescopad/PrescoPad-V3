@@ -63,17 +63,16 @@ export default function AdminRevenueScreen(): React.JSX.Element {
         ) : (
           <>
             <View style={[styles.bigCard, { backgroundColor: COLORS.primary }]}>
-              <Text style={styles.bigCardLabel}>Platform revenue</Text>
+              <Text style={styles.bigCardLabel}>Consultation income</Text>
               <Text style={styles.bigCardValue}>
-                {APP_CONFIG.wallet.currencySymbol}{data.platformRevenue.toFixed(2)}
+                {APP_CONFIG.billing.currencySymbol}{data.platformRevenue.toFixed(2)}
               </Text>
-              <Text style={styles.bigCardSub}>(debits − refunds)</Text>
+              <Text style={styles.bigCardSub}>(cash + online)</Text>
             </View>
 
             <View style={styles.card}>
-              <Row label="Wallet credits in" value={data.byType.credit?.total ?? 0} count={data.byType.credit?.count ?? 0} />
-              <Row label="Wallet debits (Rx fees)" value={data.byType.debit?.total ?? 0} count={data.byType.debit?.count ?? 0} />
-              <Row label="Refunds" value={data.byType.refund?.total ?? 0} count={data.byType.refund?.count ?? 0} />
+              <Row label="Cash payments" value={data.byType.cash?.total ?? 0} count={data.byType.cash?.count ?? 0} />
+              <Row label="Online payments" value={data.byType.online?.total ?? 0} count={data.byType.online?.count ?? 0} />
             </View>
 
             <Text style={styles.footnote}>
@@ -93,7 +92,7 @@ function Row({ label, value, count }: { label: string; value: number; count: num
         <Text style={styles.rowLabel}>{label}</Text>
         <Text style={styles.rowCount}>{count} txns</Text>
       </View>
-      <Text style={styles.rowValue}>{APP_CONFIG.wallet.currencySymbol}{value.toFixed(2)}</Text>
+      <Text style={styles.rowValue}>{APP_CONFIG.billing.currencySymbol}{value.toFixed(2)}</Text>
     </View>
   );
 }

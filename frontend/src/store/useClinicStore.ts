@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import * as FileSystem from 'expo-file-system/legacy';
 import SecureStore from '../utils/secureStore';
 import { Clinic, DoctorProfile } from '../types/clinic.types';
-import api from '../services/api';
+import { supabase } from '../services/supabase';
 import { useAuthStore } from './useAuthStore';
 
 const SIG_FILE_URI = `${FileSystem.documentDirectory}doctor_signature.svg`;
@@ -25,6 +25,11 @@ async function readSigFile(uri: string): Promise<string | null> {
 interface ClinicStore {
   clinic: Clinic | null;
   doctorProfile: DoctorProfile | null;
+  /** All doctors in the current clinic (supports multiple doctors per clinic).
+   * `doctorProfile` remains a single arbitrary/primary pick (doctors[0]) for
+   * backward compatibility with existing screens; use this array when a
+   * screen needs to list or disambiguate between multiple doctors. */
+  doctors: DoctorProfile[];
   isLoading: boolean;
 
   loadClinic: () => Promise<void>;
@@ -36,29 +41,49 @@ interface ClinicStore {
   setDoctorProfile: (profile: DoctorProfile) => void;
 }
 
+/** Map a raw `profiles` row (snake_case) to the frontend `DoctorProfile` shape. */
+function mapDoctorProfileRow(row: Record<string, unknown>): DoctorProfile {
+  return {
+    id: row.id as string,
+    name: (row.name as string) || '',
+    phone: (row.phone as string) || '',
+    specialty: (row.specialty as string) || '',
+    regNumber: (row.reg_number as string) || (row.regNumber as string) || '',
+    signatureBase64: (row.signature_url as string) || (row.signatureUrl as string) || null,
+    cloudId: row.id as string,
+  };
+}
+
 export const useClinicStore = create<ClinicStore>((set, get) => ({
   clinic: null,
   doctorProfile: null,
+  doctors: [],
   isLoading: false,
 
   loadClinic: async () => {
     try {
-      const res = await api.get('/clinic');
-      const c = res.data.clinic;
-      if (c) {
-        set({
-          clinic: {
-            id: c.id,
-            name: c.name || '',
-            address: c.address || '',
-            phone: c.phone || '',
-            email: c.email || '',
-            logoBase64: c.logo_url || c.logoBase64 || null,
-            qrCodeUrl: c.qr_code_url || c.qrCodeUrl || null,
-            ownerId: c.owner_id || '',
-          },
-        });
-      }
+      const authUser = useAuthStore.getState().user;
+      if (!authUser?.clinicId) return;
+
+      const { data: c, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('id', authUser.clinicId)
+        .maybeSingle();
+      if (error || !c) return;
+
+      set({
+        clinic: {
+          id: c.id,
+          name: c.name || '',
+          address: c.address || '',
+          phone: c.phone || '',
+          email: c.email || '',
+          logoBase64: c.logo_url || c.logoBase64 || null,
+          qrCodeUrl: c.qr_code_url || c.qrCodeUrl || null,
+          ownerId: c.owner_id || '',
+        },
+      });
     } catch {
       // no clinic yet
     }
@@ -70,8 +95,13 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
       if (!authUser) return;
 
       if (authUser.role === 'doctor') {
-        const res = await api.get('/auth/me');
-        const u = res.data.user;
+        const { data: u, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        if (error || !u) return;
+
         const localRef = await SecureStore.getItemAsync('doctorSignature');
         // localRef may be a file:// URI (new) or a raw SVG path (legacy)
         let localSig: string | null = null;
@@ -79,39 +109,32 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
           localSig = localRef.startsWith('file://') ? await readSigFile(localRef) : localRef;
         }
         // Fall back to cloud-stored signature if local cache is missing
-        const cloudSig = u?.signature_url || u?.signatureUrl || null;
+        const cloudSig = u.signature_url || null;
         const signatureBase64 = localSig || cloudSig;
-        if (u) {
-          set({
-            doctorProfile: {
-              id: u.id,
-              name: u.name || '',
-              phone: u.phone || '',
-              specialty: u.specialty || '',
-              regNumber: u.reg_number || u.regNumber || '',
-              signatureBase64: signatureBase64 || null,
-              cloudId: u.id,
-            },
-          });
-        }
+        const profile: DoctorProfile = {
+          id: u.id,
+          name: u.name || '',
+          phone: u.phone || '',
+          specialty: u.specialty || '',
+          regNumber: u.reg_number || '',
+          signatureBase64: signatureBase64 || null,
+          cloudId: u.id,
+        };
+        set({ doctorProfile: profile, doctors: [profile] });
       } else if (authUser.role === 'assistant') {
         if (!authUser.clinicId) return;
-        const res = await api.get(`/clinic/${authUser.clinicId}/doctors`);
-        const doctors = res.data.doctors ?? [];
-        if (doctors.length > 0) {
-          const doc = doctors[0];
-          set({
-            doctorProfile: {
-              id: doc.id,
-              name: doc.name || '',
-              phone: doc.phone || '',
-              specialty: doc.specialty || '',
-              regNumber: doc.regNumber || doc.reg_number || '',
-              signatureBase64: doc.signatureUrl || doc.signature_url || doc.signature || null,
-              cloudId: doc.id,
-            },
-          });
-        }
+        const { data: rows, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('clinic_id', authUser.clinicId)
+          .eq('role', 'doctor');
+        if (error) return;
+
+        const doctors = (rows ?? []).map(mapDoctorProfileRow);
+        set({
+          doctors,
+          doctorProfile: doctors.length > 0 ? doctors[0] : get().doctorProfile,
+        });
       }
     } catch {
       // failed to load doctor profile
@@ -130,7 +153,7 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     if (data.logoBase64 !== undefined) payload.logo_url = data.logoBase64;
     if (data.qrCodeUrl !== undefined) payload.qr_code_url = data.qrCodeUrl;
 
-    await api.put('/clinic', payload);
+    await supabase.from('clinics').update(payload).eq('id', current.id);
     set({ clinic: { ...current, ...data } });
   },
 
@@ -142,10 +165,10 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     const payload: Record<string, unknown> = {};
     if (data.name !== undefined) payload.name = data.name;
     if (data.specialty !== undefined) payload.specialty = data.specialty;
-    if (data.regNumber !== undefined) payload.regNumber = data.regNumber;
+    if (data.regNumber !== undefined) payload.reg_number = data.regNumber;
 
     if (Object.keys(payload).length > 0) {
-      await api.put('/auth/profile', payload);
+      await supabase.from('profiles').update(payload).eq('id', current.id);
     }
 
     // Save signature: write to filesystem (no size limit), store URI in SecureStore, sync to cloud
@@ -153,15 +176,19 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
       if (data.signatureBase64) {
         const fileUri = await writeSigFile(data.signatureBase64);
         await SecureStore.setItemAsync('doctorSignature', fileUri);
-        await api.put('/auth/profile', { signatureUrl: data.signatureBase64 });
+        await supabase.from('profiles').update({ signature_url: data.signatureBase64 }).eq('id', current.id);
       } else {
         await SecureStore.deleteItemAsync('doctorSignature');
         try { await FileSystem.deleteAsync(SIG_FILE_URI, { idempotent: true }); } catch {}
-        await api.put('/auth/profile', { signatureUrl: '' });
+        await supabase.from('profiles').update({ signature_url: '' }).eq('id', current.id);
       }
     }
 
-    set({ doctorProfile: { ...current, ...data } });
+    const updated = { ...current, ...data };
+    set({
+      doctorProfile: updated,
+      doctors: get().doctors.map((d) => (d.id === updated.id ? updated : d)),
+    });
   },
 
   saveSignature: async (signatureBase64: string) => {
@@ -169,8 +196,12 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     if (!current) return;
     const fileUri = await writeSigFile(signatureBase64);
     await SecureStore.setItemAsync('doctorSignature', fileUri);
-    await api.put('/auth/profile', { signatureUrl: signatureBase64 });
-    set({ doctorProfile: { ...current, signatureBase64 } });
+    await supabase.from('profiles').update({ signature_url: signatureBase64 }).eq('id', current.id);
+    const updated = { ...current, signatureBase64 };
+    set({
+      doctorProfile: updated,
+      doctors: get().doctors.map((d) => (d.id === updated.id ? updated : d)),
+    });
   },
 
   setClinic: (clinic) => set({ clinic }),

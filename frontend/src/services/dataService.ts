@@ -1,12 +1,23 @@
-import api from './api';
-import { Patient, PatientFormData, CasebookEntry } from '../types/patient.types';
+import { supabase } from './supabase';
+import { useAuthStore } from '../store/useAuthStore';
+import { Patient, PatientFormData } from '../types/patient.types';
 import { Prescription, PrescriptionDraft, PrescriptionMedicine, PrescriptionLabTest, PrescriptionStatus, PrescriptionTemplate } from '../types/prescription.types';
 import { QueueItem, QueueStatus } from '../types/queue.types';
 import { Medicine, LabTest } from '../types/medicine.types';
 import { searchMedicines as searchLocalMedicines, getFrequentMedicines as getLocalFrequentMedicines, getMedicinesByType as getLocalMedicinesByType, getMedicinesExcludingTypes as getLocalMedicinesExcludingTypes, searchLabTests as searchLocalLabTests, getFrequentLabTests as getLocalFrequentLabTests, getLabTestsByCategory as getLocalLabTestsByCategory, incrementMedicineUsage as incrementLocalMedicineUsage, incrementLabTestUsage as incrementLocalLabTestUsage } from '../database/queries/medicineQueries';
 
+function currentClinicId(): string {
+  const clinicId = useAuthStore.getState().user?.clinicId;
+  if (!clinicId) throw new Error('No clinic associated with the current user.');
+  return clinicId;
+}
+
+function throwOnError(error: { message: string } | null, fallback: string): void {
+  if (error) throw new Error(error.message || fallback);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAPPING HELPERS (snake_case backend → camelCase frontend)
+// MAPPING HELPERS (snake_case Postgres rows → camelCase frontend types)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function mapPatient(row: Record<string, unknown>): Patient {
@@ -22,17 +33,13 @@ function mapPatient(row: Record<string, unknown>): Patient {
     allergies: (row.allergies as string) ?? '',
     createdAt: (row.created_at as string) ?? '',
     updatedAt: (row.updated_at as string) ?? '',
-    casebookSummary: (row.casebook_summary as string) ?? null,
-    casebookSummaryUpdatedAt: (row.casebook_summary_updated_at as string) ?? null,
-    casebookEntries: ((row.casebook_entries as Record<string, unknown>[]) ?? []).map((e) => ({
-      date: (e.date as string) ?? '',
-      summary: (e.summary as string) ?? '',
-      prescriptionId: (e.prescription_id as string) ?? '',
-    })) as CasebookEntry[],
+    caseSummary: (row.case_summary as string) ?? null,
+    caseSummaryUpdatedAt: (row.case_summary_updated_at as string) ?? null,
   };
 }
 
 function mapQueueItem(row: Record<string, unknown>): QueueItem {
+  const patient = row.patients as Record<string, unknown> | undefined;
   return {
     id: row.id as string,
     patientId: row.patient_id as string,
@@ -44,16 +51,16 @@ function mapQueueItem(row: Record<string, unknown>): QueueItem {
     addedAt: row.added_at as string,
     startedAt: (row.started_at as string) ?? null,
     completedAt: (row.completed_at as string) ?? null,
-    patient: row.patient_name ? {
-      id: row.patient_id as string,
-      name: row.patient_name as string,
-      age: row.patient_age as number,
-      gender: row.patient_gender as Patient['gender'],
-      weight: (row.patient_weight as number) ?? null,
-      phone: (row.patient_phone as string) ?? '',
-      address: (row.patient_address as string) ?? '',
-      bloodGroup: (row.patient_blood_group as string) ?? '',
-      allergies: (row.patient_allergies as string) ?? '',
+    patient: patient ? {
+      id: patient.id as string,
+      name: patient.name as string,
+      age: patient.age as number,
+      gender: patient.gender as Patient['gender'],
+      weight: (patient.weight as number) ?? null,
+      phone: (patient.phone as string) ?? '',
+      address: (patient.address as string) ?? '',
+      bloodGroup: (patient.blood_group as string) ?? '',
+      allergies: (patient.allergies as string) ?? '',
       createdAt: '',
       updatedAt: '',
     } : undefined,
@@ -61,8 +68,8 @@ function mapQueueItem(row: Record<string, unknown>): QueueItem {
 }
 
 function mapPrescription(row: Record<string, unknown>): Prescription {
-  const medicines = (row.medicines as Record<string, unknown>[] | undefined)?.map(mapPrescriptionMedicine) ?? [];
-  const labTests = (row.lab_tests as Record<string, unknown>[] | undefined)?.map(mapPrescriptionLabTest) ?? [];
+  const medicines = ((row.medicines as Record<string, unknown>[]) ?? []).map(mapPrescriptionMedicine);
+  const labTests = ((row.lab_tests as Record<string, unknown>[]) ?? []).map(mapPrescriptionLabTest);
   return {
     id: row.id as string,
     patientId: row.patient_id as string,
@@ -70,17 +77,18 @@ function mapPrescription(row: Record<string, unknown>): Prescription {
     patientAge: row.patient_age as number,
     patientGender: row.patient_gender as string,
     patientPhone: (row.patient_phone as string) ?? '',
+    consultationType: row.consultation_type as 'new' | 'follow_up' | undefined,
     doctorId: row.doctor_id as string,
     diagnosis: row.diagnosis as string,
     advice: (row.advice as string) ?? '',
     followUpDate: (row.follow_up_date as string) ?? null,
     symptoms: (row.symptoms as string[]) ?? [],
     referredTo: (row.referred_to as string) ?? '',
-    pdfPath: null, // PDF is local-only
+    pdfPath: null,
     pdfHash: (row.pdf_hash as string) ?? null,
     signature: (row.signature as string) ?? null,
     status: row.status as PrescriptionStatus,
-    walletDeducted: Boolean(row.wallet_deducted),
+    chargeAmount: (row.charge_amount as number) ?? null,
     medicines,
     labTests,
     createdAt: row.created_at as string,
@@ -88,16 +96,16 @@ function mapPrescription(row: Record<string, unknown>): Prescription {
 }
 
 function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemplate {
-  const medicines = (row.medicines as Record<string, unknown>[] | undefined)?.map(mapPrescriptionMedicine) ?? [];
-  const labTests = (row.lab_tests as Record<string, unknown>[] | undefined)?.map(mapPrescriptionLabTest) ?? [];
+  const data = (row.data as Record<string, unknown>) ?? {};
+  const medicines = ((data.medicines as Record<string, unknown>[]) ?? []).map(mapPrescriptionMedicine);
+  const labTests = ((data.lab_tests as Record<string, unknown>[]) ?? []).map(mapPrescriptionLabTest);
   return {
-    id: row._id as string || row.id as string,
+    id: row.id as string,
     name: row.name as string,
-
-    diagnosis: (row.diagnosis as string) ?? '',
-    advice: (row.advice as string) ?? '',
-    symptoms: (row.symptoms as string[]) ?? [],
-    referredTo: (row.referred_to as string) ?? '',
+    diagnosis: (data.diagnosis as string) ?? '',
+    advice: (data.advice as string) ?? '',
+    symptoms: (data.symptoms as string[]) ?? [],
+    referredTo: (data.referred_to as string) ?? '',
     medicines,
     labTests,
     createdAt: row.created_at as string,
@@ -106,9 +114,9 @@ function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemp
 
 function mapPrescriptionMedicine(row: Record<string, unknown>): PrescriptionMedicine {
   return {
-    id: row.id as string,
-    prescriptionId: row.prescription_id as string,
-    medicineName: row.medicine_name as string,
+    id: (row.id as string) ?? '',
+    prescriptionId: (row.prescription_id as string) ?? '',
+    medicineName: (row.medicine_name as string) ?? '',
     type: (row.type as string) ?? '',
     dosage: (row.dosage as string) ?? '',
     frequency: (row.frequency as string) ?? '',
@@ -120,9 +128,9 @@ function mapPrescriptionMedicine(row: Record<string, unknown>): PrescriptionMedi
 
 function mapPrescriptionLabTest(row: Record<string, unknown>): PrescriptionLabTest {
   return {
-    id: row.id as string,
-    prescriptionId: row.prescription_id as string,
-    testName: row.test_name as string,
+    id: (row.id as string) ?? '',
+    prescriptionId: (row.prescription_id as string) ?? '',
+    testName: (row.test_name as string) ?? '',
     category: (row.category as string) ?? '',
     notes: (row.notes as string) ?? '',
   };
@@ -150,46 +158,82 @@ function mapCustomLabTest(row: Record<string, unknown>): LabTest {
   };
 }
 
+function medicinesToJsonb(medicines: { medicineName: string; type: string; dosage: string; frequency: string; duration: string; timing: string; notes: string }[]) {
+  return medicines.map((m) => ({
+    medicine_name: m.medicineName,
+    type: m.type,
+    dosage: m.dosage,
+    frequency: m.frequency,
+    duration: m.duration,
+    timing: m.timing,
+    notes: m.notes,
+  }));
+}
+
+function labTestsToJsonb(labTests: { testName: string; category: string; notes: string }[]) {
+  return labTests.map((t) => ({
+    test_name: t.testName,
+    category: t.category,
+    notes: t.notes,
+  }));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PATIENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getPatients(search?: string, limit = 100, offset = 0): Promise<Patient[]> {
-  const params: Record<string, string | number> = { limit, offset };
-  if (search) params.search = search;
-  const res = await api.get('/data/patients', { params });
-  return (res.data.patients as Record<string, unknown>[]).map(mapPatient);
+  let query = supabase
+    .from('patients')
+    .select('*')
+    .eq('clinic_id', currentClinicId())
+    .eq('is_deleted', false)
+    .order('name')
+    .range(offset, offset + limit - 1);
+  if (search) query = query.ilike('name', `%${search}%`);
+  const { data, error } = await query;
+  throwOnError(error, 'Failed to load patients.');
+  return (data ?? []).map(mapPatient);
 }
 
 export async function getPatientsPage(search?: string, limit = 20, offset = 0): Promise<{ patients: Patient[]; total: number }> {
-  const params: Record<string, string | number> = { limit, offset };
-  if (search) params.search = search;
-  const res = await api.get('/data/patients', { params });
-  const patients = (res.data.patients as Record<string, unknown>[]).map(mapPatient);
-  return { patients, total: res.data.total ?? patients.length };
+  let query = supabase
+    .from('patients')
+    .select('*', { count: 'exact' })
+    .eq('clinic_id', currentClinicId())
+    .eq('is_deleted', false)
+    .order('name')
+    .range(offset, offset + limit - 1);
+  if (search) query = query.ilike('name', `%${search}%`);
+  const { data, error, count } = await query;
+  throwOnError(error, 'Failed to load patients.');
+  return { patients: (data ?? []).map(mapPatient), total: count ?? 0 };
 }
 
 export async function getPatientById(id: string): Promise<Patient | null> {
-  try {
-    const res = await api.get(`/data/patients/${id}`);
-    return mapPatient(res.data.patient);
-  } catch {
-    return null;
-  }
+  const { data, error } = await supabase.from('patients').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return mapPatient(data);
 }
 
 export async function createPatient(data: PatientFormData): Promise<Patient> {
-  const res = await api.post('/data/patients', {
-    name: data.name,
-    age: parseInt(data.age) || 0,
-    gender: data.gender,
-    weight: data.weight ? parseFloat(data.weight) : null,
-    phone: data.phone,
-    address: data.address,
-    blood_group: data.bloodGroup,
-    allergies: data.allergies,
-  });
-  return mapPatient(res.data.patient);
+  const { data: row, error } = await supabase
+    .from('patients')
+    .insert({
+      clinic_id: currentClinicId(),
+      name: data.name,
+      age: parseInt(data.age) || 0,
+      gender: data.gender,
+      weight: data.weight ? parseFloat(data.weight) : null,
+      phone: data.phone,
+      address: data.address,
+      blood_group: data.bloodGroup,
+      allergies: data.allergies,
+    })
+    .select()
+    .single();
+  throwOnError(error, 'Failed to create patient.');
+  return mapPatient(row);
 }
 
 export async function updatePatient(id: string, data: Partial<PatientFormData>): Promise<Patient | null> {
@@ -203,8 +247,9 @@ export async function updatePatient(id: string, data: Partial<PatientFormData>):
   if (data.bloodGroup !== undefined) payload.blood_group = data.bloodGroup;
   if (data.allergies !== undefined) payload.allergies = data.allergies;
 
-  const res = await api.put(`/data/patients/${id}`, payload);
-  return mapPatient(res.data.patient);
+  const { data: row, error } = await supabase.from('patients').update(payload).eq('id', id).select().single();
+  throwOnError(error, 'Failed to update patient.');
+  return mapPatient(row);
 }
 
 export async function getRecentPatients(limit = 10): Promise<Patient[]> {
@@ -212,65 +257,81 @@ export async function getRecentPatients(limit = 10): Promise<Patient[]> {
 }
 
 export async function deletePatient(id: string): Promise<void> {
-  await api.delete(`/data/patients/${id}`);
+  const { error } = await supabase.from('patients').update({ is_deleted: true }).eq('id', id);
+  throwOnError(error, 'Failed to delete patient.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUEUE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+async function fetchQueue(filters: { status?: string; date?: string; todayOnly?: boolean }): Promise<QueueItem[]> {
+  let query = supabase
+    .from('queue')
+    .select('*, patients(*)')
+    .eq('clinic_id', currentClinicId())
+    .eq('is_deleted', false)
+    .order('added_at', { ascending: true });
+
+  if (filters.status) query = query.eq('status', filters.status);
+
+  const targetDate = filters.date ?? (filters.todayOnly !== false ? new Date().toISOString().slice(0, 10) : undefined);
+  if (targetDate) {
+    query = query.gte('added_at', `${targetDate}T00:00:00`).lt('added_at', `${targetDate}T23:59:59.999`);
+  }
+
+  const { data, error } = await query;
+  throwOnError(error, 'Failed to load queue.');
+  return (data ?? []).map(mapQueueItem);
+}
+
 export async function getTodayQueue(): Promise<QueueItem[]> {
-  const res = await api.get('/data/queue/today');
-  return (res.data.queue as Record<string, unknown>[]).map(mapQueueItem);
+  return fetchQueue({ todayOnly: true });
+}
+
+function computeStats(items: QueueItem[]) {
+  return {
+    total: items.length,
+    waiting: items.filter((i) => i.status === QueueStatus.WAITING).length,
+    inProgress: items.filter((i) => i.status === QueueStatus.IN_PROGRESS).length,
+    completed: items.filter((i) => i.status === QueueStatus.COMPLETED).length,
+  };
 }
 
 export async function getTodayStats(): Promise<{ total: number; waiting: number; inProgress: number; completed: number }> {
-  const res = await api.get('/data/queue/stats');
-  const s = res.data.stats;
-  return {
-    total: s.total,
-    waiting: s.waiting,
-    inProgress: s.in_progress,
-    completed: s.completed,
-  };
+  return computeStats(await getTodayQueue());
 }
 
-export async function addToQueue(patientId: string, addedBy: string, notes?: string, consultationType?: string): Promise<QueueItem> {
-  const res = await api.post('/data/queue', { patient_id: patientId, added_by: addedBy, notes: notes ?? '', consultation_type: consultationType ?? 'new' });
-  return mapQueueItem(res.data.item);
+export async function addToQueue(patientId: string, _addedBy: string, notes?: string, consultationType?: string): Promise<QueueItem> {
+  const { data, error } = await supabase.rpc('add_to_queue', {
+    p_clinic_id: currentClinicId(),
+    p_patient_id: patientId,
+    p_notes: notes ?? '',
+    p_consultation_type: consultationType ?? 'new',
+  });
+  throwOnError(error, 'Failed to add to queue.');
+  return mapQueueItem(data);
 }
 
 export async function updateQueueStatus(id: string, status: QueueStatus): Promise<void> {
-  await api.put(`/data/queue/${id}/status`, { status });
+  const patch: Record<string, unknown> = { status };
+  if (status === QueueStatus.IN_PROGRESS) patch.started_at = new Date().toISOString();
+  if (status === QueueStatus.COMPLETED) patch.completed_at = new Date().toISOString();
+  const { error } = await supabase.from('queue').update(patch).eq('id', id);
+  throwOnError(error, 'Failed to update queue status.');
 }
 
 export async function removeFromQueue(id: string): Promise<void> {
-  await api.delete(`/data/queue/${id}`);
+  const { error } = await supabase.rpc('remove_from_queue', { p_queue_id: id });
+  throwOnError(error, 'Failed to remove from queue.');
 }
 
 export async function getQueueFiltered(options?: { status?: string; todayOnly?: boolean; date?: string; limit?: number; offset?: number }): Promise<QueueItem[]> {
-  const params: Record<string, string | number | boolean> = {};
-  if (options?.status) params.status = options.status;
-  if (options?.todayOnly !== undefined) params.todayOnly = options.todayOnly;
-  if (options?.date) params.date = options.date;
-  if (options?.limit) params.limit = options.limit;
-  if (options?.offset) params.offset = options.offset;
-  const res = await api.get('/data/queue/filtered', { params });
-  return (res.data.queue as Record<string, unknown>[]).map(mapQueueItem);
+  return fetchQueue({ status: options?.status, date: options?.date, todayOnly: options?.todayOnly });
 }
 
 export async function getQueueStatsFiltered(todayOnly?: boolean, date?: string): Promise<{ total: number; waiting: number; inProgress: number; completed: number }> {
-  const params: Record<string, boolean | string> = {};
-  if (todayOnly !== undefined) params.todayOnly = todayOnly;
-  if (date !== undefined) params.date = date;
-  const res = await api.get('/data/queue/stats/filtered', { params });
-  const s = res.data.stats;
-  return {
-    total: s.total,
-    waiting: s.waiting,
-    inProgress: s.in_progress,
-    completed: s.completed,
-  };
+  return computeStats(await fetchQueue({ todayOnly, date }));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -278,67 +339,78 @@ export async function getQueueStatsFiltered(todayOnly?: boolean, date?: string):
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function createPrescription(draft: PrescriptionDraft, doctorId: string): Promise<Prescription> {
-  const payload = {
-    patient_id: draft.patientId,
-    patient_name: draft.patientName,
-    patient_age: parseInt(draft.patientAge) || 0,
-    patient_gender: draft.patientGender,
-    patient_phone: draft.patientPhone,
-
-    diagnosis: draft.diagnosis,
-    advice: draft.advice,
-    follow_up_date: draft.followUpDate || null,
-    symptoms: draft.symptoms,
-    referred_to: draft.referredTo || null,
-
-    medicines: draft.medicines.map((m) => ({
-      medicine_name: m.medicineName,
-      type: m.type,
-      dosage: m.dosage,
-      frequency: m.frequency,
-      duration: m.duration,
-      timing: m.timing,
-      notes: m.notes,
-    })),
-    lab_tests: draft.labTests.map((t) => ({
-      test_name: t.testName,
-      category: t.category,
-      notes: t.notes,
-    })),
-  };
-  const res = await api.post('/data/prescriptions', {
-    ...payload,
-    doctor_id: doctorId,
-  });
-  return mapPrescription(res.data.prescription);
+  const { data, error } = await supabase
+    .from('prescriptions')
+    .insert({
+      clinic_id: currentClinicId(),
+      doctor_id: doctorId,
+      patient_id: draft.patientId,
+      patient_name: draft.patientName,
+      patient_age: parseInt(draft.patientAge) || 0,
+      patient_gender: draft.patientGender,
+      patient_phone: draft.patientPhone,
+      consultation_type: draft.consultationType,
+      diagnosis: draft.diagnosis,
+      advice: draft.advice,
+      follow_up_date: draft.followUpDate || null,
+      symptoms: draft.symptoms,
+      referred_to: draft.referredTo || null,
+      medicines: medicinesToJsonb(draft.medicines as PrescriptionMedicine[]),
+      lab_tests: labTestsToJsonb(draft.labTests as PrescriptionLabTest[]),
+    })
+    .select()
+    .single();
+  throwOnError(error, 'Failed to create prescription.');
+  return mapPrescription(data);
 }
 
 export async function getPrescriptionById(id: string): Promise<Prescription | null> {
-  try {
-    const res = await api.get(`/data/prescriptions/${id}`);
-    return mapPrescription(res.data.prescription);
-  } catch {
-    return null;
-  }
+  const { data, error } = await supabase.from('prescriptions').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return mapPrescription(data);
 }
 
 export async function getRecentPrescriptions(limit = 20): Promise<Prescription[]> {
-  const res = await api.get('/data/prescriptions', { params: { limit } });
-  return (res.data.prescriptions as Record<string, unknown>[]).map(mapPrescription);
+  const { data, error } = await supabase
+    .from('prescriptions')
+    .select('*')
+    .eq('clinic_id', currentClinicId())
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  throwOnError(error, 'Failed to load prescriptions.');
+  return (data ?? []).map(mapPrescription);
 }
 
 export async function getPrescriptionsByPatient(patientId: string): Promise<Prescription[]> {
-  const res = await api.get(`/data/prescriptions/patient/${patientId}`);
-  return (res.data.prescriptions as Record<string, unknown>[]).map(mapPrescription);
+  const { data, error } = await supabase
+    .from('prescriptions')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false });
+  throwOnError(error, 'Failed to load patient prescriptions.');
+  return (data ?? []).map(mapPrescription);
 }
 
-export async function finalizePrescription(id: string, signature: string, pdfHash: string): Promise<void> {
-  await api.put(`/data/prescriptions/${id}/finalize`, { signature, pdf_hash: pdfHash });
+export async function finalizePrescription(id: string, signature: string, pdfHash: string, chargeAmount?: number): Promise<void> {
+  const { error } = await supabase.rpc('finalize_prescription', {
+    p_prescription_id: id,
+    p_signature: signature,
+    p_pdf_hash: pdfHash,
+    p_charge_amount: chargeAmount ?? null,
+  });
+  throwOnError(error, 'Failed to finalize prescription.');
 }
 
 export async function getTodayPrescriptionCount(): Promise<number> {
-  const res = await api.get('/data/prescriptions/today/count');
-  return res.data.count;
+  const today = new Date().toISOString().slice(0, 10);
+  const { count, error } = await supabase
+    .from('prescriptions')
+    .select('*', { count: 'exact', head: true })
+    .eq('clinic_id', currentClinicId())
+    .gte('created_at', `${today}T00:00:00`)
+    .lt('created_at', `${today}T23:59:59.999`);
+  throwOnError(error, 'Failed to load today’s prescription count.');
+  return count ?? 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -346,18 +418,19 @@ export async function getTodayPrescriptionCount(): Promise<number> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function searchAllMedicines(query: string): Promise<Medicine[]> {
-  // Search local seeded medicines
   const localResults = await searchLocalMedicines(query);
 
-  // Search cloud custom medicines
   let cloudResults: Medicine[] = [];
   try {
-    const res = await api.get('/data/custom-medicines', { params: { q: query } });
-    cloudResults = (res.data.medicines as Record<string, unknown>[]).map(mapCustomMedicine);
+    const { data } = await supabase
+      .from('custom_medicines')
+      .select('*')
+      .eq('clinic_id', currentClinicId())
+      .ilike('name', `%${query}%`);
+    cloudResults = (data ?? []).map(mapCustomMedicine);
   } catch { /* cloud unavailable, use local only */ }
 
-  // Merge and deduplicate by name
-  const seen = new Set(localResults.map(m => m.name.toLowerCase()));
+  const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
   const merged = [...localResults];
   for (const m of cloudResults) {
     if (!seen.has(m.name.toLowerCase())) {
@@ -365,7 +438,6 @@ export async function searchAllMedicines(query: string): Promise<Medicine[]> {
       merged.push(m);
     }
   }
-  // Sort alphabetically
   return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -374,11 +446,16 @@ export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
 
   let cloudResults: Medicine[] = [];
   try {
-    const res = await api.get('/data/custom-medicines/frequent', { params: { limit } });
-    cloudResults = (res.data.medicines as Record<string, unknown>[]).map(mapCustomMedicine);
+    const { data } = await supabase
+      .from('custom_medicines')
+      .select('*')
+      .eq('clinic_id', currentClinicId())
+      .order('usage_count', { ascending: false })
+      .limit(limit);
+    cloudResults = (data ?? []).map(mapCustomMedicine);
   } catch { /* cloud unavailable */ }
 
-  const seen = new Set(localResults.map(m => m.name.toLowerCase()));
+  const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
   const merged = [...localResults];
   for (const m of cloudResults) {
     if (!seen.has(m.name.toLowerCase())) {
@@ -394,10 +471,10 @@ export async function getMedicinesByCategory(types: string[], query = ''): Promi
 
   let cloudResults: Medicine[] = [];
   try {
-    const res = await api.get('/data/custom-medicines', { params: query.trim() ? { q: query.trim() } : {} });
-    cloudResults = (res.data.medicines as Record<string, unknown>[])
-      .map(mapCustomMedicine)
-      .filter((m) => types.includes(m.type));
+    let q = supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId());
+    if (query.trim()) q = q.ilike('name', `%${query.trim()}%`);
+    const { data } = await q;
+    cloudResults = (data ?? []).map(mapCustomMedicine).filter((m) => types.includes(m.type));
   } catch { /* cloud unavailable, use local only */ }
 
   const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
@@ -416,10 +493,10 @@ export async function getMedicinesOutsideCategories(excludeTypes: string[], quer
 
   let cloudResults: Medicine[] = [];
   try {
-    const res = await api.get('/data/custom-medicines', { params: query.trim() ? { q: query.trim() } : {} });
-    cloudResults = (res.data.medicines as Record<string, unknown>[])
-      .map(mapCustomMedicine)
-      .filter((m) => !excludeTypes.includes(m.type));
+    let q = supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId());
+    if (query.trim()) q = q.ilike('name', `%${query.trim()}%`);
+    const { data } = await q;
+    cloudResults = (data ?? []).map(mapCustomMedicine).filter((m) => !excludeTypes.includes(m.type));
   } catch { /* cloud unavailable, use local only */ }
 
   const seen = new Set(localResults.map((m) => m.name.toLowerCase()));
@@ -434,16 +511,47 @@ export async function getMedicinesOutsideCategories(excludeTypes: string[], quer
 }
 
 export async function addCustomMedicine(name: string, type: string, strength: string): Promise<Medicine> {
-  const res = await api.post('/data/custom-medicines', { name, type, strength });
-  return mapCustomMedicine(res.data.medicine);
+  const { data, error } = await supabase
+    .from('custom_medicines')
+    .insert({ clinic_id: currentClinicId(), name, type, strength })
+    .select()
+    .single();
+  throwOnError(error, 'Failed to add custom medicine.');
+  return mapCustomMedicine(data);
+}
+
+export async function getAllCustomMedicines(limit = 1000): Promise<Medicine[]> {
+  const { data, error } = await supabase
+    .from('custom_medicines')
+    .select('*')
+    .eq('clinic_id', currentClinicId())
+    .order('usage_count', { ascending: false })
+    .limit(limit);
+  throwOnError(error, 'Failed to load custom medicines.');
+  return (data ?? []).map(mapCustomMedicine);
+}
+
+export async function deleteCustomMedicine(id: string): Promise<void> {
+  const { error } = await supabase.from('custom_medicines').delete().eq('id', id);
+  throwOnError(error, 'Failed to delete custom medicine.');
 }
 
 export async function incrementMedicineUsage(name: string, isCustom: boolean): Promise<void> {
-  // Always increment local usage for seeded medicines (keeps local ranking)
   try { await incrementLocalMedicineUsage(name); } catch { /* not in local DB */ }
-  // Increment cloud usage for custom medicines
   if (isCustom) {
-    try { await api.put('/data/custom-medicines/usage', { name }); } catch { /* ignore */ }
+    try {
+      const { data } = await supabase
+        .from('custom_medicines')
+        .select('usage_count')
+        .eq('clinic_id', currentClinicId())
+        .eq('name', name)
+        .single();
+      await supabase
+        .from('custom_medicines')
+        .update({ usage_count: ((data?.usage_count as number) ?? 0) + 1 })
+        .eq('clinic_id', currentClinicId())
+        .eq('name', name);
+    } catch { /* ignore */ }
   }
 }
 
@@ -456,11 +564,15 @@ export async function searchAllLabTests(query: string): Promise<LabTest[]> {
 
   let cloudResults: LabTest[] = [];
   try {
-    const res = await api.get('/data/custom-lab-tests', { params: { q: query } });
-    cloudResults = (res.data.labTests as Record<string, unknown>[]).map(mapCustomLabTest);
+    const { data } = await supabase
+      .from('custom_lab_tests')
+      .select('*')
+      .eq('clinic_id', currentClinicId())
+      .ilike('name', `%${query}%`);
+    cloudResults = (data ?? []).map(mapCustomLabTest);
   } catch { /* cloud unavailable */ }
 
-  const seen = new Set(localResults.map(t => t.name.toLowerCase()));
+  const seen = new Set(localResults.map((t) => t.name.toLowerCase()));
   const merged = [...localResults];
   for (const t of cloudResults) {
     if (!seen.has(t.name.toLowerCase())) {
@@ -468,7 +580,6 @@ export async function searchAllLabTests(query: string): Promise<LabTest[]> {
       merged.push(t);
     }
   }
-  // Sort alphabetically
   return merged.sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -477,11 +588,16 @@ export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {
 
   let cloudResults: LabTest[] = [];
   try {
-    const res = await api.get('/data/custom-lab-tests/frequent', { params: { limit } });
-    cloudResults = (res.data.labTests as Record<string, unknown>[]).map(mapCustomLabTest);
+    const { data } = await supabase
+      .from('custom_lab_tests')
+      .select('*')
+      .eq('clinic_id', currentClinicId())
+      .order('usage_count', { ascending: false })
+      .limit(limit);
+    cloudResults = (data ?? []).map(mapCustomLabTest);
   } catch { /* cloud unavailable */ }
 
-  const seen = new Set(localResults.map(t => t.name.toLowerCase()));
+  const seen = new Set(localResults.map((t) => t.name.toLowerCase()));
   const merged = [...localResults];
   for (const t of cloudResults) {
     if (!seen.has(t.name.toLowerCase())) {
@@ -495,19 +611,48 @@ export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {
 export { getLocalLabTestsByCategory as getLabTestsByCategory };
 
 export async function addCustomLabTest(name: string, category: string): Promise<LabTest> {
-  const res = await api.post('/data/custom-lab-tests', { name, category });
-  return mapCustomLabTest(res.data.labTest);
+  const { data, error } = await supabase
+    .from('custom_lab_tests')
+    .insert({ clinic_id: currentClinicId(), name, category })
+    .select()
+    .single();
+  throwOnError(error, 'Failed to add custom lab test.');
+  return mapCustomLabTest(data);
+}
+
+export async function getAllCustomLabTests(limit = 1000): Promise<LabTest[]> {
+  const { data, error } = await supabase
+    .from('custom_lab_tests')
+    .select('*')
+    .eq('clinic_id', currentClinicId())
+    .order('usage_count', { ascending: false })
+    .limit(limit);
+  throwOnError(error, 'Failed to load custom lab tests.');
+  return (data ?? []).map(mapCustomLabTest);
 }
 
 export async function incrementLabTestUsage(name: string, isCustom: boolean): Promise<void> {
   try { await incrementLocalLabTestUsage(name); } catch { /* not in local DB */ }
   if (isCustom) {
-    try { await api.put('/data/custom-lab-tests/usage', { name }); } catch { /* ignore */ }
+    try {
+      const { data } = await supabase
+        .from('custom_lab_tests')
+        .select('usage_count')
+        .eq('clinic_id', currentClinicId())
+        .eq('name', name)
+        .single();
+      await supabase
+        .from('custom_lab_tests')
+        .update({ usage_count: ((data?.usage_count as number) ?? 0) + 1 })
+        .eq('clinic_id', currentClinicId())
+        .eq('name', name);
+    } catch { /* ignore */ }
   }
 }
 
 export async function deleteCustomLabTest(id: string): Promise<void> {
-  await api.delete(`/data/custom-lab-tests/${id}`);
+  const { error } = await supabase.from('custom_lab_tests').delete().eq('id', id);
+  throwOnError(error, 'Failed to delete custom lab test.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -515,42 +660,46 @@ export async function deleteCustomLabTest(id: string): Promise<void> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getPrescriptionTemplates(): Promise<PrescriptionTemplate[]> {
-  const res = await api.get('/data/templates');
-  return (res.data.templates as Record<string, unknown>[]).map(mapPrescriptionTemplate);
+  const { data, error } = await supabase
+    .from('prescription_templates')
+    .select('*')
+    .eq('clinic_id', currentClinicId())
+    .order('created_at', { ascending: false });
+  throwOnError(error, 'Failed to load templates.');
+  return (data ?? []).map(mapPrescriptionTemplate);
 }
 
 export async function savePrescriptionTemplate(data: Omit<PrescriptionTemplate, 'id' | 'createdAt'>): Promise<PrescriptionTemplate> {
-  const payload = {
-    name: data.name,
-
-    diagnosis: data.diagnosis,
-    advice: data.advice,
-    symptoms: data.symptoms,
-    referred_to: data.referredTo || null,
-    medicines: data.medicines.map((m) => ({
-      medicine_name: m.medicineName,
-      type: m.type,
-      dosage: m.dosage,
-      frequency: m.frequency,
-      duration: m.duration,
-      timing: m.timing,
-      notes: m.notes,
-    })),
-    lab_tests: data.labTests.map((t) => ({
-      test_name: t.testName,
-      category: t.category,
-      notes: t.notes,
-    })),
-  };
-  const res = await api.post('/data/templates', payload);
-  return mapPrescriptionTemplate(res.data.template);
+  const clinicId = currentClinicId();
+  const doctorId = useAuthStore.getState().user?.id;
+  const { data: row, error } = await supabase
+    .from('prescription_templates')
+    .insert({
+      clinic_id: clinicId,
+      doctor_id: doctorId,
+      name: data.name,
+      data: {
+        diagnosis: data.diagnosis,
+        advice: data.advice,
+        symptoms: data.symptoms,
+        referred_to: data.referredTo || null,
+        medicines: medicinesToJsonb(data.medicines as PrescriptionMedicine[]),
+        lab_tests: labTestsToJsonb(data.labTests as PrescriptionLabTest[]),
+      },
+    })
+    .select()
+    .single();
+  throwOnError(error, 'Failed to save template.');
+  return mapPrescriptionTemplate(row);
 }
 
 export async function deletePrescriptionTemplate(id: string): Promise<void> {
-  await api.delete(`/data/templates/${id}`);
+  const { error } = await supabase.from('prescription_templates').delete().eq('id', id);
+  throwOnError(error, 'Failed to delete template.');
 }
 
 export async function getShareToken(prescriptionId: string): Promise<{ share_token: string; share_token_expires_at: string }> {
-  const res = await api.post(`/data/prescriptions/${prescriptionId}/share`);
-  return res.data;
+  const { data, error } = await supabase.rpc('get_or_create_share_token', { p_prescription_id: prescriptionId });
+  throwOnError(error, 'Failed to create share link.');
+  return { share_token: data.share_token, share_token_expires_at: data.expires_at };
 }

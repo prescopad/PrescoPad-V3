@@ -45,7 +45,10 @@ export interface Prescription {
   pdfHash: string | null;
   signature: string | null;
   status: PrescriptionStatus;
-  walletDeducted: boolean;
+  /** Doctor-entered consultation charge (cash/online) — visible to
+   * assistants too via RLS, so they can collect payment. Replaces the old
+   * wallet-deduction platform fee, which has been removed entirely. */
+  chargeAmount: number | null;
   medicines: PrescriptionMedicine[];
   labTests: PrescriptionLabTest[];
   createdAt: string;

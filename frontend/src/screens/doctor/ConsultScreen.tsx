@@ -293,6 +293,12 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
               </View>
               <TouchableOpacity
                 style={styles.editPatientButton}
+                onPress={() => patient && navigation.navigate('PatientHistory', { patientId: patient.id, patientName: patient.name })}
+              >
+                <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.editPatientButton}
                 onPress={() => patient && navigation.navigate('EditPatient', { patientId: patient.id })}
               >
                 <Ionicons name="create-outline" size={20} color={COLORS.primary} />

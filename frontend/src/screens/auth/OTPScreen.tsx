@@ -9,7 +9,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { sendOTP, verifyOTP } from '../../services/authService';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useWalletStore } from '../../store/useWalletStore';
 import { UserRole } from '../../types/auth.types';
 import { AuthStackParamList } from '../../types/navigation.types';
 import { useTranslation } from 'react-i18next';
@@ -31,7 +30,6 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
   const [resendCountdown, setResendCountdown] = useState(RESEND_COOLDOWN_SECONDS);
   const [isResending, setIsResending] = useState(false);
   const setUser = useAuthStore((s) => s.setUser);
-  const loadBalance = useWalletStore((s) => s.loadBalance);
   const inputRef = useRef<TextInput>(null);
 
   // Resend cooldown timer.
@@ -56,7 +54,6 @@ export default function OTPScreen({ navigation, route }: Props): React.JSX.Eleme
         navigation.replace('Registration', { role });
       } else {
         await setUser(response.user, response.accessToken, response.refreshToken);
-        loadBalance().catch(() => { /* silent */ });
       }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : t('auth.otpVerificationFailed');

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { heartbeat } from '../api/authService';
+import { supabase } from '../api/supabase';
 import { useIsDoctor } from '../store/useAuthStore';
 import { APP_CONFIG } from '../constants/config';
 
@@ -15,7 +15,7 @@ export function useDoctorHeartbeat() {
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    const send = () => heartbeat().catch(() => {});
+    const send = () => supabase.rpc('heartbeat').then(() => {}, () => {});
 
     const start = () => {
       if (intervalId) return;

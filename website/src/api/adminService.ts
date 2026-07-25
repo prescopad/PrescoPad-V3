@@ -1,4 +1,4 @@
-import api from './client';
+import { supabase } from './supabase';
 
 export interface AdminOverview {
   users: { doctors: number; assistants: number; admins: number; onlineDoctors: number };
@@ -6,9 +6,8 @@ export interface AdminOverview {
   patients: { total: number };
   prescriptions: { total: number; finalized: number; today: number; week: number; month: number };
   revenue: {
-    totalCredits: number;
-    totalDebits: number;
-    totalRefunds: number;
+    totalCash: number;
+    totalOnline: number;
     platformGross: number;
   };
   generatedAt: string;
@@ -59,7 +58,7 @@ export interface AdminPrescription {
   patient_name?: string;
   diagnosis?: string;
   status: string;
-  wallet_deducted?: number;
+  charge_amount?: number;
   created_at: string;
 }
 
@@ -70,9 +69,14 @@ export interface AdminRevenue {
   generatedAt: string;
 }
 
+function throwOnError(error: { message: string } | null, fallback: string): void {
+  if (error) throw new Error(error.message || fallback);
+}
+
 export async function fetchAdminOverview(): Promise<AdminOverview> {
-  const r = await api.get('/admin/overview');
-  return r.data.overview;
+  const { data, error } = await supabase.rpc('admin_get_overview');
+  throwOnError(error, 'Failed to load overview.');
+  return data as AdminOverview;
 }
 
 export async function fetchAdminUsers(params: {
@@ -81,8 +85,14 @@ export async function fetchAdminUsers(params: {
   limit?: number;
   offset?: number;
 }): Promise<{ total: number; users: AdminUser[] }> {
-  const r = await api.get('/admin/users', { params });
-  return { total: r.data.total ?? 0, users: r.data.users ?? [] };
+  const { data, error } = await supabase.rpc('admin_list_users', {
+    p_role: params.role ?? null,
+    p_search: params.search ?? null,
+    p_limit: params.limit ?? 100,
+    p_offset: params.offset ?? 0,
+  });
+  throwOnError(error, 'Failed to load users.');
+  return { total: (data?.total as number) ?? 0, users: (data?.users as AdminUser[]) ?? [] };
 }
 
 export async function fetchAdminClinics(params: {
@@ -90,8 +100,13 @@ export async function fetchAdminClinics(params: {
   limit?: number;
   offset?: number;
 }): Promise<{ total: number; clinics: AdminClinic[] }> {
-  const r = await api.get('/admin/clinics', { params });
-  return { total: r.data.total ?? 0, clinics: r.data.clinics ?? [] };
+  const { data, error } = await supabase.rpc('admin_list_clinics', {
+    p_search: params.search ?? null,
+    p_limit: params.limit ?? 100,
+    p_offset: params.offset ?? 0,
+  });
+  throwOnError(error, 'Failed to load clinics.');
+  return { total: (data?.total as number) ?? 0, clinics: (data?.clinics as AdminClinic[]) ?? [] };
 }
 
 export async function fetchAdminPatients(params: {
@@ -99,8 +114,13 @@ export async function fetchAdminPatients(params: {
   limit?: number;
   offset?: number;
 }): Promise<{ total: number; patients: AdminPatient[] }> {
-  const r = await api.get('/admin/patients', { params });
-  return { total: r.data.total ?? 0, patients: r.data.patients ?? [] };
+  const { data, error } = await supabase.rpc('admin_list_patients', {
+    p_search: params.search ?? null,
+    p_limit: params.limit ?? 100,
+    p_offset: params.offset ?? 0,
+  });
+  throwOnError(error, 'Failed to load patients.');
+  return { total: (data?.total as number) ?? 0, patients: (data?.patients as AdminPatient[]) ?? [] };
 }
 
 export async function fetchAdminPrescriptions(params: {
@@ -108,29 +128,36 @@ export async function fetchAdminPrescriptions(params: {
   limit?: number;
   offset?: number;
 }): Promise<{ total: number; prescriptions: AdminPrescription[] }> {
-  const r = await api.get('/admin/prescriptions', {
-    params: { clinic_id: params.clinicId, limit: params.limit, offset: params.offset },
+  const { data, error } = await supabase.rpc('admin_list_prescriptions', {
+    p_clinic_id: params.clinicId ?? null,
+    p_limit: params.limit ?? 100,
+    p_offset: params.offset ?? 0,
   });
-  return { total: r.data.total ?? 0, prescriptions: r.data.prescriptions ?? [] };
+  throwOnError(error, 'Failed to load prescriptions.');
+  return { total: (data?.total as number) ?? 0, prescriptions: (data?.prescriptions as AdminPrescription[]) ?? [] };
 }
 
 export async function fetchAdminRevenue(period: 'today' | 'week' | 'month'): Promise<AdminRevenue> {
-  const r = await api.get('/admin/revenue', { params: { period } });
-  return r.data;
+  const { data, error } = await supabase.rpc('admin_revenue_breakdown', { p_period: period });
+  throwOnError(error, 'Failed to load revenue breakdown.');
+  return data as AdminRevenue;
 }
 
 export async function setAdminUserActive(userId: string, isActive: boolean): Promise<AdminUser> {
-  const r = await api.put(`/admin/users/${userId}/active`, null, { params: { is_active: isActive } });
-  return r.data.user;
+  const { data, error } = await supabase.rpc('admin_set_user_active', { p_user_id: userId, p_is_active: isActive });
+  throwOnError(error, 'Failed to update user status.');
+  return data as AdminUser;
 }
 
 export async function promoteAdminUser(userId: string): Promise<AdminUser> {
-  const r = await api.put(`/admin/users/${userId}/promote`);
-  return r.data.user;
+  const { data, error } = await supabase.rpc('admin_promote_to_admin', { p_user_id: userId });
+  throwOnError(error, 'Failed to promote user.');
+  return data as AdminUser;
 }
 
 export async function deleteAdminUser(userId: string): Promise<void> {
-  await api.delete(`/admin/users/${userId}`);
+  const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+  throwOnError(error, 'Failed to delete user.');
 }
 
 export async function createAdminClinic(data: {
@@ -139,18 +166,31 @@ export async function createAdminClinic(data: {
   phone?: string;
   city?: string;
 }): Promise<AdminClinic> {
-  const r = await api.post('/admin/clinics', data);
-  return r.data.clinic;
+  const { data: row, error } = await supabase.rpc('admin_create_clinic', {
+    p_name: data.name,
+    p_address: data.address ?? null,
+    p_phone: data.phone ?? null,
+    p_city: data.city ?? null,
+  });
+  throwOnError(error, 'Failed to create clinic.');
+  return row as AdminClinic;
 }
 
 export async function updateAdminClinic(
   clinicId: string,
   data: { name?: string; address?: string; phone?: string; city?: string; is_active?: boolean },
 ): Promise<AdminClinic> {
-  const r = await api.put(`/admin/clinics/${clinicId}`, data);
-  return r.data.clinic;
+  const { data: row, error } = await supabase.rpc('admin_update_clinic', {
+    p_clinic_id: clinicId,
+    p_name: data.name ?? null,
+    p_address: data.address ?? null,
+    p_phone: data.phone ?? null,
+  });
+  throwOnError(error, 'Failed to update clinic.');
+  return row as AdminClinic;
 }
 
 export async function deleteAdminClinic(clinicId: string): Promise<void> {
-  await api.delete(`/admin/clinics/${clinicId}`);
+  const { error } = await supabase.rpc('admin_delete_clinic', { p_clinic_id: clinicId });
+  throwOnError(error, 'Failed to delete clinic.');
 }

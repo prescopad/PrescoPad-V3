@@ -103,9 +103,8 @@ export default function AdminOverviewScreen(): React.JSX.Element {
 
             <SectionTitle title={t('nav.revenue')} />
             <View style={styles.card}>
-              <Row label={t('admin.totalCredits')} value={fmt(data.revenue.totalCredits)} />
-              <Row label={t('admin.totalDebits')} value={fmt(data.revenue.totalDebits)} />
-              <Row label={t('admin.refunds')} value={fmt(data.revenue.totalRefunds)} />
+              <Row label={t('admin.totalCash')} value={fmt(data.revenue.totalCash)} />
+              <Row label={t('admin.totalOnline')} value={fmt(data.revenue.totalOnline)} />
               <View style={styles.divider} />
               <Row label={t('admin.platformGross')} value={fmt(data.revenue.platformGross)} highlight />
             </View>
@@ -129,7 +128,7 @@ export default function AdminOverviewScreen(): React.JSX.Element {
 }
 
 function fmt(n: number): string {
-  return `${APP_CONFIG.wallet.currencySymbol}${(n ?? 0).toFixed(2)}`;
+  return `${APP_CONFIG.billing.currencySymbol}${(n ?? 0).toFixed(2)}`;
 }
 
 function SectionTitle({ title }: { title: string }) {

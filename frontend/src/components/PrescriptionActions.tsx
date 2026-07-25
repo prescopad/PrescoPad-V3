@@ -21,8 +21,6 @@ import { useAuthStore } from '../store/useAuthStore';
 import { generatePrescriptionPDF, printPrescription, buildShareText } from '../services/pdfService';
 import { exportPDFCopy, shareRxOnWhatsApp, shareViaPDF } from '../services/shareService';
 import { getShareToken } from '../services/dataService';
-import { BASE_URL } from '../services/api';
-import { PRODUCTION_BACKEND_URL } from '../constants/config';
 import { useToast } from './Toast/ToastContext';
 
 interface Props {
@@ -63,22 +61,14 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
 
     setBusy('whatsapp');
     try {
-      // 1. Fetch the share token from backend
+      // 1. Fetch the share token
       const { share_token } = await getShareToken(prescription.id);
 
-      // 2. Build download URL
-      let cleanBaseUrl = BASE_URL.replace(/\/api\/?$/, '');
-
-      // Check for local IP pattern / localhost and automatically fallback to Render domain
-      const parsedUrlMatch = cleanBaseUrl.match(/^(https?:\/\/)?([^\/:]+)(:\d+)?/i);
-      const hostPart = parsedUrlMatch ? parsedUrlMatch[2] : '';
-      const isLocalHostOrIp = /localhost|127\.0\.0\.1|^192\.168\.|^10\./i.test(hostPart);
-      if (isLocalHostOrIp) {
-        cleanBaseUrl = PRODUCTION_BACKEND_URL.replace(/\/api\/?$/, '');
-        console.log(`[PrescoPad] Local IP detected (${hostPart}). Falling back to public Render domain for WhatsApp share link: ${cleanBaseUrl}`);
-      }
-
-      const downloadUrl = `${cleanBaseUrl}/rx/${share_token}`;
+      // 2. Build download URL pointing at the public get-shared-prescription
+      // Edge Function (no JWT required — the share_token itself is the
+      // authorization, mirroring the old /rx/{share_token} backend route).
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const downloadUrl = `${supabaseUrl}/functions/v1/get-shared-prescription?token=${share_token}`;
 
       // 3. Build personalized message (URL isolated on its own line, no trailing punctuation)
       const docName = doctorProfile?.name || user?.name || 'Doctor';

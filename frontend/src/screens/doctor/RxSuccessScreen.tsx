@@ -9,9 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
-import { APP_CONFIG } from '../../constants/config';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
-import { useWalletStore } from '../../store/useWalletStore';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PrescriptionActions from '../../components/PrescriptionActions';
@@ -22,7 +20,6 @@ type Props = NativeStackScreenProps<DoctorStackParamList, 'RxSuccess'>;
 export default function RxSuccessScreen({ navigation, route }: Props): React.JSX.Element {
   const prescription = route.params.prescription;
   const { resetDraft } = usePrescriptionStore();
-  const { balance } = useWalletStore();
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
 
@@ -52,16 +49,6 @@ export default function RxSuccessScreen({ navigation, route }: Props): React.JSX
         <View style={styles.infoRow}>
           <Ionicons name="person-outline" size={16} color={COLORS.textMuted} />
           <Text style={styles.infoText}>{prescription.patientName}</Text>
-        </View>
-
-        <View style={styles.balanceCard}>
-          <Ionicons name="wallet-outline" size={20} color={COLORS.success} />
-          <View style={styles.balanceInfo}>
-            <Text style={styles.balanceLabel}>Wallet Balance Updated</Text>
-            <Text style={styles.balanceAmount}>
-              {APP_CONFIG.wallet.currencySymbol}{balance}
-            </Text>
-          </View>
         </View>
 
         {/* Share / Download / Print */}
@@ -144,31 +131,6 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     color: COLORS.textMuted,
-  },
-
-  // Balance card
-  balanceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.successLight,
-    borderRadius: RADIUS.md,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    gap: SPACING.md,
-    width: '100%',
-    marginBottom: SPACING.xxl,
-  },
-  balanceInfo: {
-    flex: 1,
-  },
-  balanceLabel: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
-  balanceAmount: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.success,
   },
 
   // Share section

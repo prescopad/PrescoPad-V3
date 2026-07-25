@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import api from '../../api/client';
+import {
+  getAllCustomMedicines,
+  getAllCustomLabTests,
+  addCustomMedicine,
+  addCustomLabTest,
+  deleteCustomMedicine,
+  deleteCustomLabTest,
+} from '../../api/dataService';
 import { MedicineType, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import type { Medicine, LabTest } from '../../types/medicine.types';
 import { useToast } from '../../components/toast/ToastContext';
@@ -24,29 +31,11 @@ export default function MedicineTestManagementPage() {
   const [formCategory, setFormCategory] = useState<string>(LAB_TEST_CATEGORIES[0]);
 
   const loadMedicines = async () => {
-    const res = await api.get('/data/custom-medicines/frequent', { params: { limit: 1000 } });
-    const mapped: Medicine[] = (res.data.medicines ?? []).map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      name: row.name as string,
-      type: (row.type ?? 'Tablet') as Medicine['type'],
-      strength: (row.strength as string) ?? '',
-      manufacturer: (row.manufacturer as string) ?? '',
-      isCustom: true,
-      usageCount: (row.usage_count as number) ?? 0,
-    }));
-    setMedicines(mapped);
+    setMedicines(await getAllCustomMedicines(1000));
   };
 
   const loadTests = async () => {
-    const res = await api.get('/data/custom-lab-tests/frequent', { params: { limit: 1000 } });
-    const mapped: LabTest[] = (res.data.labTests ?? []).map((row: Record<string, unknown>) => ({
-      id: row.id as string,
-      name: row.name as string,
-      category: (row.category as string) ?? '',
-      isCustom: true,
-      usageCount: (row.usage_count as number) ?? 0,
-    }));
-    setTests(mapped);
+    setTests(await getAllCustomLabTests(1000));
   };
 
   useEffect(() => {
@@ -68,10 +57,10 @@ export default function MedicineTestManagementPage() {
     if (!formName.trim()) return;
     try {
       if (tab === 'medicines') {
-        await api.post('/data/custom-medicines', { name: formName.trim(), type: formType, strength: formStrength });
+        await addCustomMedicine(formName.trim(), formType, formStrength);
         await loadMedicines();
       } else {
-        await api.post('/data/custom-lab-tests', { name: formName.trim(), category: formCategory });
+        await addCustomLabTest(formName.trim(), formCategory);
         await loadTests();
       }
       setShowAddModal(false);
@@ -85,10 +74,10 @@ export default function MedicineTestManagementPage() {
     if (!(await confirm({ title: 'Delete entry', message: 'Delete this entry?', danger: true }))) return;
     try {
       if (tab === 'medicines') {
-        await api.delete(`/data/custom-medicines/${id}`);
+        await deleteCustomMedicine(id);
         await loadMedicines();
       } else {
-        await api.delete(`/data/custom-lab-tests/${id}`);
+        await deleteCustomLabTest(id);
         await loadTests();
       }
     } catch (e) {

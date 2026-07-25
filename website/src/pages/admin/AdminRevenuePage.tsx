@@ -33,7 +33,7 @@ export default function AdminRevenuePage() {
       {data && (
         <>
           <div className="stat-card" style={{ marginBottom: 20 }}>
-            <div className="stat-value" style={{ fontSize: '2rem' }}>{APP_CONFIG.wallet.currencySymbol}{data.platformRevenue}</div>
+            <div className="stat-value" style={{ fontSize: '2rem' }}>{APP_CONFIG.billing.currencySymbol}{data.platformRevenue}</div>
             <div className="stat-label">Platform revenue ({data.period})</div>
           </div>
 
@@ -41,7 +41,7 @@ export default function AdminRevenuePage() {
             {Object.entries(data.byType).map(([type, stat]) => (
               <div key={type} className="item-card" style={{ cursor: 'default' }}>
                 <div className="item-name" style={{ textTransform: 'capitalize' }}>{type}</div>
-                <div>{APP_CONFIG.wallet.currencySymbol}{stat.total} · {stat.count} transactions</div>
+                <div>{APP_CONFIG.billing.currencySymbol}{stat.total} · {stat.count} transactions</div>
               </div>
             ))}
           </div>

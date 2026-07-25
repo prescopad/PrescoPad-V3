@@ -19,7 +19,14 @@ import { ParamListBase } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { Medicine, LabTest } from '../../types/medicine.types';
-import api from '../../services/api';
+import {
+  getAllCustomMedicines,
+  getAllCustomLabTests,
+  addCustomMedicine,
+  addCustomLabTest,
+  deleteCustomMedicine,
+  deleteCustomLabTest,
+} from '../../services/dataService';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
 import { useToast } from '../../components/Toast/ToastContext';
 
@@ -64,17 +71,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
   const loadMedicines = async () => {
     try {
-      const res = await api.get('/data/custom-medicines/frequent', { params: { limit: 1000 } });
-      const mapped = (res.data.medicines || []).map((row: any): Medicine => ({
-        id: row.id,
-        name: row.name,
-        type: row.type || 'Tablet',
-        strength: row.strength || '',
-        manufacturer: row.manufacturer || '',
-        isCustom: true,
-        usageCount: row.usage_count || 0,
-      }));
-      setMedicines(mapped);
+      setMedicines(await getAllCustomMedicines(1000));
     } catch (error: any) {
       toast.error(error.message || t('manage.loadFailed', { type: t('manage.medicines') }));
     }
@@ -82,15 +79,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
   const loadTests = async () => {
     try {
-      const res = await api.get('/data/custom-lab-tests/frequent', { params: { limit: 1000 } });
-      const mapped = (res.data.labTests || []).map((row: any): LabTest => ({
-        id: row.id,
-        name: row.name,
-        category: row.category || '',
-        isCustom: true,
-        usageCount: row.usage_count || 0,
-      }));
-      setTests(mapped);
+      setTests(await getAllCustomLabTests(1000));
     } catch (error: any) {
       toast.error(error.message || t('manage.loadFailed', { type: t('manage.labTests') }));
     }
@@ -110,11 +99,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
     setSubmitting(true);
     try {
-      await api.post('/data/custom-medicines', {
-        name: formName.trim(),
-        type: formType,
-        strength: formStrength.trim(),
-      });
+      await addCustomMedicine(formName.trim(), formType, formStrength.trim());
       toast.success(t('manage.addedSuccess', { type: t('manage.medicineName') }));
       setShowAddModal(false);
       resetForm();
@@ -134,10 +119,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
 
     setSubmitting(true);
     try {
-      await api.post('/data/custom-lab-tests', {
-        name: formName.trim(),
-        category: formCategory,
-      });
+      await addCustomLabTest(formName.trim(), formCategory);
       toast.success(t('manage.addedSuccess', { type: t('manage.testName') }));
       setShowAddModal(false);
       resetForm();
@@ -160,7 +142,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/data/custom-medicines/${id}`);
+              await deleteCustomMedicine(id);
               await loadMedicines();
             } catch (error: any) {
               toast.error(error.message || t('manage.deleteFailed', { type: t('manage.medicineName') }));
@@ -182,7 +164,7 @@ export default function MedicineTestManagementScreen({ navigation }: MedicineTes
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/data/custom-lab-tests/${id}`);
+              await deleteCustomLabTest(id);
               await loadTests();
             } catch (error: any) {
               toast.error(error.message || t('manage.deleteFailed', { type: t('manage.testName') }));

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePrescriptionStore } from '../../store/usePrescriptionStore';
-import { useWalletStore } from '../../store/useWalletStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useClinicStore } from '../../store/useClinicStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import * as walletService from '../../api/walletService';
+import { recordConsultationPayment } from '../../api/paymentService';
 import { hashString } from '../../utils/cryptoUtil';
 import SignaturePad from '../../components/SignaturePad';
 import PrescriptionActions from '../../components/PrescriptionActions';
@@ -20,7 +19,6 @@ export default function PrescriptionPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentPrescription, loadPrescription, finalizePrescription, resetDraft, queueItemId } = usePrescriptionStore();
-  const { balance, canAfford, loadBalance } = useWalletStore();
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile } = useClinicStore();
   const { user } = useAuthStore();
   const completeConsult = useQueueStore((s) => s.completeConsult);
@@ -37,11 +35,10 @@ export default function PrescriptionPreviewPage() {
     if (!id) return;
     Promise.all([
       loadPrescription(id),
-      loadBalance(),
       loadClinic(),
       loadDoctorProfile(),
     ]).then(() => setIsLoading(false));
-  }, [id, loadPrescription, loadBalance, loadClinic, loadDoctorProfile]);
+  }, [id, loadPrescription, loadClinic, loadDoctorProfile]);
 
   if (isLoading) {
     return (
@@ -59,12 +56,6 @@ export default function PrescriptionPreviewPage() {
   const isFinalized = rx.status === 'finalized';
 
   const handleSignAndIssue = () => {
-    if (!canAfford()) {
-      toast.error(`Insufficient wallet balance (₹${balance}). Please recharge before issuing a prescription.`);
-      navigate('/wallet');
-      return;
-    }
-    
     // If the doctor has a saved signature, prompt to choose saved or draw new
     if (doctorProfile?.signatureBase64) {
       setShowSignModeModal(true);
@@ -83,7 +74,6 @@ export default function PrescriptionPreviewPage() {
       if (queueItemId) {
         await completeConsult(queueItemId);
       }
-      await loadBalance();
       setShowPaymentModal(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to finalize prescription');
@@ -101,7 +91,7 @@ export default function PrescriptionPreviewPage() {
   const handleRecordPayment = async (method: 'cash' | 'online') => {
     const amount = parseFloat(paymentAmount) || 0;
     if (amount > 0) {
-      walletService.recordConsultationPayment(rx.id, amount, method).catch(() => {});
+      recordConsultationPayment(rx.id, amount, method).catch(() => {});
     }
     setShowPaymentModal(false);
     resetDraft();
@@ -130,8 +120,8 @@ export default function PrescriptionPreviewPage() {
       <div className="prescription-paper">
         {/* Clinic Header */}
         <div className="paper-logo-container">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
-            <img src="/logo.png" alt="" style={{ width: 20, height: 20, borderRadius: 4 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 8, marginBottom: 4 }}>
+            <img src="/logo.png" alt="" style={{ width: 44, height: 44, borderRadius: 4 }} />
             <span style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--color-text-muted)', letterSpacing: '1px' }}>PRESCOPAD</span>
           </div>
         </div>

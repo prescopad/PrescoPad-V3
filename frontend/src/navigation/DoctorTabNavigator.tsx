@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../constants/theme';
 import { DoctorStackParamList } from '../types/navigation.types';
-import api from '../services/api';
+import { supabase } from '../services/supabase';
 
 // Doctor screens
 import DoctorDashboard from '../screens/doctor/DoctorDashboard';
@@ -28,7 +28,6 @@ import PatientDetailScreen from '../screens/assistant/PatientDetailScreen';
 import DoctorAddPatientHubScreen from '../screens/doctor/DoctorAddPatientHubScreen';
 
 // Shared screens
-import WalletScreen from '../screens/shared/WalletScreen';
 import SettingsScreen from '../screens/shared/SettingsScreen';
 import ClinicProfileScreen from '../screens/shared/ClinicProfileScreen';
 import ConnectionScreen from '../screens/shared/ConnectionScreen';
@@ -39,7 +38,6 @@ import UserProfileScreen from '../screens/shared/UserProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const QueueStack = createNativeStackNavigator<DoctorStackParamList>();
-const WalletStack = createNativeStackNavigator();
 const AnalyticsStack = createNativeStackNavigator();
 const SettingsStack = createNativeStackNavigator();
 const PatientStack = createNativeStackNavigator();
@@ -75,14 +73,6 @@ function DoctorPatientStack(): React.JSX.Element {
   );
 }
 
-function DoctorWalletStack(): React.JSX.Element {
-  return (
-    <WalletStack.Navigator screenOptions={{ headerShown: false }}>
-      <WalletStack.Screen name="WalletMain" component={WalletScreen} />
-    </WalletStack.Navigator>
-  );
-}
-
 function DoctorAnalyticsStack(): React.JSX.Element {
   return (
     <AnalyticsStack.Navigator screenOptions={{ headerShown: false }}>
@@ -100,7 +90,6 @@ function DoctorSettingsStack(): React.JSX.Element {
       <SettingsStack.Screen name="ConnectionSettings" component={ConnectionScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="MedicineTestManagement" component={MedicineTestManagementScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="Casebook" component={CasebookListScreen} options={{ headerShown: false }} />
-      <SettingsStack.Screen name="WalletMain" component={WalletScreen} options={{ headerShown: false }} />
       <SettingsStack.Screen name="AnalyticsMain" component={AnalyticsScreen} options={{ headerShown: false }} />
     </SettingsStack.Navigator>
   );
@@ -121,7 +110,7 @@ export default function DoctorTabNavigator(): React.JSX.Element {
 
   useEffect(() => {
     const sendHeartbeat = () => {
-      api.post('/auth/heartbeat').catch(() => {});
+      supabase.rpc('heartbeat').then(() => {}, () => {});
     };
 
     sendHeartbeat();

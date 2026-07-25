@@ -1,17 +1,34 @@
 import { create } from 'zustand';
 import type { Clinic, DoctorProfile } from '../types/clinic.types';
-import api from '../api/client';
+import { supabase } from '../api/supabase';
 import { useAuthStore } from './useAuthStore';
 
 interface ClinicStore {
   clinic: Clinic | null;
   doctorProfile: DoctorProfile | null;
+  /** All doctors in the current clinic (supports multiple doctors per
+   * clinic). `doctorProfile` remains a single arbitrary/primary pick
+   * (doctors[0]) for backward compatibility with existing pages; use this
+   * array when a page needs to list or disambiguate multiple doctors. */
+  doctors: DoctorProfile[];
   isLoading: boolean;
 
   loadClinic: () => Promise<void>;
   loadDoctorProfile: () => Promise<void>;
   updateClinic: (data: Partial<Clinic>) => Promise<void>;
   updateDoctorProfile: (data: Partial<DoctorProfile>) => Promise<void>;
+}
+
+function mapDoctorProfileRow(row: Record<string, unknown>): DoctorProfile {
+  return {
+    id: row.id as string,
+    name: (row.name as string) || '',
+    phone: (row.phone as string) || '',
+    specialty: (row.specialty as string) || '',
+    regNumber: (row.reg_number as string) || '',
+    signatureBase64: (row.signature_url as string) || null,
+    cloudId: row.id as string,
+  };
 }
 
 // Website equivalent of frontend/src/store/useClinicStore.ts — the mobile
@@ -22,26 +39,33 @@ interface ClinicStore {
 export const useClinicStore = create<ClinicStore>((set, get) => ({
   clinic: null,
   doctorProfile: null,
+  doctors: [],
   isLoading: false,
 
   loadClinic: async () => {
     try {
-      const res = await api.get('/clinic');
-      const c = res.data.clinic;
-      if (c) {
-        set({
-          clinic: {
-            id: c.id,
-            name: c.name || '',
-            address: c.address || '',
-            phone: c.phone || '',
-            email: c.email || '',
-            logoBase64: c.logo_url || c.logoBase64 || null,
-            qrCodeUrl: c.qr_code_url || c.qrCodeUrl || null,
-            ownerId: c.owner_id || '',
-          },
-        });
-      }
+      const authUser = useAuthStore.getState().user;
+      if (!authUser?.clinicId) return;
+
+      const { data: c, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('id', authUser.clinicId)
+        .maybeSingle();
+      if (error || !c) return;
+
+      set({
+        clinic: {
+          id: c.id,
+          name: c.name || '',
+          address: c.address || '',
+          phone: c.phone || '',
+          email: c.email || '',
+          logoBase64: c.logo_url || null,
+          qrCodeUrl: c.qr_code_url || null,
+          ownerId: c.owner_id || '',
+        },
+      });
     } catch {
       // no clinic yet
     }
@@ -53,39 +77,29 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
       if (!authUser) return;
 
       if (authUser.role === 'doctor') {
-        const res = await api.get('/auth/me');
-        const u = res.data.user;
-        if (u) {
-          set({
-            doctorProfile: {
-              id: u.id,
-              name: u.name || '',
-              phone: u.phone || '',
-              specialty: u.specialty || '',
-              regNumber: u.reg_number || u.regNumber || '',
-              signatureBase64: u.signature_url || u.signatureUrl || null,
-              cloudId: u.id,
-            },
-          });
-        }
+        const { data: u, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        if (error || !u) return;
+
+        const profile = mapDoctorProfileRow(u);
+        set({ doctorProfile: profile, doctors: [profile] });
       } else if (authUser.role === 'assistant') {
         if (!authUser.clinicId) return;
-        const res = await api.get(`/clinic/${authUser.clinicId}/doctors`);
-        const doctors = res.data.doctors ?? [];
-        if (doctors.length > 0) {
-          const doc = doctors[0];
-          set({
-            doctorProfile: {
-              id: doc.id,
-              name: doc.name || '',
-              phone: doc.phone || '',
-              specialty: doc.specialty || '',
-              regNumber: doc.regNumber || doc.reg_number || '',
-              signatureBase64: doc.signatureUrl || doc.signature_url || doc.signature || null,
-              cloudId: doc.id,
-            },
-          });
-        }
+        const { data: rows, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('clinic_id', authUser.clinicId)
+          .eq('role', 'doctor');
+        if (error) return;
+
+        const doctors = (rows ?? []).map(mapDoctorProfileRow);
+        set({
+          doctors,
+          doctorProfile: doctors.length > 0 ? doctors[0] : get().doctorProfile,
+        });
       }
     } catch {
       // failed to load doctor profile
@@ -103,7 +117,7 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     if (data.logoBase64 !== undefined) payload.logo_url = data.logoBase64;
     if (data.qrCodeUrl !== undefined) payload.qr_code_url = data.qrCodeUrl;
 
-    await api.put('/clinic', payload);
+    await supabase.from('clinics').update(payload).eq('id', current.id);
     set({ clinic: { ...current, ...data } });
   },
 
@@ -113,12 +127,16 @@ export const useClinicStore = create<ClinicStore>((set, get) => ({
     const payload: Record<string, unknown> = {};
     if (data.name !== undefined) payload.name = data.name;
     if (data.specialty !== undefined) payload.specialty = data.specialty;
-    if (data.regNumber !== undefined) payload.regNumber = data.regNumber;
-    if (data.signatureBase64 !== undefined) payload.signatureUrl = data.signatureBase64 ?? '';
+    if (data.regNumber !== undefined) payload.reg_number = data.regNumber;
+    if (data.signatureBase64 !== undefined) payload.signature_url = data.signatureBase64 ?? '';
 
     if (Object.keys(payload).length > 0) {
-      await api.put('/auth/profile', payload);
+      await supabase.from('profiles').update(payload).eq('id', current.id);
     }
-    set({ doctorProfile: { ...current, ...data } });
+    const updated = { ...current, ...data };
+    set({
+      doctorProfile: updated,
+      doctors: get().doctors.map((d) => (d.id === updated.id ? updated : d)),
+    });
   },
 }));

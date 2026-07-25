@@ -26,6 +26,11 @@ export default function RegistrationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Doctor: new clinic vs. join existing clinic
+  const [clinicMode, setClinicMode] = useState<'new' | 'join'>('new');
+  const [joinClinicCode, setJoinClinicCode] = useState('');
+  const isJoiningClinic = isDoctor && clinicMode === 'join';
+
   if (!role) {
     navigate('/auth/login', { replace: true });
     return null;
@@ -36,6 +41,10 @@ export default function RegistrationPage() {
       setError('Please enter your name.');
       return;
     }
+    if (isJoiningClinic && joinClinicCode.trim().length !== 6) {
+      setError('Please enter the 6-character doctor code.');
+      return;
+    }
     setError('');
     setIsLoading(true);
     try {
@@ -43,14 +52,15 @@ export default function RegistrationPage() {
         name: name.trim(),
         specialty: isDoctor ? specialty : undefined,
         regNumber: isDoctor ? regNumber : undefined,
-        clinicName: isDoctor ? clinicName : undefined,
-        clinicAddress: isDoctor ? clinicAddress : undefined,
-        clinicPhone: isDoctor ? clinicPhone : undefined,
-        clinicEmail: isDoctor ? clinicEmail : undefined,
+        clinicName: isDoctor && !isJoiningClinic ? clinicName : undefined,
+        clinicAddress: isDoctor && !isJoiningClinic ? clinicAddress : undefined,
+        clinicPhone: isDoctor && !isJoiningClinic ? clinicPhone : undefined,
+        clinicEmail: isDoctor && !isJoiningClinic ? clinicEmail : undefined,
         qualification: !isDoctor ? qualification : undefined,
         experienceYears: !isDoctor && experienceYears ? Number(experienceYears) : undefined,
         city: !isDoctor ? city : undefined,
         address: !isDoctor ? address : undefined,
+        joinClinicCode: isJoiningClinic ? joinClinicCode.trim().toUpperCase() : undefined,
       });
       setUser(response.user, response.accessToken, response.refreshToken);
       navigate('/', { replace: true });
@@ -92,24 +102,57 @@ export default function RegistrationPage() {
                 <input className="auth-input" value={regNumber} onChange={(e) => setRegNumber(e.target.value)} />
               </div>
             </div>
-            <div className="auth-field">
-              <label className="auth-label">Clinic name</label>
-              <input className="auth-input" value={clinicName} onChange={(e) => setClinicName(e.target.value)} />
+
+            <div className="auth-role-toggle" style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                className={`auth-role-btn ${clinicMode === 'new' ? 'active' : ''}`}
+                onClick={() => setClinicMode('new')}
+              >
+                New Clinic
+              </button>
+              <button
+                type="button"
+                className={`auth-role-btn ${clinicMode === 'join' ? 'active' : ''}`}
+                onClick={() => setClinicMode('join')}
+              >
+                Join Existing Clinic
+              </button>
             </div>
-            <div className="auth-field">
-              <label className="auth-label">Clinic address</label>
-              <input className="auth-input" value={clinicAddress} onChange={(e) => setClinicAddress(e.target.value)} />
-            </div>
-            <div className="auth-form-row">
+
+            {isJoiningClinic ? (
               <div className="auth-field">
-                <label className="auth-label">Clinic phone</label>
-                <input className="auth-input" value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} />
+                <label className="auth-label">Doctor code</label>
+                <input
+                  className="auth-input"
+                  value={joinClinicCode}
+                  onChange={(e) => setJoinClinicCode(e.target.value.toUpperCase().slice(0, 6))}
+                  placeholder="Enter clinic owner's doctor code"
+                  maxLength={6}
+                />
               </div>
-              <div className="auth-field">
-                <label className="auth-label">Clinic email</label>
-                <input className="auth-input" value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} />
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="auth-field">
+                  <label className="auth-label">Clinic name</label>
+                  <input className="auth-input" value={clinicName} onChange={(e) => setClinicName(e.target.value)} />
+                </div>
+                <div className="auth-field">
+                  <label className="auth-label">Clinic address</label>
+                  <input className="auth-input" value={clinicAddress} onChange={(e) => setClinicAddress(e.target.value)} />
+                </div>
+                <div className="auth-form-row">
+                  <div className="auth-field">
+                    <label className="auth-label">Clinic phone</label>
+                    <input className="auth-input" value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} />
+                  </div>
+                  <div className="auth-field">
+                    <label className="auth-label">Clinic email</label>
+                    <input className="auth-input" value={clinicEmail} onChange={(e) => setClinicEmail(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <>

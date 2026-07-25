@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import TokenStore from '../utils/tokenStore';
+import { supabase } from '../api/supabase';
+import { getMe, signOut as authSignOut } from '../api/authService';
 import { UserRole } from '../types/auth.types';
 import type { User, AuthState } from '../types/auth.types';
 import { useQueueStore } from './useQueueStore';
@@ -11,6 +12,9 @@ interface AuthStore extends AuthState {
   restoreSession: () => void;
 }
 
+// Supabase-js persists and auto-refreshes the session itself (see
+// api/supabase.ts), so this store no longer manages tokens manually — it
+// just mirrors whatever the current Supabase session/profile is.
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   accessToken: null,
@@ -19,9 +23,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isLoading: true,
 
   setUser: (user, accessToken, refreshToken) => {
-    TokenStore.setItem('accessToken', accessToken);
-    TokenStore.setItem('refreshToken', refreshToken);
-    TokenStore.setItem('user', JSON.stringify(user));
     set({
       user,
       accessToken,
@@ -33,9 +34,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 
   logout: () => {
     useQueueStore.getState().stopPolling();
-    TokenStore.removeItem('accessToken');
-    TokenStore.removeItem('refreshToken');
-    TokenStore.removeItem('user');
+    authSignOut().catch(() => {});
     set({
       user: null,
       accessToken: null,
@@ -48,26 +47,27 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setLoading: (loading) => set({ isLoading: loading }),
 
   restoreSession: () => {
-    try {
-      const accessToken = TokenStore.getItem('accessToken');
-      const refreshToken = TokenStore.getItem('refreshToken');
-      const userJson = TokenStore.getItem('user');
-
-      if (accessToken && userJson) {
-        const user = JSON.parse(userJson) as User;
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
-      }
-    } catch {
-      set({ isLoading: false });
-    }
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!data.session) {
+          set({ isLoading: false });
+          return;
+        }
+        try {
+          const user = await getMe();
+          set({
+            user,
+            accessToken: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+        } catch {
+          set({ isLoading: false });
+        }
+      })
+      .catch(() => set({ isLoading: false }));
   },
 }));
 
