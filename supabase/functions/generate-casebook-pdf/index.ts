@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
   const { data: prescriptions } = await callerClient
     .from("prescriptions")
-    .select("created_at, diagnosis, medicines, referred_to, follow_up_date")
+    .select("created_at, diagnosis, symptoms, medicines, lab_tests, advice, referred_to, follow_up_date")
     .eq("patient_id", patientId)
     .eq("status", "finalized")
     .order("created_at", { ascending: false });
@@ -70,11 +70,22 @@ Deno.serve(async (req) => {
   const visits: CasebookVisit[] = (prescriptions ?? []).map((rx) => ({
     date: rx.created_at,
     diagnosis: rx.diagnosis ?? undefined,
+    symptoms: Array.isArray(rx.symptoms) && rx.symptoms.length > 0 ? rx.symptoms : undefined,
     medicines: Array.isArray(rx.medicines)
       ? rx.medicines
-          .map((m: Record<string, unknown>) => (m.medicineName || m.medicine_name || m.name) as string)
+          .map((m: Record<string, unknown>) => {
+            const name = (m.medicineName || m.medicine_name || m.name) as string;
+            const parts = [name, m.type, m.frequency, m.duration ? `for ${m.duration}` : '', m.timing].filter(Boolean);
+            return parts.join(' | ');
+          })
           .filter(Boolean)
       : [],
+    labTests: Array.isArray(rx.lab_tests) && rx.lab_tests.length > 0
+      ? rx.lab_tests
+          .map((t: Record<string, unknown>) => (t.testName || t.test_name || t.name) as string)
+          .filter(Boolean)
+      : undefined,
+    advice: rx.advice ?? undefined,
     referredTo: rx.referred_to ?? undefined,
     followUpDate: rx.follow_up_date ?? undefined,
   }));

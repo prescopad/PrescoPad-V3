@@ -47,8 +47,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "2cfc1f8f-e715-427f-bf16-9ededf297652"
+        "projectId": "1fd4aa61-d13c-4d10-b7b8-61334d53bc7c"
       }
-    }
+    },
+    "owner": "prescopad"
   }
 }

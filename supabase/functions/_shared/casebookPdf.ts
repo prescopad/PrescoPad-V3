@@ -39,7 +39,10 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 export interface CasebookVisit {
   date: string;
   diagnosis?: string;
+  symptoms?: string[];
   medicines: string[];
+  labTests?: string[];
+  advice?: string;
   referredTo?: string;
   followUpDate?: string;
 }
@@ -130,33 +133,73 @@ export async function renderCasebookPdf(input: CasebookPdfInput): Promise<Uint8A
   for (const visit of sorted) {
     newPageIfNeeded(60);
     const dateStr = new Date(visit.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-    page.drawText(dateStr, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
-    y -= 14;
 
+    // Visit header row with teal background
+    page.drawRectangle({ x: MARGIN, y: y - 3, width: CONTENT_WIDTH, height: 17, color: COLORS.tealLight });
+    page.drawText(dateStr, { x: MARGIN + 4, y, size: 10, font: fontBold, color: COLORS.tealPrimary });
     if (visit.diagnosis) {
-      const lines = wrapText(`Diagnosis: ${visit.diagnosis}`, fontRegular, 9, CONTENT_WIDTH - 12);
+      const dxText = `Dx: ${visit.diagnosis}`;
+      page.drawText(dxText, { x: MARGIN + 130, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+    }
+    y -= 18;
+
+    // Symptoms
+    if (visit.symptoms && visit.symptoms.length > 0) {
+      newPageIfNeeded(14);
+      const lines = wrapText(`Symptoms: ${visit.symptoms.join(", ")}`, fontRegular, 9, CONTENT_WIDTH - 16);
       for (const line of lines) {
-        page.drawText(line, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textPrimary });
+        page.drawText(line, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
         y -= 12;
       }
     }
+
+    // Medicines
     if (visit.medicines.length) {
-      const lines = wrapText(`Medicines: ${visit.medicines.join(", ")}`, fontRegular, 9, CONTENT_WIDTH - 12);
+      newPageIfNeeded(14);
+      page.drawText("Medicines:", { x: MARGIN + 8, y, size: 9, font: fontBold, color: COLORS.textMuted });
+      y -= 12;
+      const lines = wrapText(visit.medicines.join(", "), fontRegular, 9, CONTENT_WIDTH - 20);
       for (const line of lines) {
-        page.drawText(line, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        newPageIfNeeded(12);
+        page.drawText(`  • ${line}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
         y -= 12;
       }
     }
+
+    // Lab Tests
+    if (visit.labTests && visit.labTests.length > 0) {
+      newPageIfNeeded(14);
+      const lines = wrapText(`Tests: ${visit.labTests.join(", ")}`, fontRegular, 9, CONTENT_WIDTH - 16);
+      for (const line of lines) {
+        page.drawText(line, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        y -= 12;
+      }
+    }
+
+    // Advice
+    if (visit.advice) {
+      newPageIfNeeded(14);
+      const lines = wrapText(`Advice: ${visit.advice}`, fontRegular, 9, CONTENT_WIDTH - 16);
+      for (const line of lines) {
+        page.drawText(line, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        y -= 12;
+      }
+    }
+
+    // Referred / Follow-up
     if (visit.referredTo) {
-      page.drawText(`Referred to: ${visit.referredTo}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+      newPageIfNeeded(12);
+      page.drawText(`Referred to: ${visit.referredTo}`, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
       y -= 12;
     }
     if (visit.followUpDate) {
-      page.drawText(`Follow-up: ${visit.followUpDate}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+      newPageIfNeeded(12);
+      page.drawText(`Follow-up: ${visit.followUpDate}`, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
       y -= 12;
     }
-    y -= 6;
-    page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.5, color: COLORS.gridLine });
+
+    y -= 8;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.3, color: COLORS.gridLine });
     y -= 10;
   }
 

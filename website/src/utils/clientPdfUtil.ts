@@ -93,7 +93,25 @@ export async function printPrescriptionClient(
   window.open(url, '_blank');
 }
 
-export async function printCasebookClient(patient: Patient) {
+export async function printCasebookClient(patient: Patient, prescriptions?: Prescription[]) {
+  const visits = (prescriptions ?? []).map((rx) => ({
+    date: rx.createdAt
+      ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '—',
+    diagnosis: rx.diagnosis || undefined,
+    symptoms: rx.symptoms && rx.symptoms.length > 0 ? rx.symptoms : undefined,
+    medicines: (rx.medicines ?? []).map((m: any) => {
+      const name = m.medicineName || m.medicine_name || m.name || '';
+      const parts = [name, m.type, m.frequency, m.duration ? `for ${m.duration}` : '', m.timing].filter(Boolean);
+      return parts.join(' | ');
+    }),
+    labTests: (rx.labTests ?? []).map((t: any) => t.testName || t.test_name || t.name || '').filter(Boolean),
+    advice: rx.advice || undefined,
+    followUpDate: rx.followUpDate
+      ? new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : undefined,
+  }));
+
   const pdfBytes = await renderCasebookPdf({
     clinicName: 'PrescoPad AI Casebook',
     patientName: patient.name,
@@ -102,6 +120,7 @@ export async function printCasebookClient(patient: Patient) {
     bloodGroup: patient.bloodGroup || undefined,
     allergies: patient.allergies || undefined,
     caseSummary: patient.caseSummary || undefined,
+    visits: visits.length > 0 ? visits : undefined,
   });
 
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });

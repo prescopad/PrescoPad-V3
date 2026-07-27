@@ -45,14 +45,14 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
       document.body.removeChild(a);
       toast.success('Casebook PDF downloaded successfully.');
     } catch {
-      printCasebookClient(patient);
+      printCasebookClient(patient, prescriptions);
     } finally {
       setIsDownloading(false);
     }
   };
 
   const handlePrint = () => {
-    printCasebookClient(patient);
+    printCasebookClient(patient, prescriptions);
   };
 
   const formatDate = (dateStr: string | null) => {

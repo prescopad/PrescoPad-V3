@@ -34,7 +34,10 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
 export interface CasebookVisit {
   date: string;
   diagnosis?: string;
+  symptoms?: string[];
   medicines: string[];
+  labTests?: string[];
+  advice?: string;
   referredTo?: string;
   followUpDate?: string;
 }
@@ -122,20 +125,62 @@ export async function renderCasebookPdf(input: CasebookPdfInput): Promise<Uint8A
     y -= 16;
 
     for (const v of input.visits) {
-      newPageIfNeeded(40);
-      page.drawText(v.date, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
-      if (v.diagnosis) {
-        page.drawText(`Diagnosis: ${v.diagnosis}`, { x: MARGIN + 120, y, size: 10, font: fontRegular, color: COLORS.textPrimary });
-      }
-      y -= 14;
+      newPageIfNeeded(55);
 
+      // Date row with teal background
+      page.drawRectangle({ x: MARGIN, y: y - 2, width: CONTENT_WIDTH, height: 16, color: COLORS.tealLight });
+      page.drawText(v.date, { x: MARGIN + 4, y, size: 10, font: fontBold, color: COLORS.tealPrimary });
+      if (v.diagnosis) {
+        page.drawText(`Dx: ${v.diagnosis}`, { x: MARGIN + 130, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+      }
+      y -= 18;
+
+      // Symptoms
+      if (v.symptoms && v.symptoms.length > 0) {
+        newPageIfNeeded(14);
+        page.drawText(`Symptoms: ${v.symptoms.join(', ')}`, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        y -= 13;
+      }
+
+      // Medicines
       if (v.medicines.length) {
+        newPageIfNeeded(14);
+        page.drawText('Medicines:', { x: MARGIN + 8, y, size: 9, font: fontBold, color: COLORS.textMuted });
+        y -= 12;
         for (const m of v.medicines) {
-          newPageIfNeeded(14);
-          page.drawText(`- ${m}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
-          y -= 13;
+          newPageIfNeeded(13);
+          page.drawText(`  • ${m}`, { x: MARGIN + 12, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+          y -= 12;
         }
       }
+
+      // Lab Tests
+      if (v.labTests && v.labTests.length > 0) {
+        newPageIfNeeded(14);
+        page.drawText(`Tests: ${v.labTests.join(', ')}`, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        y -= 13;
+      }
+
+      // Advice
+      if (v.advice) {
+        newPageIfNeeded(14);
+        const advLines = wrapText(`Advice: ${v.advice}`, fontRegular, 9, CONTENT_WIDTH - 16);
+        for (const al of advLines) {
+          newPageIfNeeded(13);
+          page.drawText(al, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+          y -= 12;
+        }
+      }
+
+      // Follow-up
+      if (v.followUpDate) {
+        newPageIfNeeded(14);
+        page.drawText(`Follow-up: ${v.followUpDate}`, { x: MARGIN + 8, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+        y -= 13;
+      }
+
+      y -= 10;
+      page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.3, color: COLORS.gridLine });
       y -= 8;
     }
   }
