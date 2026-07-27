@@ -49,6 +49,7 @@ export default function PatientDetailPage() {
       await addToQueue(id, user.id, notes, type);
       setIsModalOpen(false);
       toast.success(`${patient.name} added to today's queue.`);
+      navigate('/');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add to queue');
     } finally {

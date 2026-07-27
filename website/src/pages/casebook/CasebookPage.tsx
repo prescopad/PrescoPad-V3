@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import * as DataService from '../../api/dataService';
-import { downloadCasebookPdf } from '../../api/casebookService';
-import { printCasebookClient } from '../../utils/clientPdfUtil';
 import type { Patient } from '../../types/patient.types';
 import PageLoader from '../../components/PageLoader';
+import CasebookViewerModal from '../../components/CasebookViewerModal';
 import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
 
@@ -16,7 +15,7 @@ export default function CasebookPage() {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   useEffect(() => {
     DataService.getPatientsPage(undefined, PAGE_SIZE, 0)
@@ -46,38 +45,12 @@ export default function CasebookPage() {
     ? patients.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
     : patients;
 
-  const handleDownloadPdf = async (patient: Patient) => {
-    if (downloadingId) return;
-    setDownloadingId(patient.id);
-    try {
-      const blob = await downloadCasebookPdf(patient.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-
-      const safeName = (patient.name || 'Patient')
-        .replace(/[^a-zA-Z0-9 ]/g, '')
-        .trim()
-        .replace(/\s+/g, '_');
-      a.download = `Casebook_${safeName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch {
-      // Edge Function unavailable — fallback seamlessly to instant client print/PDF generator
-      printCasebookClient(patient);
-    } finally {
-      setDownloadingId(null);
-    }
-  };
-
   return (
     <div className="page-container">
       <div className="page-header">
         <div>
           <div className="page-title">Casebook</div>
-          <div className="page-subtitle">Quick patient summaries, date-wise</div>
+          <div className="page-subtitle">Open and view patient casebook summaries and download PDFs</div>
         </div>
       </div>
 
@@ -97,37 +70,47 @@ export default function CasebookPage() {
         <div className="card-list">
           {filtered.length === 0 && <div className="empty-state">No patients found</div>}
           {filtered.map((p) => {
-            const isDownloading = downloadingId === p.id;
             return (
-              <div key={p.id} className="item-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+              <div
+                key={p.id}
+                className="item-card"
+                style={{ flexDirection: 'column', alignItems: 'stretch', cursor: 'pointer' }}
+                onClick={() => setSelectedPatient(p)}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <div className="item-name">{p.name}</div>
+                  <div>
+                    <div className="item-name">{p.name}</div>
+                    <div className="item-meta">
+                      {p.age} yrs · {p.gender} {p.phone ? `· ${p.phone}` : ''}
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    className="secondary-btn"
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
-                    disabled={isDownloading}
-                    onClick={() => handleDownloadPdf(p)}
+                    className="primary-btn"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', padding: '6px 14px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPatient(p);
+                    }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                     </svg>
-                    {isDownloading ? 'Downloading...' : 'Download PDF'}
+                    Open Casebook
                   </button>
                 </div>
                 <div
                   className="item-meta"
                   style={{
-                    marginTop: 6,
+                    marginTop: 8,
                     display: '-webkit-box',
-                    WebkitLineClamp: 3,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                   }}
                 >
-                  {p.caseSummary || 'No case summary yet'}
+                  {p.caseSummary || 'No case summary generated yet. Click Open Casebook to view patient history.'}
                 </div>
               </div>
             );
@@ -138,6 +121,13 @@ export default function CasebookPage() {
         <button type="button" className="secondary-btn" style={{ marginTop: 12, width: '100%' }} disabled={isLoadingMore} onClick={loadMore}>
           {isLoadingMore ? 'Loading...' : 'Load more'}
         </button>
+      )}
+
+      {selectedPatient && (
+        <CasebookViewerModal
+          patient={selectedPatient}
+          onClose={() => setSelectedPatient(null)}
+        />
       )}
     </div>
   );

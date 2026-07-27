@@ -136,9 +136,12 @@ export default function AddPatientScreen(): React.JSX.Element {
 
   const processAddToQueue = async (type: 'new' | 'follow_up') => {
     if (!user || !pendingPatientId) return;
+    const name = pendingPatientName;
     try {
       setShowConsultModal(false);
       await addToQueue(pendingPatientId, user.id, undefined, type);
+      toast.success(`${name} registered and added to queue!`);
+      navigation.navigate('DoctorQueue' as never);
     } catch {
       toast.error('Patient registered but failed to add to queue.');
     } finally {

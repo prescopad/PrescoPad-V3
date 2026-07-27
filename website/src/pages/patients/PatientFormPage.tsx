@@ -4,6 +4,7 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { Gender, BLOOD_GROUPS } from '../../types/patient.types';
 import type { PatientFormData } from '../../types/patient.types';
 import PageLoader from '../../components/PageLoader';
+import { useToast } from '../../components/toast/ToastContext';
 import '../auth/auth.css';
 import '../pages.css';
 
@@ -13,6 +14,7 @@ const emptyForm: PatientFormData = {
 
 export default function PatientFormPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { id } = useParams();
   const isEdit = Boolean(id);
   const { createPatient, updatePatient, getPatientById } = usePatientStore();
@@ -55,8 +57,9 @@ export default function PatientFormPage() {
         await updatePatient(id, form);
         navigate(`/patients/${id}`);
       } else {
-        const created = await createPatient(form);
-        navigate(`/patients/${created.id}`);
+        await createPatient(form);
+        toast.success('Patient registered successfully.');
+        navigate('/');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save patient.');

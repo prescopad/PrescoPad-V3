@@ -22,6 +22,8 @@ import { exportPDFCopy, shareViaPDF } from '../../services/shareService';
 import { useToast } from '../../components/Toast/ToastContext';
 import { HEADER_PADDING_TOP } from '../../utils/responsive';
 
+import CasebookViewerModal from '../../components/CasebookViewerModal';
+
 interface CasebookListScreenProps {
   navigation: NativeStackNavigationProp<ParamListBase>;
 }
@@ -30,8 +32,7 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const toast = useToast();
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,57 +54,25 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
     ? patients.filter((p) => p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : patients;
 
-  const handleDownloadPdf = async (patient: Patient) => {
-    if (downloadingId) return;
-    setDownloadingId(patient.id);
-    try {
-      const signedUrl = await downloadCasebookPdf(patient.id);
-
-      // Download the remote PDF into a temp local file first (same approach
-      // used elsewhere in the app for pulling a remote asset onto disk),
-      // then reuse the existing export/share pattern.
-      const tempFilename = `casebook_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
-      const localUri = `${FileSystem.cacheDirectory}${tempFilename}`;
-      const result = await FileSystem.downloadAsync(signedUrl, localUri);
-      if (result.status !== 200) {
-        throw new Error('Failed to download casebook PDF.');
-      }
-
-      const safeName = (patient.name || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-      const exported = await exportPDFCopy(result.uri, `Casebook_${safeName}`);
-      await shareViaPDF(exported);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to download casebook PDF.');
-    } finally {
-      setDownloadingId(null);
-    }
-  };
-
   const renderPatient = ({ item }: { item: Patient }) => {
-    const isDownloading = downloadingId === item.id;
-
     return (
-      <View style={styles.card}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => setSelectedPatient(item)}
+        activeOpacity={0.7}
+      >
         <View style={styles.cardHeader}>
           <Text style={styles.patientName}>{item.name}</Text>
-          <TouchableOpacity
-            style={styles.downloadBtn}
-            onPress={() => handleDownloadPdf(item)}
-            disabled={isDownloading}
-            activeOpacity={0.7}
-          >
-            {isDownloading ? (
-              <ActivityIndicator size="small" color={COLORS.primary} />
-            ) : (
-              <Ionicons name="download-outline" size={20} color={COLORS.primary} />
-            )}
-          </TouchableOpacity>
+          <View style={styles.openPill}>
+            <Ionicons name="book-outline" size={14} color={COLORS.primary} />
+            <Text style={styles.openPillText}>Open</Text>
+          </View>
         </View>
 
-        <Text style={styles.previewText} numberOfLines={3}>
-          {item.caseSummary || 'No case summary yet'}
+        <Text style={styles.previewText} numberOfLines={2}>
+          {item.caseSummary || 'Tap to open full casebook history and summary'}
         </Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -149,6 +118,12 @@ export default function CasebookListScreen({ navigation }: CasebookListScreenPro
           }
         />
       )}
+
+      <CasebookViewerModal
+        visible={!!selectedPatient}
+        patient={selectedPatient}
+        onClose={() => setSelectedPatient(null)}
+      />
     </View>
   );
 }
@@ -223,8 +198,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginRight: SPACING.sm,
   },
-  downloadBtn: {
-    padding: SPACING.xs,
+  openPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primarySurface,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+    gap: 4,
+  },
+  openPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   previewText: {
     marginTop: SPACING.xs,

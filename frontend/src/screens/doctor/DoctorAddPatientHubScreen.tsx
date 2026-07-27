@@ -64,9 +64,10 @@ export default function DoctorAddPatientHubScreen(): React.JSX.Element {
     setShowConsultModal(false);
     try {
       await addToQueue(pendingPatientId, user.id, undefined, type);
+      toast.success(`${pendingPatientName} has been added to the queue.`);
       setSearchQuery('');
       clearSearch();
-      toast.success(`${pendingPatientName} has been added to the queue.`);
+      navigation.navigate('DoctorQueue' as never);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to add to queue';
       toast.error(message);

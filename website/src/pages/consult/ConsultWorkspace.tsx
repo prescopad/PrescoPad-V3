@@ -78,6 +78,47 @@ export default function ConsultWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Past Prescriptions History Modal State
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [pastPrescriptions, setPastPrescriptions] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [expandedRxId, setExpandedRxId] = useState<string | null>(null);
+
+  const handleOpenHistory = async () => {
+    if (!patient) return;
+    setShowHistoryModal(true);
+    setIsLoadingHistory(true);
+    try {
+      const list = await DataService.getPrescriptionsByPatient(patient.id);
+      setPastPrescriptions(list);
+      if (list.length > 0) setExpandedRxId(list[0].id);
+    } catch {
+      toast.error('Failed to load past prescriptions.');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleImportMedicinesFromRx = (rx: any) => {
+    if (!rx.medicines || rx.medicines.length === 0) {
+      toast.error('No medicines found in this prescription.');
+      return;
+    }
+    rx.medicines.forEach((m: any) => {
+      addMedicine({
+        medicineName: m.medicineName || m.medicine_name || m.name || '',
+        type: m.type || 'Tablet',
+        dosage: m.dosage || '',
+        frequency: m.frequency || '1-0-1',
+        duration: m.duration || '5 days',
+        timing: m.timing || 'After Food',
+        notes: m.notes || '',
+      });
+    });
+    toast.success(`Imported ${rx.medicines.length} medicine(s) from past prescription!`);
+    setShowHistoryModal(false);
+  };
+
   if (!queueItem || !patient) return null;
 
   const symptoms = currentDraft.symptoms || [];
@@ -266,10 +307,14 @@ export default function ConsultWorkspace() {
           </div>
           <button
             className="secondary-btn"
-            style={{ flexShrink: 0 }}
-            onClick={() => navigate(`/patients/${patient.id}/history`)}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={handleOpenHistory}
           >
-            View History
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Previous Prescriptions
           </button>
         </div>
       </div>
@@ -446,6 +491,153 @@ export default function ConsultWorkspace() {
               <div className="modal-footer">
                 <button className="secondary-btn" onClick={() => setShowTemplateModal(false)}>Cancel (Esc)</button>
                 <button className="primary-btn" disabled={!newTemplateName.trim()} onClick={handleSaveTemplate}>Save Template</button>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Previous Prescriptions History Modal */}
+      {showHistoryModal && (
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setShowHistoryModal(false)}>
+            <div className="modal-dialog" style={{ maxWidth: 720, maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div>
+                  <span className="modal-title">Previous Prescriptions</span>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+                    Patient: <strong>{patient.name}</strong> ({patient.age} yrs, {patient.gender})
+                  </div>
+                </div>
+                <button className="modal-close-btn" onClick={() => setShowHistoryModal(false)}><CloseIcon size={18} /></button>
+              </div>
+
+              <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: 16 }}>
+                {isLoadingHistory ? (
+                  <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--color-text-muted)' }}>
+                    Loading previous prescriptions...
+                  </div>
+                ) : pastPrescriptions.length === 0 ? (
+                  <div className="empty-state">No previous prescriptions found for {patient.name}.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {pastPrescriptions.map((rx) => {
+                      const isExpanded = expandedRxId === rx.id;
+                      const dateStr = rx.createdAt ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                      return (
+                        <div
+                          key={rx.id}
+                          className="item-card"
+                          style={{
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            cursor: 'pointer',
+                            borderColor: isExpanded ? 'var(--color-primary)' : 'var(--color-border)',
+                          }}
+                          onClick={() => setExpandedRxId(isExpanded ? null : rx.id)}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-text)' }}>
+                                {rx.diagnosis || 'General Consultation'}
+                              </div>
+                              <div className="item-meta">Date: {dateStr} · Rx ID: {rx.id}</div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span className="status-pill" style={{
+                                background: rx.status === 'finalized' ? 'var(--color-success-light)' : 'var(--color-warning-light)',
+                                color: rx.status === 'finalized' ? 'var(--color-success)' : 'var(--color-warning)',
+                              }}>
+                                {rx.status}
+                              </span>
+                              <svg
+                                width="18"
+                                height="18"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                              >
+                                <polyline points="6 9 12 15 18 9" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border-light)' }} onClick={(e) => e.stopPropagation()}>
+                              {rx.symptoms && rx.symptoms.length > 0 && (
+                                <div style={{ marginBottom: 8, fontSize: '0.875rem' }}>
+                                  <strong>Symptoms:</strong> {rx.symptoms.join(', ')}
+                                </div>
+                              )}
+
+                              {rx.medicines && rx.medicines.length > 0 && (
+                                <div style={{ marginBottom: 12 }}>
+                                  <div style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: 6, color: 'var(--color-primary)' }}>
+                                    Medicines ({rx.medicines.length})
+                                  </div>
+                                  <table className="paper-med-table" style={{ fontSize: '0.8125rem', width: '100%' }}>
+                                    <thead>
+                                      <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Dosage</th>
+                                        <th>Duration</th>
+                                        <th>Timing</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {rx.medicines.map((m: any, idx: number) => (
+                                        <tr key={m.id || idx}>
+                                          <td style={{ fontWeight: 600 }}>{m.medicineName || m.medicine_name || m.name}</td>
+                                          <td>{m.type}</td>
+                                          <td>{m.frequency}</td>
+                                          <td>{m.duration}</td>
+                                          <td>{m.timing}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+
+                              {rx.labTests && rx.labTests.length > 0 && (
+                                <div style={{ marginBottom: 10, fontSize: '0.875rem' }}>
+                                  <strong style={{ color: 'var(--color-primary)' }}>Lab Tests:</strong>{' '}
+                                  {rx.labTests.map((t: any) => t.testName || t.test_name || t.name).join(', ')}
+                                </div>
+                              )}
+
+                              {rx.advice && (
+                                <div style={{ marginBottom: 10, fontSize: '0.875rem', fontStyle: 'italic', background: 'var(--color-warning-light)', padding: 8, borderRadius: 4 }}>
+                                  <strong>Advice:</strong> {rx.advice}
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  style={{ fontSize: '0.8125rem', padding: '6px 12px' }}
+                                  onClick={() => handleImportMedicinesFromRx(rx)}
+                                >
+                                  📥 Copy Medicines to Current Rx
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button className="secondary-btn" onClick={() => setShowHistoryModal(false)}>Close</button>
               </div>
             </div>
           </div>

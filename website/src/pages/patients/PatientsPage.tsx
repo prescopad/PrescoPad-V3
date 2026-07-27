@@ -55,6 +55,7 @@ export default function PatientsPage() {
       setIsModalOpen(false);
       setPendingPatient(null);
       toast.success(`${pendingPatient.name} added to today's queue.`);
+      navigate('/');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to add to queue');
     } finally {

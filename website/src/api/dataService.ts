@@ -76,37 +76,39 @@ function mapQueueItem(row: Record<string, unknown>): QueueItem {
 }
 
 function mapPrescription(row: Record<string, unknown>): Prescription {
-  const medicines = ((row.medicines as Record<string, unknown>[]) ?? []).map(mapPrescriptionMedicine);
-  const labTests = ((row.lab_tests as Record<string, unknown>[]) ?? []).map(mapPrescriptionLabTest);
+  const rawMeds = (row.medicines as Record<string, unknown>[]) ?? [];
+  const rawTests = (row.lab_tests as Record<string, unknown>[]) ?? (row.labTests as Record<string, unknown>[]) ?? [];
+  const medicines = rawMeds.map(mapPrescriptionMedicine);
+  const labTests = rawTests.map(mapPrescriptionLabTest);
   return {
-    id: row.id as string,
-    patientId: row.patient_id as string,
-    patientName: row.patient_name as string,
-    patientAge: row.patient_age as number,
-    patientGender: row.patient_gender as string,
-    patientPhone: (row.patient_phone as string) ?? '',
-    consultationType: row.consultation_type as 'new' | 'follow_up' | undefined,
-    doctorId: row.doctor_id as string,
-    diagnosis: row.diagnosis as string,
+    id: (row.id as string) ?? '',
+    patientId: (row.patient_id as string) ?? (row.patientId as string) ?? '',
+    patientName: (row.patient_name as string) ?? (row.patientName as string) ?? '',
+    patientAge: (row.patient_age as number) ?? (row.patientAge as number) ?? 0,
+    patientGender: (row.patient_gender as string) ?? (row.patientGender as string) ?? '',
+    patientPhone: (row.patient_phone as string) ?? (row.patientPhone as string) ?? '',
+    consultationType: (row.consultation_type as 'new' | 'follow_up' | undefined) ?? (row.consultationType as 'new' | 'follow_up' | undefined),
+    doctorId: (row.doctor_id as string) ?? (row.doctorId as string) ?? '',
+    diagnosis: (row.diagnosis as string) ?? '',
     advice: (row.advice as string) ?? '',
-    followUpDate: (row.follow_up_date as string) ?? null,
+    followUpDate: (row.follow_up_date as string) ?? (row.followUpDate as string) ?? null,
     symptoms: (row.symptoms as string[]) ?? [],
-    referredTo: (row.referred_to as string) ?? '',
-    pdfPath: null,
-    pdfHash: (row.pdf_hash as string) ?? null,
+    referredTo: (row.referred_to as string) ?? (row.referredTo as string) ?? '',
+    pdfPath: (row.pdf_storage_path as string) ?? (row.pdfPath as string) ?? null,
+    pdfHash: (row.pdf_hash as string) ?? (row.pdfHash as string) ?? null,
     signature: (row.signature as string) ?? null,
-    status: row.status as PrescriptionStatus,
-    chargeAmount: (row.charge_amount as number) ?? null,
+    status: (row.status as PrescriptionStatus) ?? 'draft',
+    chargeAmount: (row.charge_amount as number) ?? (row.chargeAmount as number) ?? null,
     medicines,
     labTests,
-    createdAt: row.created_at as string,
+    createdAt: (row.created_at as string) ?? (row.createdAt as string) ?? '',
   };
 }
 
 function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemplate {
   const data = (row.data as Record<string, unknown>) ?? {};
   const medicines = ((data.medicines as Record<string, unknown>[]) ?? []).map(mapPrescriptionMedicine);
-  const labTests = ((data.lab_tests as Record<string, unknown>[]) ?? []).map(mapPrescriptionLabTest);
+  const labTests = ((data.lab_tests as Record<string, unknown>[]) ?? (data.labTests as Record<string, unknown>[]) ?? []).map(mapPrescriptionLabTest);
   return {
     id: row.id as string,
     name: row.name as string,
@@ -121,24 +123,26 @@ function mapPrescriptionTemplate(row: Record<string, unknown>): PrescriptionTemp
 }
 
 function mapPrescriptionMedicine(row: Record<string, unknown>): PrescriptionMedicine {
+  const name = (row.medicine_name as string) || (row.medicineName as string) || (row.name as string) || '';
   return {
     id: (row.id as string) ?? '',
-    prescriptionId: (row.prescription_id as string) ?? '',
-    medicineName: (row.medicine_name as string) ?? '',
-    type: (row.type as string) ?? '',
+    prescriptionId: (row.prescription_id as string) ?? (row.prescriptionId as string) ?? '',
+    medicineName: name,
+    type: (row.type as string) ?? (row.medicineType as string) ?? '',
     dosage: (row.dosage as string) ?? '',
     frequency: (row.frequency as string) ?? '',
     duration: (row.duration as string) ?? '',
     timing: (row.timing as string) ?? '',
-    notes: (row.notes as string) ?? '',
+    notes: (row.notes as string) ?? (row.instructions as string) ?? '',
   };
 }
 
 function mapPrescriptionLabTest(row: Record<string, unknown>): PrescriptionLabTest {
+  const name = (row.test_name as string) || (row.testName as string) || (row.name as string) || '';
   return {
     id: (row.id as string) ?? '',
-    prescriptionId: (row.prescription_id as string) ?? '',
-    testName: (row.test_name as string) ?? '',
+    prescriptionId: (row.prescription_id as string) ?? (row.prescriptionId as string) ?? '',
+    testName: name,
     category: (row.category as string) ?? '',
     notes: (row.notes as string) ?? '',
   };
@@ -174,24 +178,34 @@ function mapCustomLabTest(row: Record<string, unknown>): LabTest {
   return { ...mapCatalogLabTest(row), isCustom: true, usageCount: (row.usage_count as number) ?? 0 };
 }
 
-function medicinesToJsonb(medicines: { medicineName: string; type: string; dosage: string; frequency: string; duration: string; timing: string; notes: string }[]) {
-  return medicines.map((m) => ({
-    medicine_name: m.medicineName,
-    type: m.type,
-    dosage: m.dosage,
-    frequency: m.frequency,
-    duration: m.duration,
-    timing: m.timing,
-    notes: m.notes,
-  }));
+function medicinesToJsonb(medicines: Record<string, unknown>[]) {
+  return medicines.map((m) => {
+    const name = (m.medicineName as string) || (m.medicine_name as string) || (m.name as string) || '';
+    return {
+      medicine_name: name,
+      medicineName: name,
+      name,
+      type: (m.type as string) ?? '',
+      dosage: (m.dosage as string) ?? '',
+      frequency: (m.frequency as string) ?? '',
+      duration: (m.duration as string) ?? '',
+      timing: (m.timing as string) ?? '',
+      notes: (m.notes as string) ?? '',
+    };
+  });
 }
 
-function labTestsToJsonb(labTests: { testName: string; category: string; notes: string }[]) {
-  return labTests.map((t) => ({
-    test_name: t.testName,
-    category: t.category,
-    notes: t.notes,
-  }));
+function labTestsToJsonb(labTests: Record<string, unknown>[]) {
+  return labTests.map((t) => {
+    const name = (t.testName as string) || (t.test_name as string) || (t.name as string) || '';
+    return {
+      test_name: name,
+      testName: name,
+      name,
+      category: (t.category as string) ?? '',
+      notes: (t.notes as string) ?? '',
+    };
+  });
 }
 
 function mergeByName<T extends { name: string }>(primary: T[], secondary: T[]): T[] {

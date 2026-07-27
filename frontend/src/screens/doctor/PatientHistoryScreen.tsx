@@ -76,6 +76,7 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
     try {
       await addToQueue(patientId, user!.id, undefined, type);
       toast.success(`${patientName} added to today's queue!`);
+      navigation.navigate('DoctorQueue' as never);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to add to queue';
       toast.error(msg);
