@@ -80,7 +80,8 @@ class InMemoryOtpStore:
         now = datetime.now(timezone.utc)
         elapsed = (now - entry["last_resend_at"]).total_seconds()
         if elapsed < self.cooldown:
-            return False, int(self.cooldown - elapsed)
+            import math
+            return False, max(1, math.ceil(self.cooldown - elapsed))
             
         # Check hourly resend limit
         if now - entry["last_resend_at"] > timedelta(hours=1):
