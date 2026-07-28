@@ -158,11 +158,18 @@ export async function seedMedicines(db: SQLiteLikeDatabase): Promise<void> {
     { name: 'Levothyroxine 100mcg', type: 'Tablet', strength: '100mcg', manufacturer: 'Abbott' },
   ];
 
-  for (const med of medicines) {
-    await db.runAsync(
-      `INSERT INTO medicines (id, name, type, strength, manufacturer, is_custom, usage_count) VALUES (?, ?, ?, ?, ?, 0, 0)`,
-      [generateSeedId(), med.name, med.type, med.strength, med.manufacturer]
-    );
+  await db.runAsync('BEGIN TRANSACTION');
+  try {
+    for (const med of medicines) {
+      await db.runAsync(
+        `INSERT INTO medicines (id, name, type, strength, manufacturer, is_custom, usage_count) VALUES (?, ?, ?, ?, ?, 0, 0)`,
+        [generateSeedId(), med.name, med.type, med.strength, med.manufacturer]
+      );
+    }
+    await db.runAsync('COMMIT');
+  } catch (err) {
+    await db.runAsync('ROLLBACK');
+    throw err;
   }
 }
 
@@ -273,10 +280,17 @@ export async function seedLabTests(db: SQLiteLikeDatabase): Promise<void> {
     { name: 'Pap Smear', category: 'Other' },
   ];
 
-  for (const test of labTests) {
-    await db.runAsync(
-      `INSERT INTO lab_tests (id, name, category, is_custom, usage_count) VALUES (?, ?, ?, 0, 0)`,
-      [generateSeedId(), test.name, test.category]
-    );
+  await db.runAsync('BEGIN TRANSACTION');
+  try {
+    for (const test of labTests) {
+      await db.runAsync(
+        `INSERT INTO lab_tests (id, name, category, is_custom, usage_count) VALUES (?, ?, ?, 0, 0)`,
+        [generateSeedId(), test.name, test.category]
+      );
+    }
+    await db.runAsync('COMMIT');
+  } catch (err) {
+    await db.runAsync('ROLLBACK');
+    throw err;
   }
 }
