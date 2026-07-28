@@ -13,10 +13,10 @@ import '../pages.css';
 type Tab = 'all' | 'waiting' | 'in_progress' | 'completed';
 
 const STATUS_COLOR: Record<string, string> = {
-  [QueueStatus.WAITING]: '#f59e0b',
-  [QueueStatus.IN_PROGRESS]: '#0284c7',
-  [QueueStatus.COMPLETED]: '#10b981',
-  [QueueStatus.CANCELLED]: '#64748b',
+  [QueueStatus.WAITING]: '#D97706',
+  [QueueStatus.IN_PROGRESS]: '#0077B6',
+  [QueueStatus.COMPLETED]: '#16A34A',
+  [QueueStatus.CANCELLED]: '#DC2626',
 };
 
 const STATUS_LABEL: Record<string, string> = {

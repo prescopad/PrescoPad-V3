@@ -23,23 +23,27 @@ async def connect_db():
         socketTimeoutMS=10000,
     )
 
+    connected = False
     for attempt in range(1, 6):
         try:
             await _client.admin.command("ping")
+            connected = True
             break
         except Exception as e:
             log.warning("MongoDB connect attempt %s/5 failed: %s", attempt, e)
-            if attempt == 5:
-                raise RuntimeError(
-                    "Could not connect to MongoDB after 5 attempts. "
-                    "Check your network / DNS and that the Atlas URI is correct."
-                ) from e
-            await asyncio.sleep(3)
+            if attempt < 5:
+                await asyncio.sleep(2)
 
-    db = _client[settings.MONGODB_DB_NAME]
-    log.info("Connected to MongoDB: %s", settings.MONGODB_DB_NAME)
-    await _create_indexes(db)
-    await _seed_admin(db)
+    if connected:
+        db = _client[settings.MONGODB_DB_NAME]
+        log.info("Connected to MongoDB: %s", settings.MONGODB_DB_NAME)
+        try:
+            await _create_indexes(db)
+            await _seed_admin(db)
+        except Exception as exc:
+            log.warning("Error creating database indexes or seeding admin: %s", exc)
+    else:
+        log.error("MongoDB connection could not be verified on startup. Server will retry connections on incoming requests.")
 
 
 async def close_db():

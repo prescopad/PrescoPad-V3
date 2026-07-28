@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { Patient } from '../types/patient.types';
 import type { Prescription } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
-import { downloadCasebookPdf } from '../api/casebookService';
 import { printCasebookClient } from '../utils/clientPdfUtil';
 import Portal from './Portal';
 import { CloseIcon } from './icons';
@@ -227,7 +226,7 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
                               {rx.medicines.map((m, i) => (
                                 <tr key={m.id || i}>
                                   <td>{i + 1}</td>
-                                  <td style={{ fontWeight: 600 }}>{m.medicineName || m.medicine_name || m.name}</td>
+                                  <td style={{ fontWeight: 600 }}>{m.medicineName || (m as any).medicine_name || (m as any).name}</td>
                                   <td>{m.type}</td>
                                   <td>{m.frequency}</td>
                                   <td>{m.duration}</td>
@@ -244,7 +243,7 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
                     {rx.labTests && rx.labTests.length > 0 && (
                       <div style={{ marginBottom: 8, fontSize: '0.875rem' }}>
                         <strong style={{ color: 'var(--color-text-muted)' }}>Lab Tests:</strong>{' '}
-                        {rx.labTests.map((t) => t.testName || t.test_name || t.name).join(', ')}
+                        {rx.labTests.map((t) => t.testName || (t as any).test_name || (t as any).name).join(', ')}
                       </div>
                     )}
 

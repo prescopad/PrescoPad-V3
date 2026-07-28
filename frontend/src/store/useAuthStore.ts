@@ -59,17 +59,37 @@ export const useAuthStore = create<AuthStore>((set) => ({
       ]);
 
       if (accessToken && userJson) {
-        const user = JSON.parse(userJson) as User;
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      } else {
-        set({ isLoading: false });
+        try {
+          const user = JSON.parse(userJson) as User;
+          if (user && user.id && user.role) {
+            set({
+              user,
+              accessToken,
+              refreshToken,
+              isAuthenticated: true,
+              isLoading: false,
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to parse stored user session, clearing corrupted state:', e);
+        }
       }
+      
+      // If missing or corrupt, clear storage to ensure clean state
+      await Promise.all([
+        SecureStore.deleteItemAsync('accessToken'),
+        SecureStore.deleteItemAsync('refreshToken'),
+        SecureStore.deleteItemAsync('user'),
+      ]).catch(() => {});
+
+      set({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
     } catch {
       set({ isLoading: false });
     }

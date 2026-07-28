@@ -154,22 +154,26 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     let channel: RealtimeChannel | null = null;
     const clinicId = useAuthStore.getState().user?.clinicId;
     if (clinicId) {
-      channel = supabase
-        .channel(`app_queue_sync_${clinicId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'queue',
-            filter: `clinic_id=eq.${clinicId}`,
-          },
-          () => {
-            get().loadQueueFiltered();
-            get().loadStatsFiltered();
-          }
-        )
-        .subscribe();
+      try {
+        channel = supabase
+          .channel(`app_queue_sync_${clinicId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'queue',
+              filter: `clinic_id=eq.${clinicId}`,
+            },
+            () => {
+              get().loadQueueFiltered();
+              get().loadStatsFiltered();
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.warn('Supabase realtime channel initialization warning:', e);
+      }
     }
 
     set({ pollInterval: interval, realtimeChannel: channel });
@@ -181,7 +185,11 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
       clearInterval(pollInterval);
     }
     if (realtimeChannel) {
-      supabase.removeChannel(realtimeChannel);
+      try {
+        supabase.removeChannel(realtimeChannel);
+      } catch (e) {
+        console.warn('Error removing Supabase channel:', e);
+      }
     }
     set({ pollInterval: null, realtimeChannel: null });
   },

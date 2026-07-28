@@ -178,7 +178,7 @@ function mapCustomLabTest(row: Record<string, unknown>): LabTest {
   return { ...mapCatalogLabTest(row), isCustom: true, usageCount: (row.usage_count as number) ?? 0 };
 }
 
-function medicinesToJsonb(medicines: Record<string, unknown>[]) {
+function medicinesToJsonb(medicines: any[]) {
   return medicines.map((m) => {
     const name = (m.medicineName as string) || (m.medicine_name as string) || (m.name as string) || '';
     return {
@@ -195,7 +195,7 @@ function medicinesToJsonb(medicines: Record<string, unknown>[]) {
   });
 }
 
-function labTestsToJsonb(labTests: Record<string, unknown>[]) {
+function labTestsToJsonb(labTests: any[]) {
   return labTests.map((t) => {
     const name = (t.testName as string) || (t.test_name as string) || (t.name as string) || '';
     return {

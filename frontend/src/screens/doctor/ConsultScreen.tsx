@@ -47,7 +47,9 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { queueItem, patient: initialPatient } = route.params;
+  const params = route.params || {};
+  const queueItem = params.queueItem;
+  const initialPatient = params.patient;
   const user = useAuthStore((s) => s.user);
   const getPatientById = usePatientStore((s) => s.getPatientById);
   const toast = useToast();
@@ -83,6 +85,11 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   }, [navigation, resetDraft]);
 
   useEffect(() => {
+    if (!queueItem) {
+      toast.error('Missing consultation data. Returning to dashboard.');
+      navigation.goBack();
+      return;
+    }
     setQueueItemId(queueItem.id);
     const pid = initialPatient?.id || queueItem.patientId;
     updateDraft({
@@ -100,7 +107,7 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   // Reload patient when screen comes back into focus (after editing)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
-      const pid = initialPatient?.id || queueItem.patientId;
+      const pid = initialPatient?.id || queueItem?.patientId;
       if (!pid) return;
       try {
         const freshPatient = await getPatientById(pid);

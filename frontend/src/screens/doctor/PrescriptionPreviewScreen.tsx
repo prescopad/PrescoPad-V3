@@ -39,8 +39,9 @@ type Props = NativeStackScreenProps<DoctorStackParamList, 'PrescriptionPreview'>
 type PaymentMethod = 'cash' | 'online';
 
 export default function PrescriptionPreviewScreen({ navigation, route }: Props): React.JSX.Element {
-  const prescriptionId = route.params.prescriptionId;
-  const readOnly = route.params.readOnly ?? false;
+  const params = route.params || {};
+  const prescriptionId = params.prescriptionId;
+  const readOnly = params.readOnly ?? false;
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { currentPrescription, loadPrescription, finalizePrescription } = usePrescriptionStore();
