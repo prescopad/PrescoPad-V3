@@ -44,12 +44,6 @@
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "2cfc1f8f-e715-427f-bf16-9ededf297652"
-      }
-    },
-    "owner": "jayesh_2210"
+    }
   }
 }
