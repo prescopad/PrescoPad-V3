@@ -80,9 +80,9 @@ function normalizeClinic(r: Record<string, unknown>): ClinicListItem {
     name: (r.name as string) ?? '',
     address: (r.address as string) ?? '',
     phone: (r.phone as string) ?? '',
-    doctorName: (r.doctorName as string) ?? '',
-    doctorSpecialty: (r.doctorSpecialty as string) ?? '',
-    ownerId: (r.owner_id as string) ?? '',
+    doctorName: (r.doctor_name as string) ?? (r.doctorName as string) ?? '',
+    doctorSpecialty: (r.doctor_specialty as string) ?? (r.doctorSpecialty as string) ?? '',
+    ownerId: (r.owner_id as string) ?? (r.ownerId as string) ?? '',
   };
 }
 
@@ -91,27 +91,27 @@ function normalizeDoctor(r: Record<string, unknown>): DoctorListItem {
     id: (r.id as string) ?? '',
     name: (r.name as string) ?? '',
     specialty: (r.specialty as string) ?? '',
-    regNumber: (r.reg_number as string) ?? '',
-    doctorCode: (r.doctor_code as string) ?? '',
+    regNumber: (r.reg_number as string) ?? (r.regNumber as string) ?? '',
+    doctorCode: (r.doctor_code as string) ?? (r.doctorCode as string) ?? '',
   };
 }
 
 function normalizeRequest(r: Record<string, unknown>): ConnectionRequest {
   return {
     id: (r.id as string) ?? '',
-    doctorId: (r.doctorId as string) ?? '',
-    assistantId: (r.assistantId as string) ?? '',
-    initiatedBy: (r.initiatedBy as ConnectionRequest['initiatedBy']) ?? 'assistant',
+    doctorId: (r.doctor_id as string) ?? (r.doctorId as string) ?? '',
+    assistantId: (r.assistant_id as string) ?? (r.assistantId as string) ?? '',
+    initiatedBy: ((r.initiated_by as ConnectionRequest['initiatedBy']) ?? (r.initiatedBy as ConnectionRequest['initiatedBy'])) ?? 'assistant',
     status: (r.status as ConnectionRequest['status']) ?? 'pending',
-    doctorName: r.doctorName as string | undefined,
-    assistantName: r.assistantName as string | undefined,
-    clinicName: r.clinicName as string | undefined,
-    createdAt: (r.createdAt as string) ?? '',
-    qualification: r.qualification as string | undefined,
-    experienceYears: r.experienceYears as number | undefined,
-    city: r.city as string | undefined,
-    assistantAddress: r.assistantAddress as string | undefined,
-    assistantPhone: r.assistantPhone as string | undefined,
+    doctorName: (r.doctor_name as string | undefined) ?? (r.doctorName as string | undefined),
+    assistantName: (r.assistant_name as string | undefined) ?? (r.assistantName as string | undefined),
+    clinicName: (r.clinic_name as string | undefined) ?? (r.clinicName as string | undefined),
+    createdAt: (r.created_at as string) ?? (r.createdAt as string) ?? '',
+    qualification: (r.qualification as string | undefined),
+    experienceYears: (r.experience_years as number | undefined) ?? (r.experienceYears as number | undefined),
+    city: (r.city as string | undefined),
+    assistantAddress: (r.assistant_address as string | undefined) ?? (r.assistantAddress as string | undefined),
+    assistantPhone: (r.assistant_phone as string | undefined) ?? (r.assistantPhone as string | undefined),
   };
 }
 
@@ -121,12 +121,12 @@ function normalizeMember(r: Record<string, unknown>): TeamMember {
     name: (r.name as string) ?? '',
     phone: (r.phone as string) ?? '',
     role: (r.role as TeamMember['role']) ?? 'assistant',
-    lastActiveAt: r.last_active_at as string | undefined,
-    qualification: r.specialty as string | undefined,
-    experienceYears: r.experience_years as number | undefined,
-    profileAddress: r.address as string | undefined,
-    city: r.city as string | undefined,
-    specialty: r.specialty as string | undefined,
-    regNumber: r.reg_number as string | undefined,
+    lastActiveAt: (r.last_active_at as string | undefined) ?? (r.lastActiveAt as string | undefined),
+    qualification: (r.qualification as string | undefined) ?? (r.specialty as string | undefined),
+    experienceYears: (r.experience_years as number | undefined) ?? (r.experienceYears as number | undefined),
+    profileAddress: (r.address as string | undefined) ?? (r.profileAddress as string | undefined),
+    city: (r.city as string | undefined),
+    specialty: (r.specialty as string | undefined),
+    regNumber: (r.reg_number as string | undefined) ?? (r.regNumber as string | undefined),
   };
 }

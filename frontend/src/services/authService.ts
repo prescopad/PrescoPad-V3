@@ -100,7 +100,7 @@ export async function updateProfile(data: {
   const update: Record<string, unknown> = {};
   if (data.name !== undefined) update.name = data.name;
   if (data.specialty !== undefined) update.specialty = data.specialty;
-  if (data.qualification !== undefined) update.specialty = data.qualification;
+  if (data.qualification !== undefined) update.qualification = data.qualification;
   if (data.regNumber !== undefined) update.reg_number = data.regNumber;
   if (data.experienceYears !== undefined) update.experience_years = data.experienceYears;
   if (data.city !== undefined) update.city = data.city;
