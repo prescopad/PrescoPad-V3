@@ -14,8 +14,8 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { Patient } from '../types/patient.types';
 import { Prescription } from '../types/prescription.types';
 import { getPrescriptionsByPatient } from '../services/dataService';
-import { downloadCasebookPdf } from '../services/casebookService';
-import { exportPDFCopy, shareViaPDF } from '../services/shareService';
+import { generateCasebookPDF } from '../services/pdfService';
+import { shareViaPDF } from '../services/shareService';
 import { useToast } from './Toast/ToastContext';
 
 interface CasebookViewerModalProps {
@@ -57,16 +57,8 @@ export default function CasebookViewerModal({
     if (!patient || isDownloading) return;
     setIsDownloading(true);
     try {
-      const signedUrl = await downloadCasebookPdf(patient.id);
-      const tempFilename = `casebook_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`;
-      const localUri = `${FileSystem.cacheDirectory}${tempFilename}`;
-      const result = await FileSystem.downloadAsync(signedUrl, localUri);
-      if (result.status !== 200) {
-        throw new Error('Failed to download casebook PDF.');
-      }
-      const safeName = (patient.name || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
-      const exported = await exportPDFCopy(result.uri, `Casebook_${safeName}`);
-      await shareViaPDF(exported);
+      const pdfUri = await generateCasebookPDF(patient, prescriptions);
+      await shareViaPDF(pdfUri);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to download casebook PDF.';
       toast.error(msg);

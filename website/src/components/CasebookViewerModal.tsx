@@ -30,22 +30,10 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
   const handleDownloadPdf = async () => {
     setIsDownloading(true);
     try {
-      const blob = await downloadCasebookPdf(patient.id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeName = (patient.name || 'Patient')
-        .replace(/[^a-zA-Z0-9 ]/g, '')
-        .trim()
-        .replace(/\s+/g, '_');
-      a.download = `Casebook_${safeName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      await printCasebookClient(patient, prescriptions);
       toast.success('Casebook PDF downloaded successfully.');
     } catch {
-      printCasebookClient(patient, prescriptions);
+      toast.error('Failed to generate Casebook PDF.');
     } finally {
       setIsDownloading(false);
     }

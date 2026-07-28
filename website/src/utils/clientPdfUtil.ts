@@ -93,24 +93,56 @@ export async function printPrescriptionClient(
   window.open(url, '_blank');
 }
 
+function parseList(val: unknown): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((x) => (typeof x === 'string' ? x.trim() : String(x))).filter(Boolean);
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((x) => (typeof x === 'string' ? x.trim() : String(x))).filter(Boolean);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return trimmed.split(',').map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
 export async function printCasebookClient(patient: Patient, prescriptions?: Prescription[]) {
-  const visits = (prescriptions ?? []).map((rx) => ({
-    date: rx.createdAt
-      ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-      : '—',
-    diagnosis: rx.diagnosis || undefined,
-    symptoms: rx.symptoms && rx.symptoms.length > 0 ? rx.symptoms : undefined,
-    medicines: (rx.medicines ?? []).map((m: any) => {
-      const name = m.medicineName || m.medicine_name || m.name || '';
-      const parts = [name, m.type, m.frequency, m.duration ? `for ${m.duration}` : '', m.timing].filter(Boolean);
-      return parts.join(' | ');
-    }),
-    labTests: (rx.labTests ?? []).map((t: any) => t.testName || t.test_name || t.name || '').filter(Boolean),
-    advice: rx.advice || undefined,
-    followUpDate: rx.followUpDate
-      ? new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-      : undefined,
-  }));
+  const visits = (prescriptions ?? []).map((rx) => {
+    const syms = parseList(rx.symptoms);
+    return {
+      date: rx.createdAt
+        ? new Date(rx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '—',
+      diagnosis: rx.diagnosis || undefined,
+      symptoms: syms.length > 0 ? syms : undefined,
+      medicines: (rx.medicines ?? []).map((m: any) => {
+        const name = m.medicineName || m.medicine_name || m.name || '';
+        const parts = [
+          name,
+          m.type,
+          m.dosage || m.frequency,
+          m.duration ? `for ${m.duration}` : '',
+          m.timing,
+        ].filter(Boolean);
+        return parts.join(' | ');
+      }),
+      labTests: (rx.labTests ?? []).map((t: any) => t.testName || t.test_name || t.name || '').filter(Boolean),
+      advice: rx.advice || undefined,
+      followUpDate: rx.followUpDate
+        ? new Date(rx.followUpDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : undefined,
+    };
+  });
 
   const pdfBytes = await renderCasebookPdf({
     clinicName: 'PrescoPad AI Casebook',

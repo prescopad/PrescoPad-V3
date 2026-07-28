@@ -1,8 +1,5 @@
 // generate-casebook-pdf — Edge Function.
-// New feature (Track B casebook redesign): renders a patient's full
-// prescription history as one consolidated, downloadable case-summary PDF.
-// Uses the CALLER's JWT so RLS enforces clinic membership, same pattern as
-// generate-prescription-pdf.
+// Renders a patient's full prescription history as one consolidated, downloadable case-summary PDF.
 import { createClient } from "@supabase/supabase-js";
 import { renderCasebookPdf, type CasebookVisit } from "../_shared/casebookPdf.ts";
 
@@ -19,6 +16,43 @@ async function fetchImageBytes(url: string | null | undefined): Promise<Uint8Arr
   } catch {
     return undefined;
   }
+}
+
+function parseList(val: unknown): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map((x) => (typeof x === "string" ? x.trim() : String(x))).filter(Boolean);
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((x) => (typeof x === "string" ? x.trim() : String(x))).filter(Boolean);
+        }
+      } catch {
+        // Fallback to split
+      }
+    }
+    return trimmed.split(",").map((x) => x.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function parseJsonbArray(val: unknown): Record<string, unknown>[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 Deno.serve(async (req) => {
@@ -67,28 +101,39 @@ Deno.serve(async (req) => {
     .eq("status", "finalized")
     .order("created_at", { ascending: false });
 
-  const visits: CasebookVisit[] = (prescriptions ?? []).map((rx) => ({
-    date: rx.created_at,
-    diagnosis: rx.diagnosis ?? undefined,
-    symptoms: Array.isArray(rx.symptoms) && rx.symptoms.length > 0 ? rx.symptoms : undefined,
-    medicines: Array.isArray(rx.medicines)
-      ? rx.medicines
-          .map((m: Record<string, unknown>) => {
-            const name = (m.medicineName || m.medicine_name || m.name) as string;
-            const parts = [name, m.type, m.frequency, m.duration ? `for ${m.duration}` : '', m.timing].filter(Boolean);
-            return parts.join(' | ');
-          })
-          .filter(Boolean)
-      : [],
-    labTests: Array.isArray(rx.lab_tests) && rx.lab_tests.length > 0
-      ? rx.lab_tests
-          .map((t: Record<string, unknown>) => (t.testName || t.test_name || t.name) as string)
-          .filter(Boolean)
-      : undefined,
-    advice: rx.advice ?? undefined,
-    referredTo: rx.referred_to ?? undefined,
-    followUpDate: rx.follow_up_date ?? undefined,
-  }));
+  const visits: CasebookVisit[] = (prescriptions ?? []).map((rx) => {
+    const symptomsList = parseList(rx.symptoms);
+
+    const medicinesList = parseJsonbArray(rx.medicines)
+      .map((m: Record<string, unknown>) => {
+        const name = (m.medicineName || m.medicine_name || m.name) as string;
+        if (!name) return "";
+        const parts = [
+          name,
+          m.type as string,
+          (m.dosage || m.frequency) as string,
+          m.duration ? `for ${m.duration}` : "",
+          m.timing as string,
+        ].filter(Boolean);
+        return parts.join(" | ");
+      })
+      .filter(Boolean);
+
+    const labTestsList = parseJsonbArray(rx.lab_tests)
+      .map((t: Record<string, unknown>) => (t.testName || t.test_name || t.name) as string)
+      .filter(Boolean);
+
+    return {
+      date: rx.created_at,
+      diagnosis: rx.diagnosis ?? undefined,
+      symptoms: symptomsList.length > 0 ? symptomsList : undefined,
+      medicines: medicinesList,
+      labTests: labTestsList.length > 0 ? labTestsList : undefined,
+      advice: rx.advice ?? undefined,
+      referredTo: rx.referred_to ?? undefined,
+      followUpDate: rx.follow_up_date ?? undefined,
+    };
+  });
 
   const logoBytes = await fetchImageBytes(Deno.env.get("PRESCOPAD_LOGO_URL"));
 
