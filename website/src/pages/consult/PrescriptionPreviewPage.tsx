@@ -165,7 +165,14 @@ export default function PrescriptionPreviewPage() {
           <tbody>
             <tr>
               <td className="paper-patient-cell">
-                <div className="paper-p-label">Patient</div>
+                <div className="paper-p-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Patient
+                  {rx.isMlc && (
+                    <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', fontWeight: 800 }}>
+                      🚨 MLC CASE
+                    </span>
+                  )}
+                </div>
                 <div className="paper-p-value">{rx.patientName}</div>
               </td>
               <td className="paper-patient-cell">
@@ -179,6 +186,21 @@ export default function PrescriptionPreviewPage() {
             </tr>
           </tbody>
         </table>
+
+        {/* Vitals Strip */}
+        {rx.vitals && Object.values(rx.vitals).some(Boolean) && (
+          <div style={{ background: 'var(--color-surface-secondary)', borderLeft: '3px solid var(--color-primary)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: '0.8125rem' }}>
+            <span style={{ fontWeight: 700, color: 'var(--color-primary)', textTransform: 'uppercase', marginRight: 8 }}>Vitals:</span>
+            {[
+              rx.vitals.bp ? `BP: ${rx.vitals.bp}` : null,
+              rx.vitals.pulse ? `Pulse: ${rx.vitals.pulse} bpm` : null,
+              rx.vitals.temp ? `Temp: ${rx.vitals.temp} °F` : null,
+              rx.vitals.spo2 ? `SpO2: ${rx.vitals.spo2}%` : null,
+              rx.vitals.bmi ? `BMI: ${rx.vitals.bmi}` : null,
+              rx.vitals.bloodSugar ? `Sugar: ${rx.vitals.bloodSugar} mg/dL` : null,
+            ].filter(Boolean).join('  ·  ')}
+          </div>
+        )}
 
         {/* Symptoms Section */}
         {rx.symptoms && rx.symptoms.length > 0 && (

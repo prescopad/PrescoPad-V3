@@ -15,11 +15,10 @@ export interface Patient {
   address: string;
   bloodGroup: string;
   allergies: string;
+  isMlc?: boolean;
+  vitals?: any;
   createdAt: string;
   updatedAt: string;
-  /** Consolidated one-paragraph case summary, regenerated whenever a
-   * prescription is finalized — replaces the old per-prescription
-   * casebookEntries[] timeline. */
   caseSummary?: string | null;
   caseSummaryUpdatedAt?: string | null;
 }

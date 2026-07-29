@@ -10,7 +10,7 @@ import AddPatientModal from './AddPatientModal';
 import Portal from '../../components/Portal';
 import '../pages.css';
 
-type Tab = 'all' | 'waiting' | 'in_progress' | 'completed';
+type Tab = 'all' | 'waiting' | 'in_progress' | 'completed' | 'mlc';
 
 const STATUS_COLOR: Record<string, string> = {
   [QueueStatus.WAITING]: '#D97706',
@@ -46,7 +46,11 @@ export default function QueuePage() {
     return () => stopPolling();
   }, [startPolling, stopPolling]);
 
-  const filtered = queueItems.filter((item) => activeTab === 'all' || item.status === activeTab);
+  const filtered = queueItems.filter((i) => {
+    if (activeTab === 'all') return true;
+    if (activeTab === 'mlc') return !!i.patient?.isMlc;
+    return i.status === activeTab;
+  });
   const nextPatient = getNextPatient();
 
   const handleItemClick = async (item: QueueItem) => {
@@ -133,14 +137,15 @@ export default function QueuePage() {
       </div>
 
       <div className="tab-row">
-        {(['all', 'waiting', 'in_progress', 'completed'] as Tab[]).map((tab) => (
+        {(['all', 'waiting', 'in_progress', 'completed', 'mlc'] as Tab[]).map((tab) => (
           <button
             key={tab}
             type="button"
             className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
             onClick={() => setActiveTab(tab)}
+            style={tab === 'mlc' ? { color: activeTab === 'mlc' ? '#ffffff' : '#dc2626', background: activeTab === 'mlc' ? '#dc2626' : '#fef2f2' } : undefined}
           >
-            {tab === 'all' ? 'All Queue' : STATUS_LABEL[tab]}
+            {tab === 'all' ? 'All Queue' : tab === 'mlc' ? '🚨 MLC Cases' : STATUS_LABEL[tab]}
           </button>
         ))}
       </div>
@@ -164,7 +169,14 @@ export default function QueuePage() {
                 #{item.tokenNumber}
               </div>
               <div>
-                <div className="item-name">{item.patient?.name ?? 'Unknown patient'}</div>
+                <div className="item-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {item.patient?.name ?? 'Unknown patient'}
+                  {item.patient?.isMlc && (
+                    <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 800 }}>
+                      🚨 MLC
+                    </span>
+                  )}
+                </div>
                 <div className="item-meta">
                   {item.patient?.age ? `${item.patient.age} yrs` : ''}
                   {item.patient?.gender ? ` · ${item.patient.gender}` : ''}

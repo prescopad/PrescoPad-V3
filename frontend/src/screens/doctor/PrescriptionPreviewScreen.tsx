@@ -234,7 +234,14 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
           {/* Patient Details */}
           <View style={styles.patientSection}>
             <View style={styles.patientField}>
-              <Text style={styles.patientLabel}>PATIENT</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.patientLabel}>PATIENT</Text>
+                {rx.isMlc && (
+                  <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: '#dc2626' }}>MLC CASE</Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.patientValue}>{rx.patientName}</Text>
             </View>
             <View style={styles.patientField}>
@@ -246,6 +253,23 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
               <Text style={styles.patientValue}>{rx.patientPhone || 'N/A'}</Text>
             </View>
           </View>
+
+          {/* Vitals Summary Strip */}
+          {rx.vitals && Object.values(rx.vitals).some(Boolean) ? (
+            <View style={{ backgroundColor: COLORS.surfaceSecondary, borderRadius: RADIUS.md, padding: 8, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: COLORS.primary }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: COLORS.primary, marginBottom: 2, textTransform: 'uppercase' }}>Vitals</Text>
+              <Text style={{ fontSize: 12, color: COLORS.text, fontWeight: '600' }}>
+                {[
+                  rx.vitals.bp ? `BP: ${rx.vitals.bp}` : null,
+                  rx.vitals.pulse ? `Pulse: ${rx.vitals.pulse} bpm` : null,
+                  rx.vitals.temp ? `Temp: ${rx.vitals.temp} °F` : null,
+                  rx.vitals.spo2 ? `SpO2: ${rx.vitals.spo2}%` : null,
+                  rx.vitals.bmi ? `BMI: ${rx.vitals.bmi}` : null,
+                  rx.vitals.bloodSugar ? `Sugar: ${rx.vitals.bloodSugar} mg/dL` : null,
+                ].filter(Boolean).join('  ·  ')}
+              </Text>
+            </View>
+          ) : null}
 
           {/* Symptoms */}
           {rx.symptoms && rx.symptoms.length > 0 ? (

@@ -96,6 +96,37 @@ class LabTestItem(BaseModel):
         }
 
 
+class VitalsItem(BaseModel):
+    bp: Optional[str] = None
+    pulse: Optional[str] = None
+    temp: Optional[str] = None
+    spo2: Optional[str] = None
+    weight: Optional[str] = None
+    height: Optional[str] = None
+    bmi: Optional[str] = None
+    bloodSugar: Optional[str] = None
+    blood_sugar: Optional[str] = None
+
+    def normalized(self) -> dict:
+        return {
+            "bp": self.bp,
+            "pulse": self.pulse,
+            "temp": self.temp,
+            "spo2": self.spo2,
+            "weight": self.weight,
+            "height": self.height,
+            "bmi": self.bmi,
+            "blood_sugar": self.bloodSugar or self.blood_sugar,
+        }
+
+
+class SymptomDetailItem(BaseModel):
+    name: str
+    severity: Optional[str] = None
+    duration: Optional[str] = None
+    pattern: Optional[str] = None
+
+
 class PrescriptionRequest(BaseModel):
     patient_id: Optional[str] = None
     patientId: Optional[str] = None
@@ -109,6 +140,12 @@ class PrescriptionRequest(BaseModel):
     patientPhone: Optional[str] = None
     doctor_id: Optional[str] = None
 
+    vitals: Optional[dict] = None
+    is_mlc: Optional[bool] = None
+    isMlc: Optional[bool] = None
+    mlc_notes: Optional[str] = None
+    mlcNotes: Optional[str] = None
+
     diagnosis: Optional[str] = None
     advice: Optional[str] = None
     follow_up_date: Optional[str] = None
@@ -116,6 +153,8 @@ class PrescriptionRequest(BaseModel):
     consultation_type: Optional[str] = None
     consultationType: Optional[str] = None
     symptoms: Optional[List[str]] = []
+    symptoms_detail: Optional[List[dict]] = []
+    symptomsDetail: Optional[List[dict]] = []
     referred_to: Optional[str] = None
     referredTo: Optional[str] = None
 
@@ -133,10 +172,14 @@ class PrescriptionRequest(BaseModel):
             "patient_gender": self.patient_gender or self.patientGender,
             "patient_phone": self.patient_phone or self.patientPhone,
             "consultation_type": self.consultation_type or self.consultationType,
+            "vitals": self.vitals,
+            "is_mlc": self.is_mlc if self.is_mlc is not None else self.isMlc,
+            "mlc_notes": self.mlc_notes or self.mlcNotes,
             "diagnosis": self.diagnosis,
             "advice": self.advice,
             "follow_up_date": self.follow_up_date or self.followUpDate,
             "symptoms": self.symptoms or [],
+            "symptoms_detail": self.symptoms_detail or self.symptomsDetail or [],
             "referred_to": self.referred_to or self.referredTo,
 
             "medicines": [m.normalized() for m in meds],
@@ -194,4 +237,76 @@ class PrescriptionTemplateRequest(BaseModel):
             "symptoms": self.symptoms or [],
             "medicines": [m.normalized() for m in meds],
             "lab_tests": [t.normalized() for t in tests],
+        }
+
+
+class MedicalCertificateRequest(BaseModel):
+    patient_id: Optional[str] = None
+    patientId: Optional[str] = None
+    patient_name: Optional[str] = "Patient"
+    patientName: Optional[str] = "Patient"
+    patient_age: Optional[int] = 0
+    patientAge: Optional[int] = 0
+    patient_gender: Optional[str] = ""
+    patientGender: Optional[str] = ""
+    patient_address: Optional[str] = ""
+    patientAddress: Optional[str] = ""
+    diagnosis: str
+    rest_days: Optional[int] = 1
+    restDays: Optional[int] = 1
+    start_date: str
+    startDate: Optional[str] = None
+    end_date: str
+    endDate: Optional[str] = None
+    fitness_status: Optional[str] = "unfit"
+    fitnessStatus: Optional[str] = "unfit"
+    reason: Optional[str] = ""
+
+    def normalized(self) -> dict:
+        return {
+            "patient_id": self.patient_id or self.patientId,
+            "patient_name": self.patientName or self.patient_name,
+            "patient_age": self.patientAge or self.patient_age,
+            "patient_gender": self.patientGender or self.patient_gender,
+            "patient_address": self.patientAddress or self.patient_address,
+            "diagnosis": self.diagnosis,
+            "rest_days": self.restDays or self.rest_days or 1,
+            "start_date": self.startDate or self.start_date,
+            "end_date": self.endDate or self.end_date,
+            "fitness_status": self.fitnessStatus or self.fitness_status or "unfit",
+            "reason": self.reason or "",
+        }
+
+
+class ReceiptRequest(BaseModel):
+    receipt_no: Optional[str] = None
+    receiptNo: Optional[str] = None
+    patient_id: Optional[str] = None
+    patientId: Optional[str] = None
+    patient_name: Optional[str] = "Patient"
+    patientName: Optional[str] = "Patient"
+    amount: float
+    amount_in_words: Optional[str] = None
+    amountInWords: Optional[str] = None
+    payment_mode: Optional[str] = "cash"
+    paymentMode: Optional[str] = "cash"
+    transaction_ref: Optional[str] = None
+    transactionRef: Optional[str] = None
+    dated: Optional[str] = None
+    drawn_on: Optional[str] = None
+    drawnOn: Optional[str] = None
+    towards: Optional[str] = "Consultation & Treatment Fee"
+
+    def normalized(self) -> dict:
+        return {
+            "receipt_no": self.receiptNo or self.receipt_no,
+            "patient_id": self.patient_id or self.patientId,
+            "patient_name": self.patientName or self.patient_name,
+            "amount": self.amount,
+            "amount_in_words": self.amountInWords or self.amount_in_words,
+            "payment_mode": self.paymentMode or self.payment_mode or "cash",
+            "transaction_ref": self.transactionRef or self.transaction_ref,
+            "dated": self.dated,
+            "drawn_on": self.drawnOn or self.drawn_on,
+            "towards": self.towards or "Consultation & Treatment Fee",
         }

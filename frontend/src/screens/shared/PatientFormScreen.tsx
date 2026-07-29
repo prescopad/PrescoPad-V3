@@ -239,6 +239,17 @@ export default function PatientFormScreen(): React.JSX.Element {
           />
         </View>
 
+        {/* MLC Toggle */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12, padding: 12, borderRadius: RADIUS.md, backgroundColor: form.isMlc ? '#fef2f2' : COLORS.surfaceSecondary, borderWidth: 1, borderColor: form.isMlc ? '#fca5a5' : COLORS.border }}
+          onPress={() => setForm((prev) => ({ ...prev, isMlc: !prev.isMlc }))}
+        >
+          <Ionicons name={form.isMlc ? "checkbox" : "square-outline"} size={22} color={form.isMlc ? COLORS.error : COLORS.textMuted} />
+          <Text style={{ fontSize: 13, fontWeight: '700', color: form.isMlc ? COLORS.error : COLORS.text }}>
+            🚨 MLC / Police / Accident Case Involved
+          </Text>
+        </TouchableOpacity>
+
         {/* Save Button */}
         <TouchableOpacity
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}

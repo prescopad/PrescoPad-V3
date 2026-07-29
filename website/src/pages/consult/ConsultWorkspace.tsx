@@ -7,6 +7,10 @@ import type { Patient } from '../../types/patient.types';
 import type { PrescriptionTemplate } from '../../types/prescription.types';
 import MedicinePickerModal from '../../components/MedicinePickerModal';
 import LabTestPickerModal from '../../components/LabTestPickerModal';
+import VitalsModal from '../../components/VitalsModal';
+import SymptomModifierModal from '../../components/SymptomModifierModal';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon } from '../../components/icons';
 import * as DataService from '../../api/dataService';
@@ -38,6 +42,12 @@ export default function ConsultWorkspace() {
   const [showLabTestModal, setShowLabTestModal] = useState(false);
   const [customSymptom, setCustomSymptom] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  // New feature modal states
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [selectedSymptomForModifier, setSelectedSymptomForModifier] = useState<string | null>(null);
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Template State
   const [templates, setTemplates] = useState<PrescriptionTemplate[]>([]);
@@ -122,10 +132,6 @@ export default function ConsultWorkspace() {
   if (!queueItem || !patient) return null;
 
   const symptoms = currentDraft.symptoms || [];
-
-  const toggleSymptom = (s: string) => {
-    updateDraft({ symptoms: symptoms.includes(s) ? symptoms.filter((x) => x !== s) : [...symptoms, s] });
-  };
 
   const addCustomSymptom = () => {
     const s = customSymptom.trim();
@@ -263,9 +269,15 @@ export default function ConsultWorkspace() {
     <div className="page-container animate-fade-in">
       <div className="page-header">
         <button className="secondary-btn" onClick={handleBack}>← Back to queue</button>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="secondary-btn" style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }} onClick={() => setShowCertModal(true)}>
+            📄 Certificate
+          </button>
+          <button className="secondary-btn" style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }} onClick={() => setShowReceiptModal(true)}>
+            🧾 Receipt
+          </button>
           <button className="secondary-btn" style={{ background: 'var(--color-indigo-light)', color: 'var(--color-indigo)', borderColor: 'transparent' }} onClick={() => setShowAiModal(true)}>
-            🎙️ AI Voice Assistant
+            🎙️ AI Voice
           </button>
           {templates.length > 0 && (
             <select
@@ -287,9 +299,16 @@ export default function ConsultWorkspace() {
       </div>
 
       <div className="item-card" style={{ cursor: 'default', marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div className="item-name">{patient.name}</div>
+            <div className="item-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {patient.name}
+              {currentDraft.isMlc && (
+                <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', fontWeight: 800 }}>
+                  🚨 MLC / POLICE CASE
+                </span>
+              )}
+            </div>
             <div className="item-meta">
               {patient.age} yrs · {patient.gender} · {patient.phone || '—'}
               {patient.weight ? ` · ${patient.weight} kg` : ''}
@@ -304,19 +323,45 @@ export default function ConsultWorkspace() {
                 Allergies: {patient.allergies}
               </div>
             )}
+
+            {/* Vitals Summary Bar */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap', fontSize: '0.8125rem', color: 'var(--color-text-muted)', background: 'var(--color-surface-secondary)', padding: '6px 12px', borderRadius: 6 }}>
+              <span>BP: <strong>{currentDraft.vitals?.bp || '--'}</strong></span>
+              <span>Pulse: <strong>{currentDraft.vitals?.pulse ? `${currentDraft.vitals.pulse} bpm` : '--'}</strong></span>
+              <span>Temp: <strong>{currentDraft.vitals?.temp ? `${currentDraft.vitals.temp} °F` : '--'}</strong></span>
+              <span>SpO2: <strong>{currentDraft.vitals?.spo2 ? `${currentDraft.vitals.spo2}%` : '--'}</strong></span>
+              <span>BMI: <strong>{currentDraft.vitals?.bmi || '--'}</strong></span>
+            </div>
           </div>
-          <button
-            className="secondary-btn"
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={handleOpenHistory}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            Previous Prescriptions
-          </button>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="secondary-btn" onClick={() => setShowVitalsModal(true)}>
+              📈 Edit Vitals
+            </button>
+            <button
+              className="secondary-btn"
+              style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+              onClick={handleOpenHistory}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Previous Prescriptions
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div className="auth-field" style={{ background: currentDraft.isMlc ? '#fef2f2' : undefined, padding: currentDraft.isMlc ? 12 : undefined, borderRadius: 8, border: currentDraft.isMlc ? '1px solid #fca5a5' : undefined }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, color: currentDraft.isMlc ? '#dc2626' : 'var(--color-text)' }}>
+          <input
+            type="checkbox"
+            checked={!!currentDraft.isMlc}
+            onChange={(e) => updateDraft({ isMlc: e.target.checked })}
+          />
+          🚨 MLC / Police / Accident Case Involved
+        </label>
       </div>
 
       <div className="auth-field">
@@ -330,13 +375,26 @@ export default function ConsultWorkspace() {
       </div>
 
       <div className="auth-field">
-        <label className="auth-label">Symptoms *</label>
+        <label className="auth-label">Symptoms * (Click to select & add details)</label>
         <div className="chip-row">
-          {COMMON_SYMPTOMS.map((s) => (
-            <div key={s} className={`chip ${symptoms.includes(s) ? 'selected' : ''}`} onClick={() => toggleSymptom(s)}>
-              {s}
-            </div>
-          ))}
+          {COMMON_SYMPTOMS.map((s) => {
+            const isSelected = symptoms.some((item) => item === s || item.startsWith(`${s} (`));
+            return (
+              <div
+                key={s}
+                className={`chip ${isSelected ? 'selected' : ''}`}
+                onClick={() => {
+                  if (isSelected) {
+                    updateDraft({ symptoms: symptoms.filter((item) => item !== s && !item.startsWith(`${s} (`)) });
+                  } else {
+                    setSelectedSymptomForModifier(s);
+                  }
+                }}
+              >
+                {s}
+              </div>
+            );
+          })}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <input
@@ -649,6 +707,39 @@ export default function ConsultWorkspace() {
       )}
       {showLabTestModal && (
         <LabTestPickerModal onClose={() => setShowLabTestModal(false)} onAdd={(tests) => tests.forEach(addLabTest)} />
+      )}
+      {showVitalsModal && (
+        <VitalsModal
+          initialVitals={currentDraft.vitals}
+          onSave={(v) => updateDraft({ vitals: v })}
+          onClose={() => setShowVitalsModal(false)}
+        />
+      )}
+      {selectedSymptomForModifier && (
+        <SymptomModifierModal
+          symptomName={selectedSymptomForModifier}
+          onConfirm={(formatted) => {
+            updateDraft({ symptoms: [...symptoms, formatted] });
+            setSelectedSymptomForModifier(null);
+          }}
+          onClose={() => setSelectedSymptomForModifier(null)}
+        />
+      )}
+      {showCertModal && (
+        <MedicalCertificateModal
+          patientName={patient.name}
+          patientAge={patient.age}
+          patientGender={patient.gender}
+          initialDiagnosis={currentDraft.diagnosis}
+          onClose={() => setShowCertModal(false)}
+        />
+      )}
+      {showReceiptModal && (
+        <ReceiptModal
+          patientName={patient.name}
+          initialAmount={500}
+          onClose={() => setShowReceiptModal(false)}
+        />
       )}
     </div>
   );

@@ -14,11 +14,11 @@ export interface Patient {
   address: string;
   bloodGroup: string;
   allergies: string;
+  vitals?: any;
+  isMlc?: boolean;
+  mlcNotes?: string;
   createdAt: string;
   updatedAt: string;
-  /** Consolidated one-paragraph case summary, regenerated whenever a
-   * prescription is finalized — replaces the old per-prescription
-   * casebookEntries[] timeline. */
   caseSummary?: string | null;
   caseSummaryUpdatedAt?: string | null;
 }
@@ -32,6 +32,7 @@ export interface PatientFormData {
   address: string;
   bloodGroup: string;
   allergies: string;
+  isMlc?: boolean;
 }
 
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;

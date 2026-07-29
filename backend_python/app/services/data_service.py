@@ -689,3 +689,72 @@ async def get_prescription_by_share_token(share_token: str) -> dict | None:
         return None
     return serialize_doc(rx)
 
+
+# ─── Medical Certificates ───────────────────────────────────────────────────
+
+async def create_medical_certificate(clinic_id: str, doctor_id: str, data: dict) -> dict:
+    db = get_db()
+    cert_id = f"CERT-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(4).upper()}"
+    cert_doc = {
+        "_id": cert_id,
+        "clinic_id": clinic_id,
+        "doctor_id": doctor_id,
+        "patient_id": data.get("patient_id"),
+        "patient_name": data.get("patient_name"),
+        "patient_age": data.get("patient_age"),
+        "patient_gender": data.get("patient_gender"),
+        "patient_address": data.get("patient_address"),
+        "diagnosis": data.get("diagnosis"),
+        "rest_days": data.get("rest_days", 1),
+        "start_date": data.get("start_date"),
+        "end_date": data.get("end_date"),
+        "fitness_status": data.get("fitness_status", "unfit"),
+        "reason": data.get("reason", ""),
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.medical_certificates.insert_one(cert_doc)
+    return serialize_doc(cert_doc)
+
+
+async def list_medical_certificates(clinic_id: str, patient_id: str = None) -> list:
+    db = get_db()
+    query = {"clinic_id": clinic_id}
+    if patient_id:
+        query["patient_id"] = patient_id
+    cursor = db.medical_certificates.find(query).sort("created_at", -1)
+    return [serialize_doc(doc) async for doc in cursor]
+
+
+# ─── Receipts ───────────────────────────────────────────────────────────────
+
+async def create_receipt(clinic_id: str, doctor_id: str, data: dict) -> dict:
+    db = get_db()
+    receipt_no = data.get("receipt_no") or f"REC-{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(3).upper()}"
+    receipt_doc = {
+        "_id": f"RC-{secrets.token_hex(6).upper()}",
+        "receipt_no": receipt_no,
+        "clinic_id": clinic_id,
+        "doctor_id": doctor_id,
+        "patient_id": data.get("patient_id"),
+        "patient_name": data.get("patient_name"),
+        "amount": float(data.get("amount", 0.0)),
+        "amount_in_words": data.get("amount_in_words", ""),
+        "payment_mode": data.get("payment_mode", "cash"),
+        "transaction_ref": data.get("transaction_ref"),
+        "dated": data.get("dated"),
+        "drawn_on": data.get("drawn_on"),
+        "towards": data.get("towards", "Consultation & Treatment Fee"),
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.receipts.insert_one(receipt_doc)
+    return serialize_doc(receipt_doc)
+
+
+async def list_receipts(clinic_id: str, patient_id: str = None) -> list:
+    db = get_db()
+    query = {"clinic_id": clinic_id}
+    if patient_id:
+        query["patient_id"] = patient_id
+    cursor = db.receipts.find(query).sort("created_at", -1)
+    return [serialize_doc(doc) async for doc in cursor]
+

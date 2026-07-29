@@ -4,6 +4,24 @@ export const PrescriptionStatus = {
 } as const;
 export type PrescriptionStatus = (typeof PrescriptionStatus)[keyof typeof PrescriptionStatus];
 
+export interface Vitals {
+  bp?: string;
+  pulse?: string;
+  temp?: string;
+  spo2?: string;
+  weight?: string;
+  height?: string;
+  bmi?: string;
+  bloodSugar?: string;
+}
+
+export interface SymptomDetail {
+  name: string;
+  severity?: 'Mild' | 'Moderate' | 'High';
+  duration?: string;
+  pattern?: string;
+}
+
 export interface PrescriptionMedicine {
   id: string;
   prescriptionId: string;
@@ -35,19 +53,21 @@ export interface Prescription {
   doctorId: string;
   doctorName?: string;
 
+  vitals?: Vitals;
+  isMlc?: boolean;
+  mlcNotes?: string;
+
   diagnosis: string;
   advice: string;
   followUpDate: string | null;
   symptoms: string[];
+  symptomsDetail?: SymptomDetail[];
   referredTo?: string;
 
   pdfPath: string | null;
   pdfHash: string | null;
   signature: string | null;
   status: PrescriptionStatus;
-  /** Doctor-entered consultation charge (cash/online) — visible to
-   * assistants too via RLS, so they can collect payment. Replaces the old
-   * wallet-deduction platform fee, which has been removed entirely. */
   chargeAmount: number | null;
   medicines: PrescriptionMedicine[];
   labTests: PrescriptionLabTest[];
@@ -63,10 +83,15 @@ export interface PrescriptionDraft {
   patientPhone: string;
   consultationType?: 'new' | 'follow_up';
 
+  vitals?: Vitals;
+  isMlc?: boolean;
+  mlcNotes?: string;
+
   diagnosis: string;
   advice: string;
   followUpDate: string;
   symptoms: string[];
+  symptomsDetail?: SymptomDetail[];
   referredTo?: string;
 
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
@@ -80,8 +105,44 @@ export interface PrescriptionTemplate {
   diagnosis: string;
   advice: string;
   symptoms: string[];
+  symptomsDetail?: SymptomDetail[];
   referredTo?: string;
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
   labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
+  createdAt: string;
+}
+
+export interface MedicalCertificate {
+  id: string;
+  clinicId: string;
+  doctorId: string;
+  patientId: string;
+  patientName: string;
+  patientAge: number;
+  patientGender: string;
+  patientAddress?: string;
+  diagnosis: string;
+  restDays: number;
+  startDate: string;
+  endDate: string;
+  fitnessStatus: 'fit' | 'unfit' | 'light_duty';
+  reason?: string;
+  createdAt: string;
+}
+
+export interface Receipt {
+  id: string;
+  receiptNo: string;
+  clinicId: string;
+  doctorId: string;
+  patientId?: string;
+  patientName: string;
+  amount: number;
+  amountInWords: string;
+  paymentMode: 'cash' | 'cheque' | 'online';
+  transactionRef?: string;
+  dated?: string;
+  drawnOn?: string;
+  towards: string;
   createdAt: string;
 }

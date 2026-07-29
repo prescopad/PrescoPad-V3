@@ -5,7 +5,7 @@ from app.models.data import (
     PatientRequest, QueueRequest, QueueStatusRequest,
     PrescriptionRequest, CustomMedicineRequest, CustomMedicineUsageRequest,
     CustomLabTestRequest, CustomLabTestUsageRequest, FinalizePrescriptionRequest,
-    PrescriptionTemplateRequest,
+    PrescriptionTemplateRequest, MedicalCertificateRequest, ReceiptRequest,
 )
 from app.middleware.auth import get_current_user, require_doctor, TokenData
 import app.services.data_service as data_service
@@ -549,5 +549,57 @@ async def delete_template(template_id: str, request: Request):
     try:
         await data_service.delete_prescription_template(user.clinic_id, template_id)
         return _ok({"message": "Template deleted"})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+# ─── Medical Certificates ───────────────────────────────────────────────────
+
+@router.get("/certificates")
+async def list_certificates(request: Request, patient_id: Optional[str] = Query(None)):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        certs = await data_service.list_medical_certificates(user.clinic_id, patient_id)
+        return _ok({"certificates": certs})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.post("/certificates")
+async def create_certificate(request: Request, body: MedicalCertificateRequest):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        cert = await data_service.create_medical_certificate(user.clinic_id, user.user_id, body.normalized())
+        return _ok({"certificate": cert}, 201)
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+# ─── Receipts ───────────────────────────────────────────────────────────────
+
+@router.get("/receipts")
+async def list_receipts(request: Request, patient_id: Optional[str] = Query(None)):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        receipts = await data_service.list_receipts(user.clinic_id, patient_id)
+        return _ok({"receipts": receipts})
+    except Exception as e:
+        return _err(str(e), 500)
+
+
+@router.post("/receipts")
+async def create_receipt(request: Request, body: ReceiptRequest):
+    user: TokenData = await get_current_user(request)
+    if not user.clinic_id:
+        return _err("No clinic associated", 400)
+    try:
+        receipt = await data_service.create_receipt(user.clinic_id, user.user_id, body.normalized())
+        return _ok({"receipt": receipt}, 201)
     except Exception as e:
         return _err(str(e), 500)

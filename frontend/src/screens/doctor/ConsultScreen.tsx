@@ -28,6 +28,11 @@ import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescript
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useToast } from '../../components/Toast/ToastContext';
+import VitalsInputModal from '../../components/VitalsInputModal';
+import SymptomModifierModal from '../../components/SymptomModifierModal';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
+import { Vitals } from '../../types/prescription.types';
 
 type MedicineDraft = Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>;
 type LabTestDraft = Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>;
@@ -71,8 +76,13 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const [customSymptom, setCustomSymptom] = useState('');
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
-  // Live patient data for real-time updates
   const [patient, setPatient] = useState(initialPatient);
+
+  // New features modals
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [selectedSymptomForModifier, setSelectedSymptomForModifier] = useState<string | null>(null);
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Reset draft only when navigating back (not forward to PrescriptionPreview)
   useEffect(() => {
@@ -254,16 +264,24 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.navHeaderTitle}>{t('nav.consultation')}</Text>
-        <TouchableOpacity
-          style={styles.navHeaderAction}
-          onPress={async () => {
-            await usePrescriptionStore.getState().loadTemplates();
-            setShowTemplatesModal(true);
-          }}
-        >
-          <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
-          <Text style={styles.navHeaderActionText}>Templates</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => setShowCertModal(true)} style={styles.navHeaderAction}>
+            <Ionicons name="document-text" size={18} color="#047857" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowReceiptModal(true)} style={styles.navHeaderAction}>
+            <Ionicons name="receipt" size={18} color="#b45309" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navHeaderAction}
+            onPress={async () => {
+              await usePrescriptionStore.getState().loadTemplates();
+              setShowTemplatesModal(true);
+            }}
+          >
+            <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+            <Text style={styles.navHeaderActionText}>Templates</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <KeyboardAvoidingView
         style={styles.container}
@@ -284,7 +302,14 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 <Ionicons name="person" size={20} color={COLORS.primary} />
               </View>
               <View style={styles.patientDetails}>
-                <Text style={styles.patientName}>{patient?.name || 'Unknown Patient'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.patientName}>{patient?.name || 'Unknown Patient'}</Text>
+                  {currentDraft.isMlc && (
+                    <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#dc2626' }}>MLC CASE</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.patientMeta}>
                   {patient?.age || '--'} yrs | {patientGenderDisplay} | {patient?.phone || '--'}
                 </Text>
@@ -297,7 +322,21 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                     <Text style={styles.allergyText}>Allergies: {patient.allergies}</Text>
                   </View>
                 ) : null}
+
+                {/* Vitals Summary Strip */}
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6, backgroundColor: COLORS.surfaceSecondary, padding: 6, borderRadius: RADIUS.sm }}>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted }}>BP: <Text style={{ fontWeight: '700', color: COLORS.text }}>{currentDraft.vitals?.bp || '--'}</Text></Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted }}>Pulse: <Text style={{ fontWeight: '700', color: COLORS.text }}>{currentDraft.vitals?.pulse ? `${currentDraft.vitals.pulse} bpm` : '--'}</Text></Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted }}>SpO2: <Text style={{ fontWeight: '700', color: COLORS.text }}>{currentDraft.vitals?.spo2 ? `${currentDraft.vitals.spo2}%` : '--'}</Text></Text>
+                  <Text style={{ fontSize: 11, color: COLORS.textMuted }}>BMI: <Text style={{ fontWeight: '700', color: COLORS.text }}>{currentDraft.vitals?.bmi || '--'}</Text></Text>
+                </View>
               </View>
+              <TouchableOpacity
+                style={styles.editPatientButton}
+                onPress={() => setShowVitalsModal(true)}
+              >
+                <Ionicons name="pulse" size={20} color={COLORS.primary} />
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.editPatientButton}
                 onPress={() => patient && navigation.navigate('PatientHistory', { patientId: patient.id, patientName: patient.name })}
@@ -311,6 +350,21 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 <Ionicons name="create-outline" size={20} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
+
+            {/* MLC Checkbox Row */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border }}
+              onPress={() => updateDraft({ isMlc: !currentDraft.isMlc })}
+            >
+              <Ionicons
+                name={currentDraft.isMlc ? "checkbox" : "square-outline"}
+                size={20}
+                color={currentDraft.isMlc ? COLORS.error : COLORS.textMuted}
+              />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: currentDraft.isMlc ? COLORS.error : COLORS.textSecondary }}>
+                🚨 MLC / Police / Accident Case Involved
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Symptoms Section */}
@@ -736,7 +790,44 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
           </KeyboardAvoidingView>
         </Modal>
 
+        {/* Vitals Modal */}
+        <VitalsInputModal
+          visible={showVitalsModal}
+          initialVitals={currentDraft.vitals}
+          onSave={(v) => updateDraft({ vitals: v })}
+          onClose={() => setShowVitalsModal(false)}
+        />
 
+        {/* Symptom Modifier Modal */}
+        {selectedSymptomForModifier && (
+          <SymptomModifierModal
+            visible={!!selectedSymptomForModifier}
+            symptomName={selectedSymptomForModifier}
+            onConfirm={(formatted) => {
+              updateDraft({ symptoms: [...selectedSymptoms, formatted] });
+              setSelectedSymptomForModifier(null);
+            }}
+            onClose={() => setSelectedSymptomForModifier(null)}
+          />
+        )}
+
+        {/* Medical Certificate Modal */}
+        <MedicalCertificateModal
+          visible={showCertModal}
+          patientName={patient?.name || 'Patient'}
+          patientAge={patient?.age}
+          patientGender={patientGenderDisplay}
+          initialDiagnosis={currentDraft.diagnosis}
+          onClose={() => setShowCertModal(false)}
+        />
+
+        {/* Receipt Modal */}
+        <ReceiptModal
+          visible={showReceiptModal}
+          patientName={patient?.name || 'Patient'}
+          initialAmount={500}
+          onClose={() => setShowReceiptModal(false)}
+        />
 
       </KeyboardAvoidingView>
     </SafeAreaView>

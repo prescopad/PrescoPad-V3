@@ -41,9 +41,13 @@ export default function CasebookPage() {
     }
   };
 
-  const filtered = query.trim()
-    ? patients.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
-    : patients;
+  const [showMlcOnly, setShowMlcOnly] = useState(false);
+
+  const filtered = patients.filter((p) => {
+    const matchesQuery = query.trim() ? p.name.toLowerCase().includes(query.trim().toLowerCase()) : true;
+    const matchesMlc = showMlcOnly ? !!p.isMlc : true;
+    return matchesQuery && matchesMlc;
+  });
 
   return (
     <div className="page-container">
@@ -54,7 +58,7 @@ export default function CasebookPage() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
         <input
           className="auth-input"
           style={{ maxWidth: 360 }}
@@ -62,6 +66,14 @@ export default function CasebookPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <button
+          type="button"
+          className={`filter-btn ${showMlcOnly ? 'active' : ''}`}
+          onClick={() => setShowMlcOnly(!showMlcOnly)}
+          style={{ background: showMlcOnly ? '#dc2626' : undefined, color: showMlcOnly ? '#ffffff' : '#dc2626', borderColor: '#fca5a5' }}
+        >
+          🚨 MLC / Police Cases Only
+        </button>
       </div>
 
       {isLoading ? (
@@ -74,12 +86,19 @@ export default function CasebookPage() {
               <div
                 key={p.id}
                 className="item-card"
-                style={{ flexDirection: 'column', alignItems: 'stretch', cursor: 'pointer' }}
+                style={{ flexDirection: 'column', alignItems: 'stretch', cursor: 'pointer', borderColor: p.isMlc ? '#fca5a5' : undefined }}
                 onClick={() => setSelectedPatient(p)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <div>
-                    <div className="item-name">{p.name}</div>
+                    <div className="item-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {p.name}
+                      {p.isMlc && (
+                        <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 800 }}>
+                          🚨 MLC CASE
+                        </span>
+                      )}
+                    </div>
                     <div className="item-meta">
                       {p.age} yrs · {p.gender} {p.phone ? `· ${p.phone}` : ''}
                     </div>
