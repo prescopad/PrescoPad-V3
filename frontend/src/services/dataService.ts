@@ -266,6 +266,7 @@ export async function updatePatient(id: string, data: Partial<PatientFormData>):
   if (data.address !== undefined) payload.address = data.address;
   if (data.bloodGroup !== undefined) payload.blood_group = data.bloodGroup;
   if (data.allergies !== undefined) payload.allergies = data.allergies;
+  if ((data as any).isMlc !== undefined) payload.is_mlc = (data as any).isMlc;
 
   const { data: row, error } = await supabase.from('patients').update(payload).eq('id', id).select().single();
   throwOnError(error, 'Failed to update patient.');

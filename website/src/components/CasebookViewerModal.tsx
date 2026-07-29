@@ -3,6 +3,8 @@ import type { Patient } from '../types/patient.types';
 import type { Prescription } from '../types/prescription.types';
 import * as DataService from '../api/dataService';
 import { printCasebookClient } from '../utils/clientPdfUtil';
+import MedicalCertificateModal from './MedicalCertificateModal';
+import ReceiptModal from './ReceiptModal';
 import Portal from './Portal';
 import { CloseIcon } from './icons';
 import { useToast } from './toast/ToastContext';
@@ -18,6 +20,8 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [certRx, setCertRx] = useState<Prescription | null>(null);
+  const [receiptRx, setReceiptRx] = useState<Prescription | null>(null);
 
   useEffect(() => {
     DataService.getPrescriptionsByPatient(patient.id)
@@ -192,15 +196,31 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
                           Date: {formatDate(rx.createdAt)} · Rx ID: {rx.id}
                         </div>
                       </div>
-                      <span
-                        className="status-pill"
-                        style={{
-                          background: rx.status === 'finalized' ? 'var(--color-success-light)' : 'var(--color-warning-light)',
-                          color: rx.status === 'finalized' ? 'var(--color-success)' : 'var(--color-warning)',
-                        }}
-                      >
-                        {rx.status}
-                      </span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => setCertRx(rx)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#047857', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          📄 Certificate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReceiptRx(rx)}
+                          style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fde68a', background: '#fef3c7', color: '#b45309', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          🧾 Receipt
+                        </button>
+                        <span
+                          className="status-pill"
+                          style={{
+                            background: rx.status === 'finalized' ? 'var(--color-success-light)' : 'var(--color-warning-light)',
+                            color: rx.status === 'finalized' ? 'var(--color-success)' : 'var(--color-warning)',
+                          }}
+                        >
+                          {rx.status}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Vitals Strip */}
@@ -293,6 +313,26 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
           </div>
         </div>
       </div>
+
+      {/* Medical Certificate Modal */}
+      {certRx && (
+        <MedicalCertificateModal
+          patientName={patient.name}
+          patientAge={patient.age}
+          patientGender={patient.gender}
+          initialDiagnosis={certRx.diagnosis}
+          onClose={() => setCertRx(null)}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {receiptRx && (
+        <ReceiptModal
+          patientName={patient.name}
+          initialAmount={receiptRx.chargeAmount || 500}
+          onClose={() => setReceiptRx(null)}
+        />
+      )}
     </Portal>
   );
 }

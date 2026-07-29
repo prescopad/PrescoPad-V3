@@ -16,6 +16,8 @@ import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
 
 export default function PatientHistoryScreen({ navigation, route }: any): React.JSX.Element {
   const { patientId, patientName } = route.params;
@@ -24,6 +26,11 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToQueue, setIsAddingToQueue] = useState(false);
   const [showConsultModal, setShowConsultModal] = useState(false);
+
+  // Certificate / Receipt modals
+  const [certRx, setCertRx] = useState<Prescription | null>(null);
+  const [receiptRx, setReceiptRx] = useState<Prescription | null>(null);
+
   const { addToQueue } = useQueueStore();
   const user = useAuthStore((s) => s.user);
   const toast = useToast();
@@ -159,7 +166,14 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
                 <Text style={styles.avatarText}>{patient.name.charAt(0).toUpperCase()}</Text>
               </View>
               <View style={styles.patientInfo}>
-                <Text style={styles.patientName}>{patient.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={styles.patientName}>{patient.name}</Text>
+                  {patient.isMlc && (
+                    <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '800', color: '#dc2626' }}>🚨 MLC</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.patientMeta}>
                   {patient.age} yrs / {patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}
                   {patient.phone ? ` | ${patient.phone}` : ''}
@@ -203,12 +217,8 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
           </View>
         ) : (
           prescriptions.map((rx) => (
-            <TouchableOpacity
-              key={rx.id}
-              style={styles.rxCard}
-              onPress={() => handleViewPrescription(rx.id)}
-              activeOpacity={0.7}
-            >
+            <View key={rx.id} style={styles.rxCard}>
+              {/* Top Row */}
               <View style={styles.rxCardTop}>
                 <View style={styles.rxDateBadge}>
                   <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
@@ -257,11 +267,34 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
                 )}
               </View>
 
-              <View style={styles.rxViewRow}>
-                <Text style={styles.rxViewText}>View Prescription</Text>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+              {/* Action Buttons Row */}
+              <View style={styles.rxActionsRow}>
+                <TouchableOpacity
+                  style={styles.rxActionBtn}
+                  onPress={() => setCertRx(rx)}
+                >
+                  <Ionicons name="document-text-outline" size={14} color={COLORS.success} />
+                  <Text style={[styles.rxActionText, { color: COLORS.success }]}>Certificate</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.rxActionBtn, { borderColor: '#d97706' }]}
+                  onPress={() => setReceiptRx(rx)}
+                >
+                  <Ionicons name="receipt-outline" size={14} color="#d97706" />
+                  <Text style={[styles.rxActionText, { color: '#d97706' }]}>Receipt</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.rxActionBtn, { flex: 1 }]}
+                  onPress={() => handleViewPrescription(rx.id)}
+                >
+                  <Ionicons name="eye-outline" size={14} color={COLORS.primary} />
+                  <Text style={[styles.rxActionText, { color: COLORS.primary }]}>View Rx</Text>
+                  <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
+            </View>
           ))
         )}
       </ScrollView>
@@ -273,6 +306,28 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
         onSelectType={processAddToQueue}
         isLoading={isAddingToQueue}
       />
+
+      {/* Medical Certificate Modal */}
+      {certRx && patient && (
+        <MedicalCertificateModal
+          visible={true}
+          patientName={patient.name}
+          patientAge={patient.age}
+          patientGender={patient.gender}
+          initialDiagnosis={certRx.diagnosis || ''}
+          onClose={() => setCertRx(null)}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {receiptRx && patient && (
+        <ReceiptModal
+          visible={true}
+          patientName={patient.name}
+          initialAmount={receiptRx.chargeAmount || 500}
+          onClose={() => setReceiptRx(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -347,7 +402,16 @@ const styles = StyleSheet.create({
   rxDiagnosis: { fontSize: 14, color: COLORS.textSecondary, marginBottom: SPACING.sm, lineHeight: 20 },
   rxStatsRow: { flexDirection: 'row', gap: SPACING.lg, marginBottom: SPACING.sm },
   rxStatText: { fontSize: 12, color: COLORS.textMuted },
-  rxViewRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING.xs },
-  rxViewText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
-});
 
+  // Action buttons row
+  rxActionsRow: {
+    flexDirection: 'row', gap: 8, marginTop: SPACING.sm,
+    paddingTop: SPACING.sm, borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  rxActionBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.background,
+  },
+  rxActionText: { fontSize: 12, fontWeight: '600' },
+});

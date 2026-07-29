@@ -8,6 +8,8 @@ import { recordConsultationPayment } from '../../api/paymentService';
 import { hashString } from '../../utils/cryptoUtil';
 import SignaturePad from '../../components/SignaturePad';
 import PrescriptionActions from '../../components/PrescriptionActions';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon, CheckIcon } from '../../components/icons';
 import '../pages.css';
@@ -28,6 +30,8 @@ export default function PrescriptionPreviewPage() {
   const [showSignModeModal, setShowSignModeModal] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
 
@@ -366,9 +370,47 @@ export default function PrescriptionPreviewPage() {
             {isFinalizing ? 'Finalizing...' : 'Sign & Issue'}
           </button>
         ) : (
-          <PrescriptionActions prescription={rx} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <PrescriptionActions prescription={rx} />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                className="secondary-btn"
+                style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', flex: 1 }}
+                onClick={() => setShowCertModal(true)}
+              >
+                📄 Issue Medical Certificate
+              </button>
+              <button
+                className="secondary-btn"
+                style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a', flex: 1 }}
+                onClick={() => setShowReceiptModal(true)}
+              >
+                🧾 Issue Receipt
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Medical Certificate Modal */}
+      {showCertModal && (
+        <MedicalCertificateModal
+          patientName={rx.patientName}
+          patientAge={rx.patientAge}
+          patientGender={rx.patientGender}
+          initialDiagnosis={rx.diagnosis}
+          onClose={() => setShowCertModal(false)}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {showReceiptModal && (
+        <ReceiptModal
+          patientName={rx.patientName}
+          initialAmount={rx.chargeAmount || 500}
+          onClose={() => setShowReceiptModal(false)}
+        />
+      )}
 
       {/* Signature Mode Choice Modal */}
       {showSignModeModal && (
