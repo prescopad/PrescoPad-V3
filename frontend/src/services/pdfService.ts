@@ -465,7 +465,9 @@ function buildPrescriptionHTML(
   <table class="patient-table">
     <tr>
       <td style="width:34%;padding:8px 6px;vertical-align:top;">
-        <div class="p-label">Patient</div>
+        <div class="p-label" style="display:flex;align-items:center;gap:4px;">
+          Patient ${rx.isMlc ? `<span style="background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;padding:1px 4px;border-radius:4px;font-size:7px;font-weight:800;">MLC CASE</span>` : ''}
+        </div>
         <div class="p-value">${rx.patientName}</div>
       </td>
       <td style="width:33%;padding:8px 6px;vertical-align:top;">
@@ -478,6 +480,20 @@ function buildPrescriptionHTML(
       </td>
     </tr>
   </table>
+
+  ${rx.vitals && Object.values(rx.vitals).some(Boolean) ? `
+    <div style="background:#f8fafc;border-left:3px solid #0B6E6E;padding:6px 10px;margin-bottom:8px;font-size:9px;">
+      <strong style="color:#0B6E6E;text-transform:uppercase;margin-right:6px;">Vitals:</strong>
+      ${[
+        rx.vitals.bp ? `BP: ${rx.vitals.bp}` : null,
+        rx.vitals.pulse ? `Pulse: ${rx.vitals.pulse} bpm` : null,
+        rx.vitals.temp ? `Temp: ${rx.vitals.temp} °F` : null,
+        rx.vitals.spo2 ? `SpO2: ${rx.vitals.spo2}%` : null,
+        rx.vitals.bmi ? `BMI: ${rx.vitals.bmi}` : null,
+        rx.vitals.bloodSugar ? `Sugar: ${rx.vitals.bloodSugar} mg/dL` : null,
+      ].filter(Boolean).join(' &nbsp;&#8226;&nbsp; ')}
+    </div>
+  ` : ''}
 
   <!-- ═══════ BODY SECTIONS ═══════ -->
   ${symptomsHtml}

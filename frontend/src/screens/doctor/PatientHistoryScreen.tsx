@@ -213,6 +213,11 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
                 <View style={styles.rxDateBadge}>
                   <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
                   <Text style={styles.rxDateText}>{formatDate(rx.createdAt)}</Text>
+                  {rx.isMlc && (
+                    <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4, marginLeft: 6 }}>
+                      <Text style={{ fontSize: 9, fontWeight: '800', color: '#dc2626' }}>MLC</Text>
+                    </View>
+                  )}
                 </View>
                 <View style={[styles.rxStatusBadge, { backgroundColor: rx.status === 'finalized' ? COLORS.successLight : COLORS.warningLight }]}>
                   <Text style={[styles.rxStatusText, { color: rx.status === 'finalized' ? COLORS.success : COLORS.warning }]}>
@@ -220,6 +225,20 @@ export default function PatientHistoryScreen({ navigation, route }: any): React.
                   </Text>
                 </View>
               </View>
+
+              {/* Vitals summary */}
+              {rx.vitals && Object.values(rx.vitals).some(Boolean) ? (
+                <View style={{ backgroundColor: COLORS.surfaceSecondary, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 6 }}>
+                  <Text style={{ fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' }}>
+                    {[
+                      rx.vitals.bp ? `BP: ${rx.vitals.bp}` : null,
+                      rx.vitals.pulse ? `Pulse: ${rx.vitals.pulse}` : null,
+                      rx.vitals.spo2 ? `SpO2: ${rx.vitals.spo2}%` : null,
+                      rx.vitals.temp ? `Temp: ${rx.vitals.temp}°F` : null,
+                    ].filter(Boolean).join('  ·  ')}
+                  </Text>
+                </View>
+              ) : null}
 
               {rx.diagnosis ? (
                 <Text style={styles.rxDiagnosis} numberOfLines={2}>{rx.diagnosis}</Text>

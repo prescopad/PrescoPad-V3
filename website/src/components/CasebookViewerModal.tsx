@@ -180,8 +180,13 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid var(--color-border-light)' }}>
                       <div>
-                        <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-primary)' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                           Visit #{prescriptions.length - index} &mdash; {rx.diagnosis || 'Consultation'}
+                          {rx.isMlc && (
+                            <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: 8, fontSize: '0.65rem', fontWeight: 800 }}>
+                              🚨 MLC
+                            </span>
+                          )}
                         </span>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
                           Date: {formatDate(rx.createdAt)} · Rx ID: {rx.id}
@@ -197,6 +202,21 @@ export default function CasebookViewerModal({ patient, onClose }: CasebookViewer
                         {rx.status}
                       </span>
                     </div>
+
+                    {/* Vitals Strip */}
+                    {rx.vitals && Object.values(rx.vitals).some(Boolean) && (
+                      <div style={{ background: 'var(--color-surface-secondary)', borderLeft: '3px solid var(--color-primary)', padding: '4px 10px', borderRadius: 4, marginBottom: 8, fontSize: '0.8125rem' }}>
+                        <strong style={{ color: 'var(--color-primary)', textTransform: 'uppercase', marginRight: 6 }}>Vitals:</strong>
+                        {[
+                          rx.vitals.bp ? `BP: ${rx.vitals.bp}` : null,
+                          rx.vitals.pulse ? `Pulse: ${rx.vitals.pulse} bpm` : null,
+                          rx.vitals.temp ? `Temp: ${rx.vitals.temp} °F` : null,
+                          rx.vitals.spo2 ? `SpO2: ${rx.vitals.spo2}%` : null,
+                          rx.vitals.bmi ? `BMI: ${rx.vitals.bmi}` : null,
+                          rx.vitals.bloodSugar ? `Sugar: ${rx.vitals.bloodSugar} mg/dL` : null,
+                        ].filter(Boolean).join('  ·  ')}
+                      </div>
+                    )}
 
                     {rx.symptoms && rx.symptoms.length > 0 && (
                       <div style={{ marginBottom: 8, fontSize: '0.875rem' }}>
