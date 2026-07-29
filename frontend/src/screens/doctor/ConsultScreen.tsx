@@ -28,6 +28,7 @@ import { PrescriptionMedicine, PrescriptionLabTest } from '../../types/prescript
 import { DoctorStackParamList } from '../../types/navigation.types';
 import { KEYBOARD_VERTICAL_OFFSET } from '../../utils/responsive';
 import { useToast } from '../../components/Toast/ToastContext';
+import { updatePatient } from '../../services/dataService';
 import VitalsInputModal from '../../components/VitalsInputModal';
 import SymptomModifierModal from '../../components/SymptomModifierModal';
 import MedicalCertificateModal from '../../components/MedicalCertificateModal';
@@ -351,10 +352,15 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
               </TouchableOpacity>
             </View>
 
-            {/* MLC Checkbox Row */}
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border }}
-              onPress={() => updateDraft({ isMlc: !currentDraft.isMlc })}
+              onPress={() => {
+                const newVal = !currentDraft.isMlc;
+                updateDraft({ isMlc: newVal });
+                if (patient?.id) {
+                  updatePatient(patient.id, { isMlc: newVal }).catch(() => {});
+                }
+              }}
             >
               <Ionicons
                 name={currentDraft.isMlc ? "checkbox" : "square-outline"}
