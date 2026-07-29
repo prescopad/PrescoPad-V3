@@ -212,9 +212,16 @@ export default function DoctorDashboard({ navigation }: DoctorDashboardProps): R
         </View>
 
         <View style={styles.queueCardCenter}>
-          <Text style={styles.patientName} numberOfLines={1}>
-            {patientName}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.patientName} numberOfLines={1}>
+              {patientName}
+            </Text>
+            {item.patient?.isMlc && (
+              <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#dc2626' }}>MLC</Text>
+              </View>
+            )}
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.xs }}>
             <Text style={styles.patientInfo}>
               {patientAge} yrs / {patientGender}

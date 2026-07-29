@@ -26,6 +26,9 @@ import { QueueItem, QueueStatus } from '../../types/queue.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
+import ReceiptModal from '../../components/ReceiptModal';
+import VitalsInputModal from '../../components/VitalsInputModal';
+import type { Patient } from '../../types/patient.types';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 
@@ -54,6 +57,7 @@ export default function AssistantDashboard(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
+  const [receiptPatientName, setReceiptPatientName] = useState<string | null>(null);
 
   const { setDoctorReady } = useQueueStore();
 
@@ -180,15 +184,29 @@ export default function AssistantDashboard(): React.JSX.Element {
           <Text style={styles.tokenNumber}>{item.tokenNumber}</Text>
         </View>
         <View style={styles.queueInfo}>
-          <Text style={styles.patientName} numberOfLines={1}>
-            {item.patient?.name ?? 'Unknown Patient'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.patientName} numberOfLines={1}>
+              {item.patient?.name ?? 'Unknown Patient'}
+            </Text>
+            {item.patient?.isMlc && (
+              <View style={{ backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#dc2626' }}>MLC</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.queueMeta}>
             {item.patient
               ? `${item.patient.age}y / ${item.patient.gender}`
               : `ID: ${item.patientId.slice(0, 8)}`}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={() => setReceiptPatientName(item.patient?.name || 'Patient')}
+          style={{ padding: 6, marginRight: 4 }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="receipt-outline" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
           <Text style={[styles.statusText, { color: statusColor }]}>
@@ -400,6 +418,16 @@ export default function AssistantDashboard(): React.JSX.Element {
           </View>
         </View>
       </Modal>
+
+      {/* Receipt Modal */}
+      {receiptPatientName && (
+        <ReceiptModal
+          visible={!!receiptPatientName}
+          patientName={receiptPatientName}
+          initialAmount={500}
+          onClose={() => setReceiptPatientName(null)}
+        />
+      )}
     </View>
   );
 }

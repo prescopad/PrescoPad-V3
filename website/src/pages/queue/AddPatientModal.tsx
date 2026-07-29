@@ -28,6 +28,7 @@ export default function AddPatientModal({ onClose }: Props) {
   const [allergies, setAllergies] = useState('');
   const [notes, setNotes] = useState('');
   const [consultationType, setConsultationType] = useState<'new' | 'follow_up'>('new');
+  const [isMlc, setIsMlc] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Close modal on Escape key press
@@ -78,6 +79,7 @@ export default function AddPatientModal({ onClose }: Props) {
         address: address.trim(),
         bloodGroup: '',
         allergies: allergies.trim(),
+        isMlc,
       });
       await addToQueue(created.id, 'Doctor', notes.trim() || undefined, consultationType);
       toast.success(`Registered & added ${created.name} to queue!`);
@@ -201,6 +203,17 @@ export default function AddPatientModal({ onClose }: Props) {
               <div className="auth-field">
                 <label className="auth-label">Queue Notes</label>
                 <input className="auth-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. High BP, Needs urgent consultation" />
+              </div>
+
+              <div className="auth-field" style={{ background: isMlc ? '#fef2f2' : undefined, padding: isMlc ? 10 : undefined, borderRadius: 6, border: isMlc ? '1px solid #fca5a5' : undefined }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, color: isMlc ? '#dc2626' : 'var(--color-text)', fontSize: '0.875rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={isMlc}
+                    onChange={(e) => setIsMlc(e.target.checked)}
+                  />
+                  🚨 MLC / Police / Accident Case Involved
+                </label>
               </div>
             </div>
           )}
