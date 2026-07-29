@@ -67,7 +67,7 @@ export default function PrescriptionActions({ prescription, show, layout = 'row'
       // 2. Build download URL pointing at the public get-shared-prescription
       // Edge Function (no JWT required — the share_token itself is the
       // authorization, mirroring the old /rx/{share_token} backend route).
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://iawufcwouhcitlwukolx.supabase.co';
       const downloadUrl = `${supabaseUrl}/functions/v1/get-shared-prescription?token=${share_token}`;
 
       // 3. Build personalized message (URL isolated on its own line, no trailing punctuation)
