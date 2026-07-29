@@ -244,15 +244,16 @@ export async function getPatients(search?: string, limit = 100, offset = 0): Pro
   return (data ?? []).map(mapPatient);
 }
 
-export async function getPatientsPage(search?: string, limit = 50, offset = 0): Promise<{ patients: Patient[]; total: number }> {
+export async function getPatientsPage(search?: string, limit = 50, offset = 0, isMlc?: boolean): Promise<{ patients: Patient[]; total: number }> {
   let query = supabase
     .from('patients')
     .select('*', { count: 'exact' })
     .eq('clinic_id', currentClinicId())
     .eq('is_deleted', false)
-    .order('name')
+    .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (search) query = query.ilike('name', `%${search}%`);
+  if (isMlc) query = query.eq('is_mlc', true);
   const { data, error, count } = await query;
   throwOnError(error, 'Failed to load patients.');
   return { patients: (data ?? []).map(mapPatient), total: count ?? 0 };
@@ -277,6 +278,7 @@ export async function createPatient(data: PatientFormData): Promise<Patient> {
       address: data.address,
       blood_group: data.bloodGroup,
       allergies: data.allergies,
+      is_mlc: data.isMlc || false,
     })
     .select()
     .single();
@@ -294,6 +296,7 @@ export async function updatePatient(id: string, data: Partial<PatientFormData>):
   if (data.address !== undefined) payload.address = data.address;
   if (data.bloodGroup !== undefined) payload.blood_group = data.bloodGroup;
   if (data.allergies !== undefined) payload.allergies = data.allergies;
+  if (data.isMlc !== undefined) payload.is_mlc = data.isMlc;
 
   const { data: row, error } = await supabase.from('patients').update(payload).eq('id', id).select().single();
   throwOnError(error, 'Failed to update patient.');
@@ -404,6 +407,8 @@ export async function createPrescription(draft: PrescriptionDraft, doctorId: str
       follow_up_date: draft.followUpDate || null,
       symptoms: draft.symptoms,
       referred_to: draft.referredTo || null,
+      is_mlc: draft.isMlc || false,
+      vitals: draft.vitals || null,
       medicines: medicinesToJsonb(draft.medicines as PrescriptionMedicine[]),
       lab_tests: labTestsToJsonb(draft.labTests as PrescriptionLabTest[]),
     })

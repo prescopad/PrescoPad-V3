@@ -358,7 +358,13 @@ export default function ConsultWorkspace() {
           <input
             type="checkbox"
             checked={!!currentDraft.isMlc}
-            onChange={(e) => updateDraft({ isMlc: e.target.checked })}
+            onChange={(e) => {
+              const val = e.target.checked;
+              updateDraft({ isMlc: val });
+              if (patient?.id) {
+                DataService.updatePatient(patient.id, { isMlc: val }).catch(() => {});
+              }
+            }}
           />
           🚨 MLC / Police / Accident Case Involved
         </label>

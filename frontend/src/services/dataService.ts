@@ -375,6 +375,8 @@ export async function createPrescription(draft: PrescriptionDraft, doctorId: str
       follow_up_date: draft.followUpDate || null,
       symptoms: draft.symptoms,
       referred_to: draft.referredTo || null,
+      is_mlc: draft.isMlc || false,
+      vitals: draft.vitals || null,
       medicines: medicinesToJsonb(draft.medicines as PrescriptionMedicine[]),
       lab_tests: labTestsToJsonb(draft.labTests as PrescriptionLabTest[]),
     })

@@ -17,21 +17,23 @@ export default function CasebookPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
+  const [showMlcOnly, setShowMlcOnly] = useState(false);
+
   useEffect(() => {
-    DataService.getPatientsPage(undefined, PAGE_SIZE, 0)
+    setIsLoading(true);
+    DataService.getPatientsPage(query.trim() || undefined, PAGE_SIZE, 0, showMlcOnly || undefined)
       .then(({ patients: p, total: t }) => {
         setPatients(p);
         setTotal(t);
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load patients'))
       .finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [query, showMlcOnly]);
 
   const loadMore = async () => {
     setIsLoadingMore(true);
     try {
-      const { patients: more, total: t } = await DataService.getPatientsPage(undefined, PAGE_SIZE, patients.length);
+      const { patients: more, total: t } = await DataService.getPatientsPage(query.trim() || undefined, PAGE_SIZE, patients.length, showMlcOnly || undefined);
       setPatients((prev) => [...prev, ...more]);
       setTotal(t);
     } catch (e) {
@@ -40,14 +42,6 @@ export default function CasebookPage() {
       setIsLoadingMore(false);
     }
   };
-
-  const [showMlcOnly, setShowMlcOnly] = useState(false);
-
-  const filtered = patients.filter((p) => {
-    const matchesQuery = query.trim() ? p.name.toLowerCase().includes(query.trim().toLowerCase()) : true;
-    const matchesMlc = showMlcOnly ? !!p.isMlc : true;
-    return matchesQuery && matchesMlc;
-  });
 
   return (
     <div className="page-container">
@@ -80,8 +74,8 @@ export default function CasebookPage() {
         <PageLoader />
       ) : (
         <div className="card-list">
-          {filtered.length === 0 && <div className="empty-state">No patients found</div>}
-          {filtered.map((p) => {
+          {patients.length === 0 && <div className="empty-state">No patients found</div>}
+          {patients.map((p) => {
             return (
               <div
                 key={p.id}
