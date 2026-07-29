@@ -26,6 +26,8 @@ import { getPrescriptionsByPatient } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 type DetailRouteProp = RouteProp<AssistantStackParamList, 'PatientDetail'>;
@@ -47,6 +49,8 @@ export default function PatientDetailScreen(): React.JSX.Element {
   const [isLoadingRx, setIsLoadingRx] = useState(true);
   const [addingToQueue, setAddingToQueue] = useState(false);
   const [showConsultModal, setShowConsultModal] = useState(false);
+  const [certRx, setCertRx] = useState<Prescription | null>(null);
+  const [receiptRx, setReceiptRx] = useState<Prescription | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -248,80 +252,80 @@ export default function PatientDetailScreen(): React.JSX.Element {
             </View>
           ) : (
             prescriptions.map((rx) => (
-              <TouchableOpacity
-                key={rx.id}
-                style={styles.rxCard}
-                onPress={() => navigation.navigate('PrescriptionView', { prescriptionId: rx.id })}
-                activeOpacity={0.7}
-              >
-                <View style={styles.rxCardHeader}>
-                  <View style={styles.rxIdBadge}>
-                    <Text style={styles.rxIdText}>{rx.id}</Text>
+              <View key={rx.id} style={styles.rxCard}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('PrescriptionView', { prescriptionId: rx.id })}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.rxCardHeader}>
+                    <View style={styles.rxIdBadge}>
+                      <Text style={styles.rxIdText} numberOfLines={1}>{rx.id}</Text>
+                    </View>
+                    <Text style={styles.rxDate}>{formatDate(rx.createdAt)}</Text>
                   </View>
-                  <Text style={styles.rxDate}>{formatDate(rx.createdAt)}</Text>
+
+                  {rx.diagnosis ? (
+                    <View style={styles.rxDiagnosisRow}>
+                      <Text style={styles.rxDiagnosisLabel}>Diagnosis:</Text>
+                      <Text style={styles.rxDiagnosis} numberOfLines={2}>
+                        {rx.diagnosis}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.rxStatsRow}>
+                    {rx.medicines.length > 0 && (
+                      <View style={styles.rxStat}>
+                        <Ionicons name="medkit-outline" size={14} color={COLORS.primary} />
+                        <Text style={styles.rxStatText}>
+                          {rx.medicines.length} medicine{rx.medicines.length > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {rx.labTests.length > 0 && (
+                      <View style={styles.rxStat}>
+                        <Ionicons name="flask-outline" size={14} color={COLORS.warning} />
+                        <Text style={styles.rxStatText}>
+                          {rx.labTests.length} test{rx.labTests.length > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    )}
+                    {rx.followUpDate && (
+                      <View style={styles.rxStat}>
+                        <Ionicons name="calendar-outline" size={14} color={COLORS.success} />
+                        <Text style={styles.rxStatText}>Follow-up: {formatDate(rx.followUpDate)}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {rx.chargeAmount !== null && rx.chargeAmount !== undefined ? (
+                    <View style={styles.rxChargeRow}>
+                      <Ionicons name="cash-outline" size={14} color={COLORS.success} />
+                      <Text style={styles.rxChargeText}>
+                        Charge: {APP_CONFIG.billing.currencySymbol}{rx.chargeAmount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+
+                {/* Action buttons */}
+                <View style={styles.rxActionsRow}>
+                  <TouchableOpacity
+                    style={styles.rxActionBtn}
+                    onPress={() => setCertRx(rx)}
+                  >
+                    <Ionicons name="document-text-outline" size={13} color={COLORS.success} />
+                    <Text style={[styles.rxActionText, { color: COLORS.success }]}>Certificate</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.rxActionBtn, { borderColor: '#d97706' }]}
+                    onPress={() => setReceiptRx(rx)}
+                  >
+                    <Ionicons name="receipt-outline" size={13} color="#d97706" />
+                    <Text style={[styles.rxActionText, { color: '#d97706' }]}>Receipt</Text>
+                  </TouchableOpacity>
                 </View>
-
-                {rx.diagnosis ? (
-                  <View style={styles.rxDiagnosisRow}>
-                    <Text style={styles.rxDiagnosisLabel}>Diagnosis:</Text>
-                    <Text style={styles.rxDiagnosis} numberOfLines={2}>
-                      {rx.diagnosis}
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View style={styles.rxStatsRow}>
-                  {rx.medicines.length > 0 && (
-                    <View style={styles.rxStat}>
-                      <Ionicons
-                        name="medkit-outline"
-                        size={14}
-                        color={COLORS.primary}
-                      />
-                      <Text style={styles.rxStatText}>
-                        {rx.medicines.length} medicine{rx.medicines.length > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  )}
-                  {rx.labTests.length > 0 && (
-                    <View style={styles.rxStat}>
-                      <Ionicons
-                        name="flask-outline"
-                        size={14}
-                        color={COLORS.warning}
-                      />
-                      <Text style={styles.rxStatText}>
-                        {rx.labTests.length} test{rx.labTests.length > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  )}
-                  {rx.followUpDate && (
-                    <View style={styles.rxStat}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={14}
-                        color={COLORS.success}
-                      />
-                      <Text style={styles.rxStatText}>
-                        Follow-up: {formatDate(rx.followUpDate)}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                {rx.chargeAmount !== null && rx.chargeAmount !== undefined ? (
-                  <View style={styles.rxChargeRow}>
-                    <Ionicons
-                      name="cash-outline"
-                      size={14}
-                      color={COLORS.success}
-                    />
-                    <Text style={styles.rxChargeText}>
-                      Charge: {APP_CONFIG.billing.currencySymbol}{rx.chargeAmount}
-                    </Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
+              </View>
             ))
           )}
         </View>
@@ -333,6 +337,28 @@ export default function PatientDetailScreen(): React.JSX.Element {
         onSelectType={processAddToQueue}
         isLoading={addingToQueue}
       />
+
+      {/* Medical Certificate Modal */}
+      {certRx && patient && (
+        <MedicalCertificateModal
+          visible={true}
+          patientName={patient.name}
+          patientAge={patient.age}
+          patientGender={patient.gender}
+          initialDiagnosis={certRx.diagnosis || ''}
+          onClose={() => setCertRx(null)}
+        />
+      )}
+
+      {/* Receipt Modal */}
+      {receiptRx && patient && (
+        <ReceiptModal
+          visible={true}
+          patientName={patient.name}
+          initialAmount={receiptRx.chargeAmount || 500}
+          onClose={() => setReceiptRx(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -645,5 +671,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.success,
     fontWeight: '600',
+  },
+  rxActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  rxActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  rxActionText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
