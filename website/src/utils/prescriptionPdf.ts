@@ -293,6 +293,29 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
   drawLine({ x1: MARGIN, y1: y, x2: MARGIN + CONTENT_WIDTH, y2: y, thickness: 0.5, color: COLORS.gridLine });
   y -= 16;
 
+  if (input.isMlc) {
+    const mlcBannerText = "[ MEDICO-LEGAL CASE (MLC) ]";
+    page.drawRectangle({
+      x: MARGIN,
+      y: y - 2,
+      width: CONTENT_WIDTH,
+      height: 18,
+      color: rgb(0xfe / 255, 0xf2 / 255, 0xf2 / 255),
+      borderColor: COLORS.redAccent,
+      borderWidth: 1,
+    });
+    const mlcW = fontBold.widthOfTextAtSize(mlcBannerText, 10);
+    page.drawText(mlcBannerText, {
+      x: MARGIN + (CONTENT_WIDTH - mlcW) / 2,
+      y: y + 2,
+      size: 10,
+      font: fontBold,
+      color: COLORS.redAccent,
+    });
+    y -= 24;
+  }
+
+
   const drawSectionTitle = (title: string) => {
     newPageIfNeeded(24);
     page.drawText(title, { x: MARGIN, y, size: 12, font: fontBold, color: COLORS.tealPrimary });

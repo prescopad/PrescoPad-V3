@@ -162,6 +162,11 @@ class PrescriptionRequest(BaseModel):
     lab_tests: Optional[List[LabTestItem]] = []
     labTests: Optional[List[LabTestItem]] = []
 
+    attach_certificate: Optional[dict] = None
+    attachCertificate: Optional[dict] = None
+    attach_receipt: Optional[dict] = None
+    attachReceipt: Optional[dict] = None
+
     def normalized(self) -> dict:
         meds = self.medicines or []
         tests = self.lab_tests or self.labTests or []
@@ -175,6 +180,8 @@ class PrescriptionRequest(BaseModel):
             "vitals": self.vitals,
             "is_mlc": self.is_mlc if self.is_mlc is not None else self.isMlc,
             "mlc_notes": self.mlc_notes or self.mlcNotes,
+            "attach_certificate": self.attach_certificate or self.attachCertificate,
+            "attach_receipt": self.attach_receipt or self.attachReceipt,
             "diagnosis": self.diagnosis,
             "advice": self.advice,
             "follow_up_date": self.follow_up_date or self.followUpDate,
@@ -185,6 +192,7 @@ class PrescriptionRequest(BaseModel):
             "medicines": [m.normalized() for m in meds],
             "lab_tests": [t.normalized() for t in tests],
         }
+
 
 
 class CustomMedicineRequest(BaseModel):

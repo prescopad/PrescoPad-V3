@@ -111,7 +111,31 @@ Deno.serve(async (req) => {
     pdfHash: rx.pdf_hash || undefined,
     logoPngBytes: logoRes,
     qrPngBytes: qrRes,
+    isMlc: rx.is_mlc || false,
+    attachCertificate: rx.attach_certificate ? {
+      clinicName: clinic?.name || "PrescoPad Clinic",
+      doctorName: doctor?.name || "Doctor",
+      regNumber: doctor?.reg_number || undefined,
+      patientName: rx.patient_name || "Patient",
+      patientAge: rx.patient_age || undefined,
+      patientGender: rx.patient_gender || undefined,
+      diagnosis: rx.attach_certificate.diagnosis || rx.diagnosis || "Acute Illness",
+      restDays: rx.attach_certificate.restDays || "3",
+      startDate: rx.attach_certificate.startDate || new Date(rx.created_at).toISOString().split("T")[0],
+      fitnessStatus: rx.attach_certificate.fitnessStatus || "unfit",
+    } : undefined,
+    attachReceipt: rx.attach_receipt ? {
+      clinicName: clinic?.name || "PrescoPad Clinic",
+      doctorName: doctor?.name || "Doctor",
+      patientName: rx.patient_name || "Patient",
+      receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+      date: new Date(rx.created_at).toLocaleDateString("en-IN"),
+      amount: rx.attach_receipt.amount || rx.charge_amount || 500,
+      paymentMode: rx.attach_receipt.paymentMode || "Cash",
+      towards: rx.attach_receipt.towards || "Consultation & Treatment Fee",
+    } : undefined,
   });
+
 
   const storagePath = `${rx.clinic_id}/${rx.id}.pdf`;
   const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);

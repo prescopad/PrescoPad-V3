@@ -474,26 +474,6 @@ export default function PrescriptionPreviewPage() {
         )}
       </div>
 
-      {/* Medical Certificate Modal */}
-      {showCertModal && (
-        <MedicalCertificateModal
-          patientName={rx.patientName}
-          patientAge={rx.patientAge}
-          patientGender={rx.patientGender}
-          initialDiagnosis={rx.diagnosis}
-          onClose={() => setShowCertModal(false)}
-        />
-      )}
-
-      {/* Receipt Modal */}
-      {showReceiptModal && (
-        <ReceiptModal
-          patientName={rx.patientName}
-          initialAmount={rx.chargeAmount || 500}
-          onClose={() => setShowReceiptModal(false)}
-        />
-      )}
-
       {/* Signature Mode Choice Modal */}
       {showSignModeModal && (
         <div className="modal-backdrop" onClick={() => setShowSignModeModal(false)}>

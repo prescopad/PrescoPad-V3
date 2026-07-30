@@ -1,15 +1,3 @@
-// Prescription PDF renderer — Deno/pdf-lib port of
-// backend_python/app/services/pdf_generator.py (ReportLab/platypus).
-//
-// pdf-lib has no automatic text-flow/pagination engine like ReportLab's
-// platypus, so this manually tracks a `y` cursor down an A4 page and wraps
-// text by measuring string width against available column width. Visual
-// structure, colors, and section order mirror the original generator.
-//
-// Per Track B (logo placement change): the PrescoPad logo is LEFT-aligned
-// and larger (44px) here, not centered/28px like the original — this is a
-// deliberate deviation, built correctly from the start rather than porting
-// the old centered layout forward.
 import {
   PDFDocument,
   rgb,
@@ -57,6 +45,30 @@ export interface LabTest {
   notes?: string;
 }
 
+export interface CertificatePdfInput {
+  clinicName: string;
+  doctorName: string;
+  regNumber?: string;
+  patientName: string;
+  patientAge?: number | string;
+  patientGender?: string;
+  diagnosis: string;
+  restDays: string;
+  startDate: string;
+  fitnessStatus: 'fit' | 'unfit';
+}
+
+export interface ReceiptPdfInput {
+  clinicName: string;
+  doctorName: string;
+  patientName: string;
+  receiptNo: string;
+  date: string;
+  amount: number;
+  paymentMode: string;
+  towards: string;
+}
+
 export interface PrescriptionPdfInput {
   clinicName: string;
   clinicAddress?: string;
@@ -77,10 +89,13 @@ export interface PrescriptionPdfInput {
   advice?: string;
   referredTo?: string;
   followUpDate?: string;
-  signatureSvgPath?: string; // "M x y L x y ..." — see SignatureModal.tsx
+  signatureSvgPath?: string; // "M x y L x y ..."
   pdfHash?: string;
   logoPngBytes?: Uint8Array;
   qrPngBytes?: Uint8Array;
+  isMlc?: boolean;
+  attachCertificate?: CertificatePdfInput;
+  attachReceipt?: ReceiptPdfInput;
 }
 
 function sanitizeWinAnsi(str: string | null | undefined): string {
@@ -96,7 +111,6 @@ function sanitizeWinAnsi(str: string | null | undefined): string {
     .replace(/[^\x00-\xFF]/g, "");
 }
 
-/** Simple greedy word-wrap by measured width — no automatic flow engine. */
 function wrapText(rawText: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const text = sanitizeWinAnsi(rawText);
   const words = text.split(/\s+/).filter(Boolean);
@@ -115,9 +129,6 @@ function wrapText(rawText: string, font: PDFFont, size: number, maxWidth: number
   return lines.length ? lines : [""];
 }
 
-/** Parse an "M x y L x y L x y ..." path (the only commands the app's
- * signature capture ever emits — see frontend/src/components/SignatureModal.tsx)
- * into a list of point-arrays, one per pen stroke (each starting with M). */
 function parseSignaturePath(path: string): { x: number; y: number }[][] {
   const tokens = path.trim().split(/\s+/);
   const strokes: { x: number; y: number }[][] = [];
@@ -140,8 +151,6 @@ function parseSignaturePath(path: string): { x: number; y: number }[][] {
   return strokes;
 }
 
-/** Draw the signature strokes scaled/translated into a target box, preserving
- * aspect ratio (mirrors ReportLab's `kind="proportional"` Image sizing). */
 function drawSignature(
   page: PDFPage,
   path: string,
@@ -162,7 +171,6 @@ function drawSignature(
   const drawnWidth = srcWidth * scale;
   const drawnHeight = srcHeight * scale;
   const offsetX = box.x + (box.width - drawnWidth) / 2;
-  // SVG y grows downward; PDF y grows upward — flip and anchor to box bottom.
   const offsetY = box.y + (box.height - drawnHeight) / 2;
 
   for (const stroke of strokes) {
@@ -215,7 +223,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     });
   };
 
-  // ── Logo (left-aligned, 44px — larger and left per the new placement spec) ──
   if (input.logoPngBytes) {
     try {
       const logoImage = await doc.embedPng(input.logoPngBytes);
@@ -228,12 +235,11 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
         height: scaled.height,
       });
     } catch {
-      // Corrupt/unreadable logo bytes — skip silently, header text still renders.
+      // Skip silently
     }
   }
   y -= 50;
 
-  // ── Header: clinic name (centered, large, teal) ──
   const clinicNameSize = 20;
   const clinicNameWidth = fontBold.widthOfTextAtSize(input.clinicName, clinicNameSize);
   page.drawText(input.clinicName, {
@@ -288,7 +294,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
   drawLine({ x1: MARGIN, y1: y, x2: MARGIN + CONTENT_WIDTH, y2: y, thickness: 2, color: COLORS.tealPrimary });
   y -= 14;
 
-  // ── Consultation type badge ──
   if (input.consultationType) {
     page.drawText(input.consultationType, {
       x: MARGIN,
@@ -300,7 +305,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     y -= 16;
   }
 
-  // ── Patient info row ──
   const patientLeft = `Patient: ${input.patientName}     Age: ${input.patientAge ?? ""}     Gender: ${input.patientGender ?? ""}`;
   const dateStr = input.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const patientRight = `Date: ${dateStr}`;
@@ -311,6 +315,28 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
   y -= 8;
   drawLine({ x1: MARGIN, y1: y, x2: MARGIN + CONTENT_WIDTH, y2: y, thickness: 0.5, color: COLORS.gridLine });
   y -= 16;
+
+  if (input.isMlc) {
+    const mlcBannerText = "[ MEDICO-LEGAL CASE (MLC) ]";
+    page.drawRectangle({
+      x: MARGIN,
+      y: y - 2,
+      width: CONTENT_WIDTH,
+      height: 18,
+      color: rgb(0xfe / 255, 0xf2 / 255, 0xf2 / 255),
+      borderColor: COLORS.redAccent,
+      borderWidth: 1,
+    });
+    const mlcW = fontBold.widthOfTextAtSize(mlcBannerText, 10);
+    page.drawText(mlcBannerText, {
+      x: MARGIN + (CONTENT_WIDTH - mlcW) / 2,
+      y: y + 2,
+      size: 10,
+      font: fontBold,
+      color: COLORS.redAccent,
+    });
+    y -= 24;
+  }
 
   const drawSectionTitle = (title: string) => {
     newPageIfNeeded(24);
@@ -332,14 +358,12 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     }
   };
 
-  // ── Symptoms ──
   if (input.symptoms?.length) {
     drawSectionTitle("Symptoms");
     drawWrappedParagraph(input.symptoms.join(", "));
     y -= 6;
   }
 
-  // ── Diagnosis (accent box) ──
   if (input.diagnosis) {
     drawSectionTitle("Diagnosis");
     newPageIfNeeded(30);
@@ -356,14 +380,8 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     y = boxTop - boxHeight - 10;
   }
 
-  // ── Medicines table ──
   if (input.medicines?.length) {
     newPageIfNeeded(40);
-    // "Rx" not the U+211E ℞ glyph — pdf-lib's standard fonts use WinAnsi
-    // encoding, which has no glyph for ℞, and throws (uncaught, surfaces as
-    // a bare 500) rather than silently dropping the character. Confirmed by
-    // a live production-readiness audit: any prescription with medicines
-    // crashed PDF generation entirely.
     page.drawText("Rx  Medicines", { x: MARGIN, y, size: 16, font: fontBold, color: COLORS.tealPrimary });
     y -= 20;
 
@@ -385,7 +403,7 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
 
     input.medicines.forEach((m, idx) => {
       newPageIfNeeded(rowHeight + 10);
-      if (y === PAGE_HEIGHT - MARGIN) drawTableHeader(); // repeated header on new page
+      if (y === PAGE_HEIGHT - MARGIN) drawTableHeader();
 
       const medName = m.medicineName || m.medicine_name || m.name || "";
       const medDisplay = m.type ? `${medName}, ${m.type}` : medName;
@@ -415,7 +433,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     y -= 10;
   }
 
-  // ── Lab tests ──
   if (input.labTests?.length) {
     drawSectionTitle("Lab Tests / Investigations");
     for (const t of input.labTests) {
@@ -429,7 +446,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     y -= 4;
   }
 
-  // ── Special instructions / advice (boxed) ──
   if (input.advice) {
     drawSectionTitle("Special Instructions / Doctor's Notes");
     newPageIfNeeded(30);
@@ -445,27 +461,24 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     y = boxTop - boxHeight - 10;
   }
 
-  // ── Referred to ──
   if (input.referredTo) {
     drawSectionTitle("Referred To");
     page.drawText(input.referredTo, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
     y -= 16;
   }
 
-  // ── Follow-up ──
   if (input.followUpDate) {
     newPageIfNeeded(20);
     let followUpStr = input.followUpDate;
     try {
       followUpStr = new Date(input.followUpDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     } catch {
-      // keep raw string if unparsable
+      // Keep raw string
     }
     page.drawText(`Follow-up: ${followUpStr}`, { x: MARGIN, y, size: 11, font: fontBold, color: COLORS.redAccent });
     y -= 20;
   }
 
-  // ── Signature + QR footer block ──
   newPageIfNeeded(90);
   y -= 10;
   drawLine({ x1: MARGIN, y1: y, x2: MARGIN + CONTENT_WIDTH, y2: y, thickness: 0.5, color: COLORS.gridLine });
@@ -481,7 +494,7 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
       page.drawImage(qrImage, { x: MARGIN, y: sigBlockTop - qrSize, width: qrSize, height: qrSize });
       page.drawText("Scan for Payment / Details", { x: MARGIN, y: sigBlockTop - qrSize - 10, size: 7, font: fontRegular, color: COLORS.textFaint });
     } catch {
-      // Corrupt QR bytes — skip silently.
+      // Skip
     }
   }
 
@@ -513,7 +526,6 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
 
   y = Math.min(footerLineY, sigBlockTop - sigBoxHeight - 12) - 16;
 
-  // ── Page footer ──
   newPageIfNeeded(24);
   drawLine({ x1: MARGIN, y1: y, x2: MARGIN + CONTENT_WIDTH, y2: y, thickness: 0.5, color: COLORS.gridLine });
   y -= 12;
@@ -527,5 +539,130 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
     page.drawText(hashText, { x: MARGIN + (CONTENT_WIDTH - hashWidth) / 2, y, size: 7, font: fontMono, color: COLORS.hashColor });
   }
 
+  // Append attached Medical Certificate (Page 2) if checked
+  if (input.attachCertificate) {
+    await drawCertificatePage(doc, input.attachCertificate);
+  }
+
+  // Append attached Receipt (Page 3) if checked
+  if (input.attachReceipt) {
+    await drawReceiptPage(doc, input.attachReceipt);
+  }
+
   return doc.save();
+}
+
+export async function drawCertificatePage(doc: PDFDocument, input: CertificatePdfInput) {
+  const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+
+  let y = PAGE_HEIGHT - MARGIN;
+
+  // Header
+  const title = sanitizeWinAnsi(input.clinicName);
+  const titleW = fontBold.widthOfTextAtSize(title, 18);
+  page.drawText(title, { x: MARGIN + (CONTENT_WIDTH - titleW) / 2, y, size: 18, font: fontBold, color: COLORS.tealPrimary });
+  y -= 22;
+
+  const sub = 'MEDICAL CERTIFICATE';
+  const subW = fontBold.widthOfTextAtSize(sub, 13);
+  page.drawText(sub, { x: MARGIN + (CONTENT_WIDTH - subW) / 2, y, size: 13, font: fontBold, color: COLORS.textPrimary });
+  y -= 16;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1, color: COLORS.tealPrimary });
+  y -= 24;
+
+  // Body text
+  const date = new Date(input.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  const lines = [
+    `This is to certify that Mr./Mrs. ${sanitizeWinAnsi(input.patientName)} (Age: ${input.patientAge || '--'}, Sex: ${sanitizeWinAnsi(input.patientGender) || '--'})`,
+    `has been under my medical treatment for ${sanitizeWinAnsi(input.diagnosis || 'Acute Illness')}.`,
+    '',
+    `I advise medical leave / rest for a period of ${input.restDays} Day(s) starting from ${date}.`,
+    '',
+    `Status: ${input.fitnessStatus === 'fit' ? 'FIT TO RESUME DUTIES' : 'UNFIT FOR DUTY'}`,
+  ];
+
+  for (const line of lines) {
+    if (!line) { y -= 10; continue; }
+    const isBold = line.startsWith('Status:');
+    const color = isBold ? (input.fitnessStatus === 'fit' ? rgb(0.09, 0.56, 0.31) : COLORS.redAccent) : COLORS.textPrimary;
+    page.drawText(line, { x: MARGIN, y, size: 11, font: isBold ? fontBold : fontRegular, color });
+    y -= 18;
+  }
+
+  y -= 40;
+  page.drawLine({ start: { x: PAGE_WIDTH - MARGIN - 140, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.5, color: COLORS.textMuted });
+  y -= 14;
+  page.drawText(`Dr. ${sanitizeWinAnsi(input.doctorName)}`, { x: PAGE_WIDTH - MARGIN - 140, y, size: 11, font: fontBold, color: COLORS.textPrimary });
+  if (input.regNumber) {
+    y -= 14;
+    page.drawText(`Reg. No: ${input.regNumber}`, { x: PAGE_WIDTH - MARGIN - 140, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+  }
+}
+
+function numToWords(n: number): string {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  if (n === 0) return 'Zero';
+  if (n < 20) return ones[n];
+  if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+  if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + numToWords(n % 100) : '');
+  if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+  return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numToWords(n % 100000) : '');
+}
+
+export async function drawReceiptPage(doc: PDFDocument, input: ReceiptPdfInput) {
+  const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+
+  let y = PAGE_HEIGHT - MARGIN;
+
+  // Header
+  const title = sanitizeWinAnsi(input.clinicName);
+  const titleW = fontBold.widthOfTextAtSize(title, 16);
+  page.drawText(title, { x: MARGIN + (CONTENT_WIDTH - titleW) / 2, y, size: 16, font: fontBold, color: COLORS.tealPrimary });
+  y -= 20;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1.5, color: COLORS.tealPrimary });
+  y -= 14;
+
+  const sub = 'PAYMENT RECEIPT';
+  const subW = fontBold.widthOfTextAtSize(sub, 13);
+  page.drawText(sub, { x: MARGIN + (CONTENT_WIDTH - subW) / 2, y, size: 13, font: fontBold, color: COLORS.textPrimary });
+  y -= 20;
+
+  // No + Date row
+  page.drawText(`Receipt No: ${input.receiptNo}`, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+  const dateText = `Date: ${input.date}`;
+  const dateW = fontBold.widthOfTextAtSize(dateText, 10);
+  page.drawText(dateText, { x: MARGIN + CONTENT_WIDTH - dateW, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+  y -= 18;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.5, color: COLORS.gridLine });
+  y -= 14;
+
+  const rows = [
+    `Received with thanks from Mr./Mrs.: ${sanitizeWinAnsi(input.patientName)}`,
+    `the Sum of Rupees: ${numToWords(Math.floor(input.amount))} Only`,
+    `by: ${input.paymentMode.toUpperCase()}`,
+    `towards: ${sanitizeWinAnsi(input.towards)}`,
+  ];
+  for (const row of rows) {
+    page.drawText(row, { x: MARGIN, y, size: 11, font: fontRegular, color: COLORS.textPrimary });
+    y -= 18;
+  }
+
+  y -= 10;
+  const amtText = `Rs. ${input.amount.toFixed(2)}`;
+  page.drawRectangle({ x: MARGIN, y: y - 6, width: 120, height: 24, color: COLORS.tealLight, borderColor: COLORS.tealPrimary, borderWidth: 1 });
+  page.drawText(amtText, { x: MARGIN + 10, y, size: 13, font: fontBold, color: COLORS.tealPrimary });
+
+  y -= 36;
+  page.drawLine({ start: { x: PAGE_WIDTH - MARGIN - 140, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.5, color: COLORS.textMuted });
+  y -= 14;
+  page.drawText(`For Dr. ${sanitizeWinAnsi(input.doctorName)}`, { x: PAGE_WIDTH - MARGIN - 140, y, size: 10, font: fontBold, color: COLORS.textPrimary });
 }

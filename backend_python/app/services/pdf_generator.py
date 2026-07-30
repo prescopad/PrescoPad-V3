@@ -967,6 +967,65 @@ async def generate_prescription_pdf(data: dict, *args, **kwargs) -> bytes | io.B
     if pdf_hash:
         story.append(Paragraph(f"Verification Hash: {pdf_hash}", styles["hash"]))
 
+    # ── 15.5. Attached Certificate & Receipt Pages ─────────────────────────
+    from reportlab.platypus import PageBreak
+
+    attach_cert = data.get("attach_certificate") or data.get("attachCertificate") if is_single_dict else (rx.get("attach_certificate") or rx.get("attachCertificate") if isinstance(rx, dict) else getattr(rx, 'attach_certificate', None))
+    if attach_cert:
+        story.append(PageBreak())
+        story.append(Paragraph(clinic_name, styles["clinic_name"]))
+        story.append(Paragraph("MEDICAL CERTIFICATE", ParagraphStyle("CertTitle", fontName="Helvetica-Bold", fontSize=14, leading=18, alignment=TA_CENTER, textColor=TEXT_PRIMARY)))
+        story.append(HRFlowable(width="100%", thickness=1, color=TEAL_PRIMARY, spaceAfter=14))
+
+        rest_days = attach_cert.get("restDays") or attach_cert.get("rest_days") or "3"
+        start_date = attach_cert.get("startDate") or attach_cert.get("start_date") or date_str
+        cert_diag = attach_cert.get("diagnosis") or (data.get("diagnosis") if is_single_dict else rx.get("diagnosis") if isinstance(rx, dict) else "") or "Acute Illness"
+        fitness = attach_cert.get("fitnessStatus") or attach_cert.get("fitness_status") or "unfit"
+        fit_str = "FIT TO RESUME DUTIES" if fitness == "fit" else "UNFIT FOR DUTY"
+        fit_color = "#16a34a" if fitness == "fit" else "#dc2626"
+
+        cert_text = (
+            f"This is to certify that Mr./Mrs. <b>{patient_name}</b> (Age: {patient_age or '--'}, Sex: {patient_gender or '--'}) "
+            f"has been under my medical treatment for <b>{cert_diag}</b>.<br/><br/>"
+            f"I advise medical leave / rest for a period of <b>{rest_days} Day(s)</b> starting from <b>{start_date}</b>.<br/><br/>"
+            f"Status: <font color=\"{fit_color}\"><b>{fit_str}</b></font>"
+        )
+        story.append(Paragraph(cert_text, ParagraphStyle("CertBody", fontName="Helvetica", fontSize=11, leading=18, textColor=TEXT_PRIMARY)))
+        story.append(Spacer(1, 40))
+        story.append(Paragraph(f"<b>Dr. {doctor_name}</b>", styles["sig_name"]))
+        if reg_number:
+            story.append(Paragraph(f"Reg. No: {reg_number}", styles["sig_detail"]))
+
+    attach_rec = data.get("attach_receipt") or data.get("attachReceipt") if is_single_dict else (rx.get("attach_receipt") or rx.get("attachReceipt") if isinstance(rx, dict) else getattr(rx, 'attach_receipt', None))
+    if attach_rec:
+        story.append(PageBreak())
+        story.append(Paragraph(clinic_name, styles["clinic_name"]))
+        story.append(Paragraph("PAYMENT RECEIPT", ParagraphStyle("RecTitle", fontName="Helvetica-Bold", fontSize=14, leading=18, alignment=TA_CENTER, textColor=TEXT_PRIMARY)))
+        story.append(HRFlowable(width="100%", thickness=1.5, color=TEAL_PRIMARY, spaceAfter=10))
+
+        rec_amt = float(attach_rec.get("amount") or 500)
+        rec_mode = str(attach_rec.get("paymentMode") or attach_rec.get("payment_mode") or "Cash").upper()
+        rec_towards = attach_rec.get("towards") or "Consultation & Treatment Fee"
+        rx_suffix = str(rx_id)[-5:].upper() if rx_id else "00001"
+
+        rec_meta = Table([
+            [Paragraph(f"<b>Receipt No:</b> REC-{rx_suffix}", styles["body"]), Paragraph(f"<b>Date:</b> {date_str}", styles["meta_right"])]
+        ], colWidths=[usable_width * 0.5, usable_width * 0.5])
+        story.append(rec_meta)
+        story.append(Spacer(1, 10))
+
+        rec_text = (
+            f"Received with thanks from Mr./Mrs.: <b>{patient_name}</b><br/>"
+            f"the Sum of Rupees: <b>Rs. {rec_amt:.2f}</b><br/>"
+            f"by: <b>{rec_mode}</b><br/>"
+            f"towards: <b>{rec_towards}</b>"
+        )
+        story.append(Paragraph(rec_text, ParagraphStyle("RecBody", fontName="Helvetica", fontSize=11, leading=18, textColor=TEXT_PRIMARY)))
+        story.append(Spacer(1, 15))
+        story.append(Paragraph(f"<b>Rs. {rec_amt:.2f}</b>", ParagraphStyle("AmtBox", fontName="Helvetica-Bold", fontSize=14, textColor=TEAL_PRIMARY)))
+        story.append(Spacer(1, 40))
+        story.append(Paragraph(f"<b>For Dr. {doctor_name}</b>", styles["sig_name"]))
+
     # ── 16. Build PDF document ────────────────────────────────────────────
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(
