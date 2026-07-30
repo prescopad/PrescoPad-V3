@@ -8,10 +8,9 @@ import { recordConsultationPayment } from '../../api/paymentService';
 import { hashString } from '../../utils/cryptoUtil';
 import SignaturePad from '../../components/SignaturePad';
 import PrescriptionActions from '../../components/PrescriptionActions';
-import MedicalCertificateModal from '../../components/MedicalCertificateModal';
-import ReceiptModal from '../../components/ReceiptModal';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon, CheckIcon } from '../../components/icons';
+import { downloadCertificateClient, downloadReceiptClient } from '../../utils/clientPdfUtil';
 import '../pages.css';
 import '../../components/modal.css';
 import '../auth/auth.css';
@@ -30,8 +29,6 @@ export default function PrescriptionPreviewPage() {
   const [showSignModeModal, setShowSignModeModal] = useState(false);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
-  const [showCertModal, setShowCertModal] = useState(false);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
 
@@ -373,20 +370,55 @@ export default function PrescriptionPreviewPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <PrescriptionActions prescription={rx} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                className="secondary-btn"
-                style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', flex: 1 }}
-                onClick={() => setShowCertModal(true)}
-              >
-                📄 Issue Medical Certificate
-              </button>
-              <button
-                className="secondary-btn"
-                style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a', flex: 1 }}
-                onClick={() => setShowReceiptModal(true)}
-              >
-                🧾 Issue Receipt
-              </button>
+              {/* Certificate — download standalone if not attached, show badge if attached */}
+              {rx.attachCertificate ? (
+                <div style={{ flex: 1, padding: '8px 12px', background: '#ecfdf5', color: '#047857', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, border: '1px solid #a7f3d0', textAlign: 'center' }}>
+                  📄 Certificate included in Rx PDF
+                </div>
+              ) : (
+                <button
+                  className="secondary-btn"
+                  style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', flex: 1 }}
+                  onClick={() => downloadCertificateClient({
+                    clinicName: clinic?.name || 'Clinic',
+                    doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                    regNumber: doctorProfile?.regNumber,
+                    patientName: rx.patientName,
+                    patientAge: rx.patientAge,
+                    patientGender: rx.patientGender,
+                    diagnosis: rx.diagnosis || 'Acute Illness',
+                    restDays: '3',
+                    startDate: new Date().toISOString().split('T')[0],
+                    fitnessStatus: 'unfit',
+                  }, rx.patientName)}
+                >
+                  📄 Download Certificate
+                </button>
+              )}
+
+              {/* Receipt — download standalone if not attached */}
+              {rx.attachReceipt ? (
+                <div style={{ flex: 1, padding: '8px 12px', background: '#fef3c7', color: '#b45309', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, border: '1px solid #fde68a', textAlign: 'center' }}>
+                  🧾 Receipt included in Rx PDF
+                </div>
+              ) : (
+                <button
+                  className="secondary-btn"
+                  style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a', flex: 1 }}
+                  onClick={() => downloadReceiptClient({
+                    clinicName: clinic?.name || 'Clinic',
+                    doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                    patientName: rx.patientName,
+                    receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+                    date: new Date().toLocaleDateString('en-IN'),
+                    amount: rx.chargeAmount || 500,
+                    paymentMode: 'Cash',
+                    towards: 'Consultation & Treatment Fee',
+                  }, rx.patientName)}
+                >
+                  🧾 Download Receipt
+                </button>
+              )}
             </div>
           </div>
         )}

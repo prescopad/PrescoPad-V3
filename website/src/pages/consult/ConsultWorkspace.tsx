@@ -49,6 +49,15 @@ export default function ConsultWorkspace() {
   const [showCertModal, setShowCertModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
+  // Attachment state — inline cert/receipt to include in prescription PDF
+  const [attachCert, setAttachCert] = useState(false);
+  const [certRestDays, setCertRestDays] = useState('3');
+  const [certStartDate, setCertStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [certFitness, setCertFitness] = useState<'unfit' | 'fit'>('unfit');
+  const [attachReceipt, setAttachReceipt] = useState(false);
+  const [receiptAmount, setReceiptAmount] = useState('500');
+  const [receiptMode, setReceiptMode] = useState<'cash' | 'online' | 'cheque'>('cash');
+
   // Template State
   const [templates, setTemplates] = useState<PrescriptionTemplate[]>([]);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -245,6 +254,15 @@ export default function ConsultWorkspace() {
     }
     setIsCreating(true);
     try {
+      // Persist attachment choices into draft before creating
+      updateDraft({
+        attachCertificate: attachCert
+          ? { restDays: certRestDays, startDate: certStartDate, fitnessStatus: certFitness, diagnosis: currentDraft.diagnosis }
+          : undefined,
+        attachReceipt: attachReceipt
+          ? { amount: parseFloat(receiptAmount) || 0, paymentMode: receiptMode, towards: 'Consultation & Treatment Fee' }
+          : undefined,
+      });
       const prescription = await createPrescription(user.id);
       navigate(`/prescriptions/${prescription.id}/preview`);
     } catch (e) {
@@ -253,6 +271,7 @@ export default function ConsultWorkspace() {
       setIsCreating(false);
     }
   };
+
 
   const handleBack = () => {
     resetDraft();
@@ -389,15 +408,13 @@ export default function ConsultWorkspace() {
               <div
                 key={s}
                 className={`chip ${isSelected ? 'selected' : ''}`}
+                title={isSelected ? 'Click to edit details' : 'Click to add with details'}
                 onClick={() => {
-                  if (isSelected) {
-                    updateDraft({ symptoms: symptoms.filter((item) => item !== s && !item.startsWith(`${s} (`)) });
-                  } else {
-                    setSelectedSymptomForModifier(s);
-                  }
+                  // Always open modifier — either to add or to re-edit
+                  setSelectedSymptomForModifier(s);
                 }}
               >
-                {s}
+                {isSelected && <span style={{ marginRight: 2, opacity: 0.8 }}>✓ </span>}{s}
               </div>
             );
           })}
@@ -475,6 +492,75 @@ export default function ConsultWorkspace() {
             value={currentDraft.followUpDate}
             onChange={(e) => updateDraft({ followUpDate: e.target.value })}
           />
+        </div>
+      </div>
+
+      {/* 📎 Attachments Section */}
+      <div className="auth-field" style={{ background: 'var(--color-surface-secondary)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '14px 16px', marginTop: 4 }}>
+        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>📎 Attach with Prescription</div>
+
+        {/* Attach Certificate */}
+        <div style={{ marginBottom: attachCert ? 14 : 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
+            <input type="checkbox" checked={attachCert} onChange={(e) => setAttachCert(e.target.checked)} />
+            📄 Attach Medical Certificate
+          </label>
+          {attachCert && (
+            <div style={{ marginTop: 10, paddingLeft: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label className="auth-label">Rest Days</label>
+                <input className="auth-input" type="number" min="1" value={certRestDays} onChange={(e) => setCertRestDays(e.target.value)} />
+              </div>
+              <div>
+                <label className="auth-label">Start Date</label>
+                <input className="auth-input" type="date" value={certStartDate} onChange={(e) => setCertStartDate(e.target.value)} />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="auth-label">Fitness Status</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['unfit', 'fit'] as const).map((v) => (
+                    <button key={v} type="button"
+                      className={`filter-btn ${certFitness === v ? 'active' : ''}`}
+                      style={{ flex: 1, fontSize: '0.8rem' }}
+                      onClick={() => setCertFitness(v)}
+                    >
+                      {v === 'unfit' ? 'Unfit for Duty' : 'Fit to Resume'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Attach Receipt */}
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
+            <input type="checkbox" checked={attachReceipt} onChange={(e) => setAttachReceipt(e.target.checked)} />
+            🧾 Attach Payment Receipt
+          </label>
+          {attachReceipt && (
+            <div style={{ marginTop: 10, paddingLeft: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label className="auth-label">Amount (₹)</label>
+                <input className="auth-input" type="number" min="0" value={receiptAmount} onChange={(e) => setReceiptAmount(e.target.value)} />
+              </div>
+              <div>
+                <label className="auth-label">Payment Mode</label>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['cash', 'online', 'cheque'] as const).map((m) => (
+                    <button key={m} type="button"
+                      className={`filter-btn ${receiptMode === m ? 'active' : ''}`}
+                      style={{ flex: 1, fontSize: '0.7rem', textTransform: 'uppercase' }}
+                      onClick={() => setReceiptMode(m)}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -725,12 +811,16 @@ export default function ConsultWorkspace() {
         <SymptomModifierModal
           symptomName={selectedSymptomForModifier}
           onConfirm={(formatted) => {
-            updateDraft({ symptoms: [...symptoms, formatted] });
+            // Remove any existing entry for this symptom base name (re-edit support)
+            const base = selectedSymptomForModifier;
+            const filtered = symptoms.filter((item) => item !== base && !item.startsWith(`${base} (`));
+            updateDraft({ symptoms: [...filtered, formatted] });
             setSelectedSymptomForModifier(null);
           }}
           onClose={() => setSelectedSymptomForModifier(null)}
         />
       )}
+
       {showCertModal && (
         <MedicalCertificateModal
           patientName={patient.name}

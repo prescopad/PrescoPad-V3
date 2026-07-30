@@ -1,7 +1,8 @@
 import type { Prescription } from '../types/prescription.types';
 import type { Clinic, DoctorProfile } from '../types/clinic.types';
 import type { Patient } from '../types/patient.types';
-import { renderPrescriptionPdf } from './prescriptionPdf';
+import { renderPrescriptionPdf, renderCertificatePdf, renderReceiptPdf } from './prescriptionPdf';
+import type { CertificatePdfInput, ReceiptPdfInput } from './prescriptionPdf';
 import { renderCasebookPdf } from './casebookPdf';
 
 export async function downloadPrescriptionClient(
@@ -170,3 +171,32 @@ export async function printCasebookClient(patient: Patient, prescriptions?: Pres
   URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+
+export async function downloadCertificateClient(input: CertificatePdfInput, patientName: string) {
+  const pdfBytes = await renderCertificatePdf(input);
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = (patientName || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+  a.download = `Certificate_${safe}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+export async function downloadReceiptClient(input: ReceiptPdfInput, patientName: string) {
+  const pdfBytes = await renderReceiptPdf(input);
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const safe = (patientName || 'Patient').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '_');
+  a.download = `Receipt_${safe}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+

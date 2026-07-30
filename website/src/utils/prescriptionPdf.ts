@@ -492,3 +492,149 @@ export async function renderPrescriptionPdf(input: PrescriptionPdfInput): Promis
 
   return doc.save();
 }
+
+// ─── Certificate PDF ─────────────────────────────────────────────────────────
+
+export interface CertificatePdfInput {
+  clinicName: string;
+  doctorName: string;
+  regNumber?: string;
+  patientName: string;
+  patientAge?: number | string;
+  patientGender?: string;
+  diagnosis: string;
+  restDays: string;
+  startDate: string;
+  fitnessStatus: 'fit' | 'unfit';
+}
+
+export async function renderCertificatePdf(input: CertificatePdfInput): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+
+  let y = PAGE_HEIGHT - MARGIN;
+
+  // Header
+  const title = sanitizeWinAnsi(input.clinicName);
+  const titleW = fontBold.widthOfTextAtSize(title, 18);
+  page.drawText(title, { x: MARGIN + (CONTENT_WIDTH - titleW) / 2, y, size: 18, font: fontBold, color: COLORS.tealPrimary });
+  y -= 22;
+
+  const sub = 'MEDICAL CERTIFICATE';
+  const subW = fontBold.widthOfTextAtSize(sub, 13);
+  page.drawText(sub, { x: MARGIN + (CONTENT_WIDTH - subW) / 2, y, size: 13, font: fontBold, color: COLORS.textPrimary });
+  y -= 16;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1, color: COLORS.tealPrimary });
+  y -= 24;
+
+  // Body text
+  const date = new Date(input.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+  const lines = [
+    `This is to certify that Mr./Mrs. ${sanitizeWinAnsi(input.patientName)} (Age: ${input.patientAge || '--'}, Sex: ${sanitizeWinAnsi(input.patientGender) || '--'})`,
+    `has been under my medical treatment for ${sanitizeWinAnsi(input.diagnosis)}.`,
+    '',
+    `I advise medical leave / rest for a period of ${input.restDays} Day(s) starting from ${date}.`,
+    '',
+    `Status: ${input.fitnessStatus === 'fit' ? 'FIT TO RESUME DUTIES' : 'UNFIT FOR DUTY'}`,
+  ];
+
+  for (const line of lines) {
+    if (!line) { y -= 10; continue; }
+    const isBold = line.startsWith('Status:');
+    const color = isBold ? (input.fitnessStatus === 'fit' ? rgb(0.09, 0.56, 0.31) : COLORS.redAccent) : COLORS.textPrimary;
+    page.drawText(line, { x: MARGIN, y, size: 11, font: isBold ? fontBold : fontRegular, color });
+    y -= 18;
+  }
+
+  y -= 40;
+  page.drawLine({ start: { x: PAGE_WIDTH - MARGIN - 140, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.5, color: COLORS.textMuted });
+  y -= 14;
+  page.drawText(`Dr. ${sanitizeWinAnsi(input.doctorName)}`, { x: PAGE_WIDTH - MARGIN - 140, y, size: 11, font: fontBold, color: COLORS.textPrimary });
+  if (input.regNumber) {
+    y -= 14;
+    page.drawText(`Reg. No: ${input.regNumber}`, { x: PAGE_WIDTH - MARGIN - 140, y, size: 9, font: fontRegular, color: COLORS.textMuted });
+  }
+
+  return doc.save();
+}
+
+// ─── Receipt PDF ─────────────────────────────────────────────────────────────
+
+export interface ReceiptPdfInput {
+  clinicName: string;
+  doctorName: string;
+  patientName: string;
+  receiptNo: string;
+  date: string;
+  amount: number;
+  paymentMode: string;
+  towards: string;
+}
+
+function numToWords(n: number): string {
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  if (n === 0) return 'Zero';
+  if (n < 20) return ones[n];
+  if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+  if (n < 1000) return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + numToWords(n % 100) : '');
+  if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+  return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + numToWords(n % 100000) : '');
+}
+
+export async function renderReceiptPdf(input: ReceiptPdfInput): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT / 2]); // half A4 for receipt
+  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+
+  const H = PAGE_HEIGHT / 2;
+  let y = H - MARGIN;
+
+  // Header
+  const title = sanitizeWinAnsi(input.clinicName);
+  const titleW = fontBold.widthOfTextAtSize(title, 16);
+  page.drawText(title, { x: MARGIN + (CONTENT_WIDTH - titleW) / 2, y, size: 16, font: fontBold, color: COLORS.tealPrimary });
+  y -= 20;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 1.5, color: COLORS.tealPrimary });
+  y -= 4;
+
+  // No + Date row
+  page.drawText(`Receipt No: ${input.receiptNo}`, { x: MARGIN, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+  const dateText = `Date: ${input.date}`;
+  const dateW = fontBold.widthOfTextAtSize(dateText, 10);
+  page.drawText(dateText, { x: MARGIN + CONTENT_WIDTH - dateW, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+  y -= 18;
+
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_WIDTH, y }, thickness: 0.5, color: COLORS.gridLine });
+  y -= 14;
+
+  const rows = [
+    `Received with thanks from Mr./Mrs.: ${sanitizeWinAnsi(input.patientName)}`,
+    `the Sum of Rupees: ${numToWords(Math.floor(input.amount))} Only`,
+    `by: ${input.paymentMode.toUpperCase()}`,
+    `towards: ${sanitizeWinAnsi(input.towards)}`,
+  ];
+  for (const row of rows) {
+    page.drawText(row, { x: MARGIN, y, size: 11, font: fontRegular, color: COLORS.textPrimary });
+    y -= 18;
+  }
+
+  y -= 10;
+  const amtText = `Rs. ${input.amount.toFixed(2)}`;
+  page.drawRectangle({ x: MARGIN, y: y - 6, width: 100, height: 22, color: COLORS.tealLight, borderColor: COLORS.tealPrimary, borderWidth: 1 });
+  page.drawText(amtText, { x: MARGIN + 8, y, size: 13, font: fontBold, color: COLORS.tealPrimary });
+
+  y -= 36;
+  page.drawLine({ start: { x: PAGE_WIDTH - MARGIN - 120, y }, end: { x: PAGE_WIDTH - MARGIN, y }, thickness: 0.5, color: COLORS.textMuted });
+  y -= 14;
+  page.drawText(`For Dr. ${sanitizeWinAnsi(input.doctorName)}`, { x: PAGE_WIDTH - MARGIN - 120, y, size: 10, font: fontBold, color: COLORS.textPrimary });
+
+  return doc.save();
+}
+
