@@ -85,6 +85,15 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
   const [showCertModal, setShowCertModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
+  // Attachment state
+  const [attachCert, setAttachCert] = useState(false);
+  const [certRestDays, setCertRestDays] = useState('3');
+  const [certStartDate, setCertStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [certFitness, setCertFitness] = useState<'fit' | 'unfit'>('unfit');
+  const [attachReceipt, setAttachReceipt] = useState(false);
+  const [receiptAmount, setReceiptAmount] = useState('500');
+  const [receiptMode, setReceiptMode] = useState<'cash' | 'online' | 'cheque'>('cash');
+
   // Reset draft only when navigating back (not forward to PrescriptionPreview)
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
@@ -240,6 +249,15 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
 
     setIsCreating(true);
     try {
+      // Write attachment choices into draft before creating prescription
+      updateDraft({
+        attachCertificate: attachCert
+          ? { restDays: certRestDays, startDate: certStartDate, fitnessStatus: certFitness, diagnosis: currentDraft.diagnosis }
+          : undefined,
+        attachReceipt: attachReceipt
+          ? { amount: parseFloat(receiptAmount) || 0, paymentMode: receiptMode, towards: 'Consultation & Treatment Fee' }
+          : undefined,
+      });
       const prescription = await createPrescription(user.id);
       navigation.navigate('PrescriptionPreview', { prescriptionId: prescription.id });
     } catch (error: unknown) {
@@ -590,6 +608,108 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
             )}
           </View>
 
+
+          {/* 📎 Attachments Section */}
+          <View style={styles.attachSection}>
+            <Text style={styles.attachTitle}>Attach with Prescription</Text>
+
+            {/* Certificate */}
+            <TouchableOpacity
+              style={styles.attachRow}
+              onPress={() => setAttachCert(!attachCert)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, attachCert && styles.checkboxChecked]}>
+                {attachCert && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
+              </View>
+              <Text style={styles.attachLabel}>Medical Certificate</Text>
+            </TouchableOpacity>
+            {attachCert && (
+              <View style={styles.attachForm}>
+                <View style={styles.attachFormRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.attachFieldLabel}>Rest Days</Text>
+                    <TextInput
+                      style={styles.attachInput}
+                      value={certRestDays}
+                      onChangeText={setCertRestDays}
+                      keyboardType="numeric"
+                      placeholder="3"
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.attachFieldLabel}>Start Date</Text>
+                    <TextInput
+                      style={styles.attachInput}
+                      value={certStartDate}
+                      onChangeText={setCertStartDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                  </View>
+                </View>
+                <Text style={styles.attachFieldLabel}>Fitness Status</Text>
+                <View style={styles.attachToggleRow}>
+                  {(['unfit', 'fit'] as const).map((v) => (
+                    <TouchableOpacity
+                      key={v}
+                      style={[styles.toggleBtn, certFitness === v && styles.toggleBtnActive]}
+                      onPress={() => setCertFitness(v)}
+                    >
+                      <Text style={[styles.toggleBtnText, certFitness === v && styles.toggleBtnTextActive]}>
+                        {v === 'unfit' ? 'Unfit for Duty' : 'Fit to Resume'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Receipt */}
+            <TouchableOpacity
+              style={[styles.attachRow, { marginTop: 10 }]}
+              onPress={() => setAttachReceipt(!attachReceipt)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, attachReceipt && styles.checkboxChecked]}>
+                {attachReceipt && <Ionicons name="checkmark" size={14} color={COLORS.white} />}
+              </View>
+              <Text style={styles.attachLabel}>Payment Receipt</Text>
+            </TouchableOpacity>
+            {attachReceipt && (
+              <View style={styles.attachForm}>
+                <View style={styles.attachFormRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.attachFieldLabel}>Amount (₹)</Text>
+                    <TextInput
+                      style={styles.attachInput}
+                      value={receiptAmount}
+                      onChangeText={setReceiptAmount}
+                      keyboardType="numeric"
+                      placeholder="500"
+                      placeholderTextColor={COLORS.textLight}
+                    />
+                  </View>
+                </View>
+                <Text style={styles.attachFieldLabel}>Payment Mode</Text>
+                <View style={styles.attachToggleRow}>
+                  {(['cash', 'online', 'cheque'] as const).map((m) => (
+                    <TouchableOpacity
+                      key={m}
+                      style={[styles.toggleBtn, receiptMode === m && styles.toggleBtnActive]}
+                      onPress={() => setReceiptMode(m)}
+                    >
+                      <Text style={[styles.toggleBtnText, receiptMode === m && styles.toggleBtnTextActive]}>
+                        {m.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+
           {/* Spacer for bottom button */}
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -653,12 +773,18 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
                 {/* Common and custom symptoms grid */}
                 <View style={styles.symptomsGrid}>
                   {[...COMMON_SYMPTOMS, ...selectedSymptoms.filter(s => !COMMON_SYMPTOMS.includes(s as any))].map((symptom) => {
-                    const isSelected = selectedSymptoms.includes(symptom);
+                    const isSelected = selectedSymptoms.some(
+                      (item) => item === symptom || item.startsWith(`${symptom} (`)
+                    );
                     return (
                       <TouchableOpacity
                         key={symptom}
                         style={[styles.symptomGridItem, isSelected && styles.symptomGridItemSelected]}
-                        onPress={() => toggleSymptom(symptom)}
+                        onPress={() => {
+                          // Always open modifier — for new add or re-edit
+                          setShowSymptomsModal(false);
+                          setTimeout(() => setSelectedSymptomForModifier(symptom), 200);
+                        }}
                         activeOpacity={0.7}
                       >
                         <View style={styles.symptomCheckIcon}>
@@ -810,7 +936,13 @@ export default function ConsultScreen({ navigation, route }: ConsultScreenProps)
             visible={!!selectedSymptomForModifier}
             symptomName={selectedSymptomForModifier}
             onConfirm={(formatted) => {
-              updateDraft({ symptoms: [...selectedSymptoms, formatted] });
+              // Remove old entry for this base symptom (re-edit support)
+              const base = selectedSymptomForModifier;
+              const existing = currentDraft.symptoms || [];
+              const filtered = existing.filter(
+                (item) => item !== base && !item.startsWith(`${base} (`)
+              );
+              updateDraft({ symptoms: [...filtered, formatted] });
               setSelectedSymptomForModifier(null);
             }}
             onClose={() => setSelectedSymptomForModifier(null)}
@@ -1349,5 +1481,96 @@ const styles = StyleSheet.create({
   deleteTemplateBtn: {
     padding: SPACING.xs,
   },
+  attachSection: {
+    backgroundColor: COLORS.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  attachTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  attachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  attachLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  attachForm: {
+    marginTop: 10,
+    paddingLeft: 28,
+    gap: 8,
+  },
+  attachFormRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  attachFieldLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  attachInput: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: COLORS.text,
+  },
+  attachToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+  },
+  toggleBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  toggleBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  toggleBtnTextActive: {
+    color: COLORS.white,
+  },
 });
+
 

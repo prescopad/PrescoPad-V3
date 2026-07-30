@@ -27,6 +27,8 @@ import { generatePrescriptionPDF } from '../../services/pdfService';
 import { recordConsultationPayment } from '../../services/paymentService';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import SignatureModal from '../../components/SignatureModal';
+import MedicalCertificateModal from '../../components/MedicalCertificateModal';
+import ReceiptModal from '../../components/ReceiptModal';
 import { hashPDF } from '../../services/cryptoService';
 import { updateQueueStatus } from '../../services/dataService';
 import { QueueStatus } from '../../types/queue.types';
@@ -54,6 +56,8 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
   // Sign mode modal (shown BEFORE issuing)
   const [showSignModeModal, setShowSignModeModal] = useState(false);
   const [sigModalVisible, setSigModalVisible] = useState(false);
+  const [showCertModal, setShowCertModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Payment modal state (shown AFTER issuing)
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -401,7 +405,39 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
 
         {/* Share / Download / Print — only for issued prescriptions */}
         {rx?.status === 'finalized' && (
-          <PrescriptionActions prescription={rx} />
+          <View style={{ gap: 12 }}>
+            <PrescriptionActions prescription={rx} />
+
+            {/* Separate Standalone Documents */}
+            <View style={{ backgroundColor: COLORS.surfaceSecondary, borderRadius: RADIUS.md, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.border }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                Separate Documents
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: RADIUS.sm, padding: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}
+                  onPress={() => setShowCertModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>Medical Certificate</Text>
+                  <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 2 }}>
+                    {rx.attachCertificate ? 'Attached in Rx PDF' : 'Issue / View Standalone'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{ flex: 1, backgroundColor: COLORS.white, borderRadius: RADIUS.sm, padding: SPACING.sm, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' }}
+                  onPress={() => setShowReceiptModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>Payment Receipt</Text>
+                  <Text style={{ fontSize: 10, color: COLORS.textMuted, marginTop: 2 }}>
+                    {rx.attachReceipt ? 'Attached in Rx PDF' : 'Issue / View Standalone'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         )}
       </ScrollView>
 
@@ -642,6 +678,23 @@ export default function PrescriptionPreviewScreen({ navigation, route }: Props):
           setSigModalVisible(false);
           signAndIssueWithSignature(signature, save);
         }}
+      />
+      {/* Medical Certificate Modal */}
+      <MedicalCertificateModal
+        visible={showCertModal}
+        patientName={rx?.patientName || 'Patient'}
+        patientAge={rx?.patientAge}
+        patientGender={rx?.patientGender}
+        initialDiagnosis={rx?.diagnosis}
+        onClose={() => setShowCertModal(false)}
+      />
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        visible={showReceiptModal}
+        patientName={rx?.patientName || 'Patient'}
+        initialAmount={rx?.chargeAmount || 500}
+        onClose={() => setShowReceiptModal(false)}
       />
     </SafeAreaView>
   );

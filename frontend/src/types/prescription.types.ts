@@ -70,7 +70,23 @@ export interface Prescription {
   chargeAmount: number | null;
   medicines: PrescriptionMedicine[];
   labTests: PrescriptionLabTest[];
+  attachCertificate?: AttachCertificate;
+  attachReceipt?: AttachReceipt;
   createdAt: string;
+}
+
+
+export interface AttachCertificate {
+  restDays: string;
+  startDate: string;
+  fitnessStatus: 'fit' | 'unfit';
+  diagnosis?: string;
+}
+
+export interface AttachReceipt {
+  amount: number;
+  paymentMode: 'cash' | 'online' | 'cheque';
+  towards?: string;
 }
 
 export interface PrescriptionDraft {
@@ -95,7 +111,12 @@ export interface PrescriptionDraft {
 
   medicines: Omit<PrescriptionMedicine, 'id' | 'prescriptionId'>[];
   labTests: Omit<PrescriptionLabTest, 'id' | 'prescriptionId'>[];
+
+  // Optional PDF attachments
+  attachCertificate?: AttachCertificate;
+  attachReceipt?: AttachReceipt;
 }
+
 
 export interface PrescriptionTemplate {
   id: string;

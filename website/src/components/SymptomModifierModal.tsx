@@ -71,8 +71,8 @@ export default function SymptomModifierModal({ symptomName, onConfirm, onClose }
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal-dialog" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
           <div className="modal-header" style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-border-light)' }}>
-            <h3 className="modal-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>⚡</span> Symptom Details — "{symptomName}"
+            <h3 className="modal-title" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+              Symptom Details — "{symptomName}"
             </h3>
             <button type="button" className="modal-close" onClick={onClose}>
               <CloseIcon />
@@ -84,7 +84,7 @@ export default function SymptomModifierModal({ symptomName, onConfirm, onClose }
             {/* Severity */}
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: '0.725rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                🔥 Severity
+                Severity
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {severities.map((s) => {
@@ -107,7 +107,7 @@ export default function SymptomModifierModal({ symptomName, onConfirm, onClose }
             {/* Duration — chips + custom input */}
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: '0.725rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                ⏱️ Duration / Since
+                Duration / Since
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
                 {DURATIONS.map((d) => {
@@ -137,7 +137,7 @@ export default function SymptomModifierModal({ symptomName, onConfirm, onClose }
             {/* Pattern */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: '0.725rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                🌀 Pattern / Type <span style={{ fontWeight: 400, textTransform: 'none' }}>(Optional)</span>
+                Pattern / Type <span style={{ fontWeight: 400, textTransform: 'none' }}>(Optional)</span>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PATTERNS.map((p) => {

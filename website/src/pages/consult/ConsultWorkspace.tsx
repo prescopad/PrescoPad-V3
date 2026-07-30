@@ -323,8 +323,8 @@ export default function ConsultWorkspace() {
             <div className="item-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {patient.name}
               {currentDraft.isMlc && (
-                <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 12, fontSize: '0.75rem', fontWeight: 800 }}>
-                  🚨 MLC / POLICE CASE
+                <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  MEDICO-LEGAL CASE (MLC)
                 </span>
               )}
             </div>
@@ -355,7 +355,7 @@ export default function ConsultWorkspace() {
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="secondary-btn" onClick={() => setShowVitalsModal(true)}>
-              📈 Edit Vitals
+              Edit Vitals
             </button>
             <button
               className="secondary-btn"
@@ -385,7 +385,7 @@ export default function ConsultWorkspace() {
               }
             }}
           />
-          🚨 MLC / Police / Accident Case Involved
+          MLC / Medico-Legal Case Involved
         </label>
       </div>
 
@@ -495,15 +495,15 @@ export default function ConsultWorkspace() {
         </div>
       </div>
 
-      {/* 📎 Attachments Section */}
+      {/* Attachments Section */}
       <div className="auth-field" style={{ background: 'var(--color-surface-secondary)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '14px 16px', marginTop: 4 }}>
-        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>📎 Attach with Prescription</div>
+        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Attach with Prescription</div>
 
         {/* Attach Certificate */}
         <div style={{ marginBottom: attachCert ? 14 : 6 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
             <input type="checkbox" checked={attachCert} onChange={(e) => setAttachCert(e.target.checked)} />
-            📄 Attach Medical Certificate
+            Attach Medical Certificate
           </label>
           {attachCert && (
             <div style={{ marginTop: 10, paddingLeft: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -537,7 +537,7 @@ export default function ConsultWorkspace() {
         <div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
             <input type="checkbox" checked={attachReceipt} onChange={(e) => setAttachReceipt(e.target.checked)} />
-            🧾 Attach Payment Receipt
+            Attach Payment Receipt
           </label>
           {attachReceipt && (
             <div style={{ marginTop: 10, paddingLeft: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -574,7 +574,7 @@ export default function ConsultWorkspace() {
           <div className="modal-backdrop" onClick={() => setShowAiModal(false)}>
             <div className="modal-dialog" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <span className="modal-title">🎙️ AI Consultation Recording</span>
+                <span className="modal-title">AI Consultation Recording</span>
                 <button className="modal-close-btn" onClick={() => setShowAiModal(false)}><CloseIcon size={18} /></button>
               </div>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -625,7 +625,7 @@ export default function ConsultWorkspace() {
           <div className="modal-backdrop" onClick={() => setShowTemplateModal(false)}>
             <div className="modal-dialog" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                <span className="modal-title">💾 Save Prescription Template</span>
+                <span className="modal-title">Save Prescription Template</span>
                 <button className="modal-close-btn" onClick={() => setShowTemplateModal(false)}><CloseIcon size={18} /></button>
               </div>
               <div className="modal-body">

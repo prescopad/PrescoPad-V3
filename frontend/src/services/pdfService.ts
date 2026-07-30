@@ -462,6 +462,11 @@ function buildPrescriptionHTML(
   </tr></table>
 
   <!-- ═══════ PATIENT INFO ═══════ -->
+  ${rx.isMlc ? `
+    <div style="background:#fef2f2;border:1px solid #dc2626;color:#dc2626;padding:5px;font-size:10px;font-weight:800;text-align:center;margin-bottom:6px;letter-spacing:0.5px;">
+      MEDICO-LEGAL CASE (MLC)
+    </div>
+  ` : ''}
   <table class="patient-table">
     <tr>
       <td style="width:34%;padding:8px 6px;vertical-align:top;">
@@ -529,9 +534,63 @@ function buildPrescriptionHTML(
     ${rx.pdfHash ? `<div class="hash">Verification Hash: ${rx.pdfHash}</div>` : ''}
   </div>
 
+  <!-- ═══════ ATTACHED MEDICAL CERTIFICATE (PAGE 2) ═══════ -->
+  ${rx.attachCertificate ? `
+    <div style="page-break-before: always; padding-top: 20px;">
+      <div class="clinic-name" style="text-align:center;">${clinicName}</div>
+      <div style="text-align:center;font-size:14px;font-weight:700;color:#111827;margin-top:4px;margin-bottom:12px;">MEDICAL CERTIFICATE</div>
+      <hr class="header-rule" />
+      <div style="margin-top:20px;font-size:11px;line-height:1.8;color:#111827;">
+        <p style="margin-bottom:12px;">
+          This is to certify that Mr./Mrs. <strong>${rx.patientName}</strong> (Age: ${rx.patientAge || '--'}, Sex: ${rx.patientGender || '--'})
+          has been under my medical treatment for <strong>${rx.attachCertificate.diagnosis || rx.diagnosis || 'Acute Illness'}</strong>.
+        </p>
+        <p style="margin-bottom:12px;">
+          I advise medical leave / rest for a period of <strong>${rx.attachCertificate.restDays || '3'} Day(s)</strong> starting from <strong>${rx.attachCertificate.startDate || dateStr}</strong>.
+        </p>
+        <p style="margin-bottom:20px;">
+          Status: <strong style="color:${rx.attachCertificate.fitnessStatus === 'fit' ? '#16a34a' : '#dc2626'};">${rx.attachCertificate.fitnessStatus === 'fit' ? 'FIT TO RESUME DUTIES' : 'UNFIT FOR DUTY'}</strong>
+        </p>
+      </div>
+      <div style="margin-top:40px;text-align:right;">
+        <div style="font-weight:700;font-size:12px;">Dr. ${doctorName}</div>
+        ${doctorReg ? `<div style="font-size:9px;color:#6b7280;">Reg. No: ${doctorReg}</div>` : ''}
+      </div>
+    </div>
+  ` : ''}
+
+  <!-- ═══════ ATTACHED PAYMENT RECEIPT (PAGE 3) ═══════ -->
+  ${rx.attachReceipt ? `
+    <div style="page-break-before: always; padding-top: 20px;">
+      <div class="clinic-name" style="text-align:center;">${clinicName}</div>
+      <div style="text-align:center;font-size:14px;font-weight:700;color:#111827;margin-top:4px;margin-bottom:12px;">PAYMENT RECEIPT</div>
+      <hr class="header-rule" />
+      <table style="width:100%;margin-top:12px;font-size:11px;">
+        <tr>
+          <td><strong>Receipt No:</strong> REC-${rx.id.slice(-5).toUpperCase()}</td>
+          <td style="text-align:right;"><strong>Date:</strong> ${dateStr}</td>
+        </tr>
+      </table>
+      <div style="margin-top:16px;font-size:11px;line-height:1.8;">
+        <div>Received with thanks from Mr./Mrs. <strong>${rx.patientName}</strong></div>
+        <div>the Sum of Rupees <strong>Rs. ${(rx.attachReceipt.amount || rx.chargeAmount || 500).toFixed(2)}</strong></div>
+        <div>by <strong>${(rx.attachReceipt.paymentMode || 'Cash').toUpperCase()}</strong></div>
+        <div>towards <strong>${rx.attachReceipt.towards || 'Consultation & Treatment Fee'}</strong></div>
+      </div>
+      <div style="margin-top:20px;display:inline-block;padding:8px 16px;border:1px solid #0B6E6E;background:#F0F7F7;border-radius:4px;">
+        <span style="font-size:14px;font-weight:800;color:#0B6E6E;">Rs. ${(rx.attachReceipt.amount || rx.chargeAmount || 500).toFixed(2)}</span>
+      </div>
+      <div style="margin-top:40px;text-align:right;">
+        <div style="font-size:9px;color:#6b7280;">Payee Signature</div>
+        <div style="font-weight:700;font-size:11px;">For Dr. ${doctorName}</div>
+      </div>
+    </div>
+  ` : ''}
+
 </body>
 </html>`;
 }
+
 
 export function buildShareText(
   rx: Prescription,

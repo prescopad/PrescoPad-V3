@@ -10,7 +10,7 @@ import SignaturePad from '../../components/SignaturePad';
 import PrescriptionActions from '../../components/PrescriptionActions';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon, CheckIcon } from '../../components/icons';
-import { downloadCertificateClient, downloadReceiptClient } from '../../utils/clientPdfUtil';
+import { downloadCertificateClient, downloadReceiptClient, shareCertificateWhatsApp, shareReceiptWhatsApp } from '../../utils/clientPdfUtil';
 import '../pages.css';
 import '../../components/modal.css';
 import '../auth/auth.css';
@@ -169,8 +169,8 @@ export default function PrescriptionPreviewPage() {
                 <div className="paper-p-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   Patient
                   {rx.isMlc && (
-                    <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '1px 6px', borderRadius: 10, fontSize: '0.65rem', fontWeight: 800 }}>
-                      🚨 MLC CASE
+                    <span style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fca5a5', padding: '2px 8px', borderRadius: 4, fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      MEDICO-LEGAL CASE (MLC)
                     </span>
                   )}
                 </div>
@@ -367,58 +367,108 @@ export default function PrescriptionPreviewPage() {
             {isFinalizing ? 'Finalizing...' : 'Sign & Issue'}
           </button>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <PrescriptionActions prescription={rx} />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {/* Certificate — download standalone if not attached, show badge if attached */}
-              {rx.attachCertificate ? (
-                <div style={{ flex: 1, padding: '8px 12px', background: '#ecfdf5', color: '#047857', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, border: '1px solid #a7f3d0', textAlign: 'center' }}>
-                  📄 Certificate included in Rx PDF
-                </div>
-              ) : (
-                <button
-                  className="secondary-btn"
-                  style={{ background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0', flex: 1 }}
-                  onClick={() => downloadCertificateClient({
-                    clinicName: clinic?.name || 'Clinic',
-                    doctorName: doctorProfile?.name || user?.name || 'Doctor',
-                    regNumber: doctorProfile?.regNumber,
-                    patientName: rx.patientName,
-                    patientAge: rx.patientAge,
-                    patientGender: rx.patientGender,
-                    diagnosis: rx.diagnosis || 'Acute Illness',
-                    restDays: '3',
-                    startDate: new Date().toISOString().split('T')[0],
-                    fitnessStatus: 'unfit',
-                  }, rx.patientName)}
-                >
-                  📄 Download Certificate
-                </button>
-              )}
 
-              {/* Receipt — download standalone if not attached */}
-              {rx.attachReceipt ? (
-                <div style={{ flex: 1, padding: '8px 12px', background: '#fef3c7', color: '#b45309', borderRadius: 8, fontSize: '0.85rem', fontWeight: 600, border: '1px solid #fde68a', textAlign: 'center' }}>
-                  🧾 Receipt included in Rx PDF
+            {/* Separate Standalone Documents Section */}
+            <div style={{ background: 'var(--color-surface-secondary)', border: '1px solid var(--color-border)', borderRadius: 10, padding: 16 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>
+                Separate Documents (Download / Share Independently)
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {/* Medical Certificate Options */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 4, color: 'var(--color-text)' }}>
+                    Medical Certificate
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 10 }}>
+                    {rx.attachCertificate ? 'Attached in main Rx PDF' : 'Standalone Document'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      className="secondary-btn"
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', flex: 1 }}
+                      onClick={() => downloadCertificateClient({
+                        clinicName: clinic?.name || 'Clinic',
+                        doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                        regNumber: doctorProfile?.regNumber,
+                        patientName: rx.patientName,
+                        patientAge: rx.patientAge,
+                        patientGender: rx.patientGender,
+                        diagnosis: rx.attachCertificate?.diagnosis || rx.diagnosis || 'Acute Illness',
+                        restDays: rx.attachCertificate?.restDays || '3',
+                        startDate: rx.attachCertificate?.startDate || new Date().toISOString().split('T')[0],
+                        fitnessStatus: rx.attachCertificate?.fitnessStatus || 'unfit',
+                      }, rx.patientName)}
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      className="secondary-btn"
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+                      onClick={() => shareCertificateWhatsApp({
+                        clinicName: clinic?.name || 'Clinic',
+                        doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                        regNumber: doctorProfile?.regNumber,
+                        patientName: rx.patientName,
+                        patientAge: rx.patientAge,
+                        patientGender: rx.patientGender,
+                        diagnosis: rx.attachCertificate?.diagnosis || rx.diagnosis || 'Acute Illness',
+                        restDays: rx.attachCertificate?.restDays || '3',
+                        startDate: rx.attachCertificate?.startDate || new Date().toISOString().split('T')[0],
+                        fitnessStatus: rx.attachCertificate?.fitnessStatus || 'unfit',
+                      }, rx.patientPhone)}
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <button
-                  className="secondary-btn"
-                  style={{ background: '#fef3c7', color: '#b45309', borderColor: '#fde68a', flex: 1 }}
-                  onClick={() => downloadReceiptClient({
-                    clinicName: clinic?.name || 'Clinic',
-                    doctorName: doctorProfile?.name || user?.name || 'Doctor',
-                    patientName: rx.patientName,
-                    receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
-                    date: new Date().toLocaleDateString('en-IN'),
-                    amount: rx.chargeAmount || 500,
-                    paymentMode: 'Cash',
-                    towards: 'Consultation & Treatment Fee',
-                  }, rx.patientName)}
-                >
-                  🧾 Download Receipt
-                </button>
-              )}
+
+                {/* Receipt Options */}
+                <div style={{ background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: 8, padding: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: 4, color: 'var(--color-text)' }}>
+                    Payment Receipt
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 10 }}>
+                    {rx.attachReceipt ? 'Attached in main Rx PDF' : 'Standalone Document'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      className="secondary-btn"
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', flex: 1 }}
+                      onClick={() => downloadReceiptClient({
+                        clinicName: clinic?.name || 'Clinic',
+                        doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                        patientName: rx.patientName,
+                        receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+                        date: new Date(rx.createdAt).toLocaleDateString('en-IN'),
+                        amount: rx.attachReceipt?.amount || rx.chargeAmount || 500,
+                        paymentMode: rx.attachReceipt?.paymentMode || 'Cash',
+                        towards: rx.attachReceipt?.towards || 'Consultation & Treatment Fee',
+                      }, rx.patientName)}
+                    >
+                      Download PDF
+                    </button>
+                    <button
+                      className="secondary-btn"
+                      style={{ fontSize: '0.75rem', padding: '6px 10px', background: '#ecfdf5', color: '#047857', borderColor: '#a7f3d0' }}
+                      onClick={() => shareReceiptWhatsApp({
+                        clinicName: clinic?.name || 'Clinic',
+                        doctorName: doctorProfile?.name || user?.name || 'Doctor',
+                        patientName: rx.patientName,
+                        receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+                        date: new Date(rx.createdAt).toLocaleDateString('en-IN'),
+                        amount: rx.attachReceipt?.amount || rx.chargeAmount || 500,
+                        paymentMode: rx.attachReceipt?.paymentMode || 'Cash',
+                        towards: rx.attachReceipt?.towards || 'Consultation & Treatment Fee',
+                      }, rx.patientPhone)}
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

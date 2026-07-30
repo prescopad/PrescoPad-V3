@@ -71,8 +71,11 @@ export interface Prescription {
   chargeAmount: number | null;
   medicines: PrescriptionMedicine[];
   labTests: PrescriptionLabTest[];
+  attachCertificate?: AttachCertificate;
+  attachReceipt?: AttachReceipt;
   createdAt: string;
 }
+
 
 export interface AttachCertificate {
   restDays: string;

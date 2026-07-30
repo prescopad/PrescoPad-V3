@@ -35,6 +35,29 @@ export async function downloadPrescriptionClient(
     followUpDate: rx.followUpDate || undefined,
     signatureSvgPath: rx.signature && rx.signature.startsWith('M') ? rx.signature : undefined,
     pdfHash: rx.pdfHash || undefined,
+    isMlc: rx.isMlc || false,
+    attachCertificate: rx.attachCertificate ? {
+      clinicName,
+      doctorName: docName,
+      regNumber: doctorProfile?.regNumber || undefined,
+      patientName: rx.patientName || 'Patient',
+      patientAge: rx.patientAge || undefined,
+      patientGender: rx.patientGender || undefined,
+      diagnosis: rx.diagnosis || 'Acute Illness',
+      restDays: rx.attachCertificate.restDays || '3',
+      startDate: rx.attachCertificate.startDate || new Date().toISOString().split('T')[0],
+      fitnessStatus: rx.attachCertificate.fitnessStatus || 'unfit',
+    } : undefined,
+    attachReceipt: rx.attachReceipt ? {
+      clinicName,
+      doctorName: docName,
+      patientName: rx.patientName || 'Patient',
+      receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+      date: new Date(rx.createdAt).toLocaleDateString('en-IN'),
+      amount: rx.attachReceipt.amount || rx.chargeAmount || 500,
+      paymentMode: rx.attachReceipt.paymentMode || 'Cash',
+      towards: rx.attachReceipt.towards || 'Consultation & Treatment Fee',
+    } : undefined,
   });
 
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
@@ -87,12 +110,36 @@ export async function printPrescriptionClient(
     followUpDate: rx.followUpDate || undefined,
     signatureSvgPath: rx.signature && rx.signature.startsWith('M') ? rx.signature : undefined,
     pdfHash: rx.pdfHash || undefined,
+    isMlc: rx.isMlc || false,
+    attachCertificate: rx.attachCertificate ? {
+      clinicName,
+      doctorName: docName,
+      regNumber: doctorProfile?.regNumber || undefined,
+      patientName: rx.patientName || 'Patient',
+      patientAge: rx.patientAge || undefined,
+      patientGender: rx.patientGender || undefined,
+      diagnosis: rx.diagnosis || 'Acute Illness',
+      restDays: rx.attachCertificate.restDays || '3',
+      startDate: rx.attachCertificate.startDate || new Date().toISOString().split('T')[0],
+      fitnessStatus: rx.attachCertificate.fitnessStatus || 'unfit',
+    } : undefined,
+    attachReceipt: rx.attachReceipt ? {
+      clinicName,
+      doctorName: docName,
+      patientName: rx.patientName || 'Patient',
+      receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
+      date: new Date(rx.createdAt).toLocaleDateString('en-IN'),
+      amount: rx.attachReceipt.amount || rx.chargeAmount || 500,
+      paymentMode: rx.attachReceipt.paymentMode || 'Cash',
+      towards: rx.attachReceipt.towards || 'Consultation & Treatment Fee',
+    } : undefined,
   });
 
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
 }
+
 
 function parseList(val: unknown): string[] {
   if (!val) return [];
@@ -199,4 +246,35 @@ export async function downloadReceiptClient(input: ReceiptPdfInput, patientName:
   URL.revokeObjectURL(url);
   document.body.removeChild(a);
 }
+
+export function shareCertificateWhatsApp(input: CertificatePdfInput, patientPhone?: string) {
+  if (!patientPhone) return;
+  const message =
+    `Namaste ${input.patientName},\n\n` +
+    `Medical Certificate from Dr. ${input.doctorName} (${input.clinicName}):\n` +
+    `- Diagnosis: ${input.diagnosis}\n` +
+    `- Advised Rest: ${input.restDays} Day(s) from ${input.startDate}\n` +
+    `- Status: ${input.fitnessStatus === 'fit' ? 'FIT TO RESUME DUTIES' : 'UNFIT FOR DUTY'}`;
+
+  const cleaned = patientPhone.replace(/\D/g, '');
+  const number = cleaned.startsWith('91') ? cleaned : `91${cleaned}`;
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+}
+
+export function shareReceiptWhatsApp(input: ReceiptPdfInput, patientPhone?: string) {
+  if (!patientPhone) return;
+  const message =
+    `Namaste ${input.patientName},\n\n` +
+    `Payment Receipt from ${input.clinicName} (Dr. ${input.doctorName}):\n` +
+    `- Receipt No: ${input.receiptNo}\n` +
+    `- Amount Received: Rs. ${input.amount.toFixed(2)} (${input.paymentMode.toUpperCase()})\n` +
+    `- Purpose: ${input.towards}`;
+
+  const cleaned = patientPhone.replace(/\D/g, '');
+  const number = cleaned.startsWith('91') ? cleaned : `91${cleaned}`;
+  const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+}
+
 
