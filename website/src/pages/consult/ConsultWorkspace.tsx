@@ -254,16 +254,20 @@ export default function ConsultWorkspace() {
     }
     setIsCreating(true);
     try {
-      // Persist attachment choices into draft before creating
-      updateDraft({
-        attachCertificate: attachCert
-          ? { restDays: certRestDays, startDate: certStartDate, fitnessStatus: certFitness, diagnosis: currentDraft.diagnosis }
-          : undefined,
-        attachReceipt: attachReceipt
-          ? { amount: parseFloat(receiptAmount) || 0, paymentMode: receiptMode, towards: 'Consultation & Treatment Fee' }
-          : undefined,
+      // Build attachment objects inline to avoid Zustand async state-update
+      // race condition (updateDraft batches the state; createPrescription would
+      // read stale currentDraft before the update resolves).
+      const certOverride = attachCert
+        ? { restDays: certRestDays, startDate: certStartDate, fitnessStatus: certFitness, diagnosis: currentDraft.diagnosis }
+        : undefined;
+      const receiptOverride = attachReceipt
+        ? { amount: parseFloat(receiptAmount) || 0, paymentMode: receiptMode, towards: 'Consultation & Treatment Fee' }
+        : undefined;
+
+      const prescription = await createPrescription(user.id, {
+        attachCertificate: certOverride,
+        attachReceipt: receiptOverride,
       });
-      const prescription = await createPrescription(user.id);
       navigate(`/prescriptions/${prescription.id}/preview`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to create prescription');

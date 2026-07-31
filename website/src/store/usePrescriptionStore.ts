@@ -27,7 +27,7 @@ interface PrescriptionStore {
   resetDraft: () => void;
   setQueueItemId: (id: string | null) => void;
 
-  createPrescription: (doctorId: string) => Promise<Prescription>;
+  createPrescription: (doctorId: string, draftOverride?: Partial<PrescriptionDraft>) => Promise<Prescription>;
   finalizePrescription: (id: string, signature: string, pdfPath: string, pdfHash: string) => Promise<void>;
   loadRecentPrescriptions: () => Promise<void>;
   loadPrescription: (id: string) => Promise<Prescription | null>;
@@ -107,10 +107,11 @@ export const usePrescriptionStore = create<PrescriptionStore>((set, get) => ({
 
   setQueueItemId: (id) => set({ queueItemId: id }),
 
-  createPrescription: async (doctorId) => {
+  createPrescription: async (doctorId, draftOverride) => {
     set({ isLoading: true });
     try {
-      const prescription = await DataService.createPrescription(get().currentDraft, doctorId);
+      const draft = draftOverride ? { ...get().currentDraft, ...draftOverride } : get().currentDraft;
+      const prescription = await DataService.createPrescription(draft, doctorId);
       set({ currentPrescription: prescription, isLoading: false });
       return prescription;
     } catch (error) {
