@@ -63,26 +63,26 @@ Deno.serve(async (req) => {
 
   let storagePath = rx.pdf_storage_path as string | null;
 
-  // Lazy-generation fallback: no PDF has been persisted for this prescription
-  // yet (e.g. a historical prescription migrated before this system existed).
-  // Delegate to generate-prescription-pdf using our own service-role
-  // Authorization so it bypasses the RLS-scoped-caller path.
-  if (!storagePath) {
-    const genRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-prescription-pdf`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({ prescriptionId: rx.id }),
-    });
-    if (!genRes.ok) {
-      const errDetail = await genRes.text();
-      console.error("generate-prescription-pdf failed:", genRes.status, errDetail);
-      return new Response(JSON.stringify({ error: "Failed to generate PDF", details: errDetail }), { status: 500 });
-    }
+  // Always invoke generate-prescription-pdf so the patient link receives the latest
+  // complete PDF including any attached Medical Certificate or Receipt.
+  const genRes = await fetch(`${SUPABASE_URL}/functions/v1/generate-prescription-pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify({ prescriptionId: rx.id }),
+  });
+
+  if (genRes.ok) {
     const genBody = await genRes.json();
-    storagePath = genBody.path;
+    if (genBody.path) {
+      storagePath = genBody.path;
+    }
+  } else if (!storagePath) {
+    const errDetail = await genRes.text();
+    console.error("generate-prescription-pdf failed:", genRes.status, errDetail);
+    return new Response(JSON.stringify({ error: "Failed to generate PDF", details: errDetail }), { status: 500 });
   }
 
   const { data: signed, error: signError } = await admin.storage

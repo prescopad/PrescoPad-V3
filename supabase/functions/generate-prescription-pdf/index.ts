@@ -87,6 +87,26 @@ Deno.serve(async (req) => {
   if (rx.consultation_type === "new") consultationType = "New Consultation";
   else if (rx.consultation_type === "follow_up") consultationType = "Follow-up";
 
+  const rawCert = rx.attach_certificate ?? rx.attachCertificate;
+  let certObj: any = undefined;
+  if (rawCert) {
+    try {
+      certObj = typeof rawCert === "string" ? JSON.parse(rawCert) : rawCert;
+    } catch {
+      certObj = undefined;
+    }
+  }
+
+  const rawReceipt = rx.attach_receipt ?? rx.attachReceipt;
+  let receiptObj: any = undefined;
+  if (rawReceipt) {
+    try {
+      receiptObj = typeof rawReceipt === "string" ? JSON.parse(rawReceipt) : rawReceipt;
+    } catch {
+      receiptObj = undefined;
+    }
+  }
+
   const pdfBytes = await renderPrescriptionPdf({
     clinicName: clinic?.name || "PrescoPad Clinic",
     clinicAddress: clinic?.address,
@@ -112,27 +132,27 @@ Deno.serve(async (req) => {
     logoPngBytes: logoRes,
     qrPngBytes: qrRes,
     isMlc: rx.is_mlc || false,
-    attachCertificate: rx.attach_certificate ? {
+    attachCertificate: certObj ? {
       clinicName: clinic?.name || "PrescoPad Clinic",
       doctorName: doctor?.name || "Doctor",
       regNumber: doctor?.reg_number || undefined,
       patientName: rx.patient_name || "Patient",
       patientAge: rx.patient_age || undefined,
       patientGender: rx.patient_gender || undefined,
-      diagnosis: rx.attach_certificate.diagnosis || rx.diagnosis || "Acute Illness",
-      restDays: rx.attach_certificate.restDays || "3",
-      startDate: rx.attach_certificate.startDate || new Date(rx.created_at).toISOString().split("T")[0],
-      fitnessStatus: rx.attach_certificate.fitnessStatus || "unfit",
+      diagnosis: certObj.diagnosis || rx.diagnosis || "Acute Illness",
+      restDays: String(certObj.restDays || certObj.rest_days || "3"),
+      startDate: certObj.startDate || certObj.start_date || new Date(rx.created_at).toISOString().split("T")[0],
+      fitnessStatus: (certObj.fitnessStatus || certObj.fitness_status || "unfit") === "fit" ? "fit" : "unfit",
     } : undefined,
-    attachReceipt: rx.attach_receipt ? {
+    attachReceipt: receiptObj ? {
       clinicName: clinic?.name || "PrescoPad Clinic",
       doctorName: doctor?.name || "Doctor",
       patientName: rx.patient_name || "Patient",
-      receiptNo: `REC-${rx.id.slice(-5).toUpperCase()}`,
-      date: new Date(rx.created_at).toLocaleDateString("en-IN"),
-      amount: rx.attach_receipt.amount || rx.charge_amount || 500,
-      paymentMode: rx.attach_receipt.paymentMode || "Cash",
-      towards: rx.attach_receipt.towards || "Consultation & Treatment Fee",
+      receiptNo: receiptObj.receiptNo || receiptObj.receipt_no || `REC-${rx.id.slice(-5).toUpperCase()}`,
+      date: receiptObj.date || new Date(rx.created_at).toLocaleDateString("en-IN"),
+      amount: Number(receiptObj.amount || rx.charge_amount || 500),
+      paymentMode: receiptObj.paymentMode || receiptObj.payment_mode || "Cash",
+      towards: receiptObj.towards || "Consultation & Treatment Fee",
     } : undefined,
   });
 
