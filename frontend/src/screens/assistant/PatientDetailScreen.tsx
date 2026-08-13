@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -21,14 +21,15 @@ import { usePatientStore } from '../../store/usePatientStore';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Patient } from '../../types/patient.types';
-import { Prescription } from '../../types/prescription.types';
-import { getPrescriptionsByPatient } from '../../services/dataService';
+import { Prescription, Vitals } from '../../types/prescription.types';
+import { getPrescriptionsByPatient, updatePatientVitals } from '../../services/dataService';
 import type { AssistantStackParamList } from '../../types/navigation.types';
 import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
 import MedicalCertificateModal from '../../components/MedicalCertificateModal';
 import ReceiptModal from '../../components/ReceiptModal';
 import CollectFeeModal from '../../components/CollectFeeModal';
+import VitalsInputModal from '../../components/VitalsInputModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 type DetailRouteProp = RouteProp<AssistantStackParamList, 'PatientDetail'>;
@@ -53,6 +54,8 @@ export default function PatientDetailScreen(): React.JSX.Element {
   const [certRx, setCertRx] = useState<Prescription | null>(null);
   const [receiptRx, setReceiptRx] = useState<Prescription | null>(null);
   const [collectFeeRx, setCollectFeeRx] = useState<Prescription | null>(null);
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [isSavingVitals, setIsSavingVitals] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,6 +105,21 @@ export default function PatientDetailScreen(): React.JSX.Element {
     }
   };
 
+  const handleSaveVitals = async (vitals: Vitals) => {
+    if (!patient) return;
+    setIsSavingVitals(true);
+    try {
+      const updated = await updatePatientVitals(patient.id, vitals);
+      setPatient(updated);
+      toast.success('Vitals recorded successfully!');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to save vitals';
+      toast.error(message);
+    } finally {
+      setIsSavingVitals(false);
+    }
+  };
+
   const handleEditPatient = () => {
     navigation.navigate('EditPatient', { patientId });
   };
@@ -140,6 +158,9 @@ export default function PatientDetailScreen(): React.JSX.Element {
       </View>
     );
   }
+
+  const vitals = patient.vitals as Vitals | null | undefined;
+  const hasVitals = vitals && (vitals.bp || vitals.pulse || vitals.temp || vitals.spo2 || vitals.weight);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
@@ -212,6 +233,45 @@ export default function PatientDetailScreen(): React.JSX.Element {
             />
           </View>
         </View>
+
+        {/* Vitals Card */}
+        {hasVitals && (
+          <View style={styles.vitalsCard}>
+            <View style={styles.vitalsCardHeader}>
+              <Ionicons name="pulse-outline" size={18} color={COLORS.primary} />
+              <Text style={styles.vitalsCardTitle}>Current Vitals</Text>
+            </View>
+            <View style={styles.vitalsGrid}>
+              {vitals!.bp && <VitalChip label="Blood Pressure" value={`${vitals!.bp} mmHg`} />}
+              {vitals!.pulse && <VitalChip label="Pulse" value={`${vitals!.pulse} bpm`} />}
+              {vitals!.temp && <VitalChip label="Temperature" value={`${vitals!.temp} °F`} />}
+              {vitals!.spo2 && <VitalChip label="SpO₂" value={`${vitals!.spo2}%`} />}
+              {vitals!.weight && <VitalChip label="Weight" value={`${vitals!.weight} kg`} />}
+              {vitals!.height && <VitalChip label="Height" value={`${vitals!.height} cm`} />}
+              {vitals!.bmi && <VitalChip label="BMI" value={`${vitals!.bmi} kg/m²`} accent />}
+              {vitals!.bloodSugar && <VitalChip label="Blood Sugar" value={`${vitals!.bloodSugar} mg/dL`} />}
+            </View>
+          </View>
+        )}
+
+        {/* Record Vitals Button */}
+        <TouchableOpacity
+          style={[styles.vitalsButton, isSavingVitals && styles.addQueueButtonDisabled]}
+          onPress={() => setShowVitalsModal(true)}
+          disabled={isSavingVitals}
+          activeOpacity={0.85}
+        >
+          {isSavingVitals ? (
+            <ActivityIndicator color={COLORS.primary} />
+          ) : (
+            <>
+              <Ionicons name="pulse-outline" size={20} color={COLORS.primary} />
+              <Text style={styles.vitalsButtonText}>
+                {hasVitals ? 'Update Vitals' : '📊 Record Vitals'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* Add to Queue Button */}
         <TouchableOpacity
@@ -339,12 +399,21 @@ export default function PatientDetailScreen(): React.JSX.Element {
           )}
         </View>
       </ScrollView>
+
       <ConsultTypeModal
         visible={showConsultModal}
         patientName={patient?.name || ''}
         onClose={() => setShowConsultModal(false)}
         onSelectType={processAddToQueue}
         isLoading={addingToQueue}
+      />
+
+      {/* Vitals Modal */}
+      <VitalsInputModal
+        visible={showVitalsModal}
+        initialVitals={vitals ?? undefined}
+        onSave={handleSaveVitals}
+        onClose={() => setShowVitalsModal(false)}
       />
 
       {/* Medical Certificate Modal */}
@@ -385,6 +454,55 @@ export default function PatientDetailScreen(): React.JSX.Element {
     </SafeAreaView>
   );
 }
+
+/* ---- VitalChip Sub-component ---- */
+interface VitalChipProps {
+  label: string;
+  value: string;
+  accent?: boolean;
+}
+
+function VitalChip({ label, value, accent }: VitalChipProps): React.JSX.Element {
+  return (
+    <View style={[vitalStyles.chip, accent && vitalStyles.chipAccent]}>
+      <Text style={vitalStyles.chipLabel}>{label}</Text>
+      <Text style={[vitalStyles.chipValue, accent && vitalStyles.chipValueAccent]}>{value}</Text>
+    </View>
+  );
+}
+
+const vitalStyles = StyleSheet.create({
+  chip: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minWidth: 90,
+    flex: 1,
+  },
+  chipAccent: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryLight,
+  },
+  chipLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  chipValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginTop: 2,
+  },
+  chipValueAccent: {
+    color: COLORS.primary,
+  },
+});
 
 /* ---- Info Row Sub-component ---- */
 interface InfoRowProps {
@@ -556,6 +674,54 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
+  /* Vitals Card */
+  vitalsCard: {
+    backgroundColor: COLORS.primarySurface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primaryLight,
+    padding: SPACING.lg,
+    marginTop: SPACING.lg,
+    ...SHADOWS.sm,
+  },
+  vitalsCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  vitalsCardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  vitalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+
+  /* Vitals Button */
+  vitalsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.lg,
+    paddingVertical: 13,
+    marginTop: SPACING.lg,
+    gap: SPACING.sm,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySurface,
+  },
+  vitalsButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+
   /* Add to Queue */
   addQueueButton: {
     flexDirection: 'row',
@@ -564,7 +730,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: RADIUS.lg,
     paddingVertical: 16,
-    marginTop: SPACING.xl,
+    marginTop: SPACING.md,
     gap: SPACING.sm,
     ...SHADOWS.md,
   },

@@ -7,7 +7,9 @@ import * as DataService from '../../api/dataService';
 import { APP_CONFIG } from '../../constants/config';
 import type { Patient } from '../../types/patient.types';
 import type { Prescription } from '../../types/prescription.types';
+import type { Vitals } from '../../types/prescription.types';
 import ConsultTypeModal from '../../components/ConsultTypeModal';
+import VitalsModal from '../../components/VitalsModal';
 import PageLoader from '../../components/PageLoader';
 import { useToast } from '../../components/toast/ToastContext';
 import '../pages.css';
@@ -27,6 +29,8 @@ export default function PatientDetailPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQueueSubmitting, setIsQueueSubmitting] = useState(false);
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [isSavingVitals, setIsSavingVitals] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -57,6 +61,20 @@ export default function PatientDetailPage() {
     }
   };
 
+  const handleSaveVitals = async (vitals: Vitals) => {
+    if (!id) return;
+    setIsSavingVitals(true);
+    try {
+      const updated = await DataService.updatePatientVitals(id, vitals);
+      setPatient(updated);
+      toast.success('Vitals updated successfully.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update vitals');
+    } finally {
+      setIsSavingVitals(false);
+    }
+  };
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -64,6 +82,8 @@ export default function PatientDetailPage() {
 
   if (isLoading) return <PageLoader />;
   if (!patient) return <div>Patient not found.</div>;
+
+  const vitals = patient.vitals as Vitals | null | undefined;
 
   return (
     <div className="page-container">
@@ -74,7 +94,10 @@ export default function PatientDetailPage() {
             {patient.age} yrs · {patient.gender} {patient.phone ? `· ${patient.phone}` : ''}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" className="secondary-btn" onClick={() => setShowVitalsModal(true)} disabled={isSavingVitals}>
+            📊 {vitals?.bp ? 'Update Vitals' : 'Record Vitals'}
+          </button>
           <button type="button" className="secondary-btn" onClick={() => navigate(`/patients/${id}/edit`)}>
             Edit
           </button>
@@ -83,6 +106,31 @@ export default function PatientDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Vitals Summary Card (if recorded) */}
+      {vitals && (vitals.bp || vitals.pulse || vitals.temp || vitals.spo2 || vitals.weight) && (
+        <div style={{
+          background: 'var(--color-primary-surface)',
+          border: '1px solid rgba(2,132,199,0.18)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '14px 18px',
+          marginBottom: 20,
+        }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+            📊 Current Vitals
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+            {vitals.bp && <VitalChip label="Blood Pressure" value={`${vitals.bp} mmHg`} />}
+            {vitals.pulse && <VitalChip label="Pulse" value={`${vitals.pulse} bpm`} />}
+            {vitals.temp && <VitalChip label="Temperature" value={`${vitals.temp} °F`} />}
+            {vitals.spo2 && <VitalChip label="SpO₂" value={`${vitals.spo2}%`} />}
+            {vitals.weight && <VitalChip label="Weight" value={`${vitals.weight} kg`} />}
+            {vitals.height && <VitalChip label="Height" value={`${vitals.height} cm`} />}
+            {vitals.bmi && <VitalChip label="BMI" value={`${vitals.bmi} kg/m²`} accent />}
+            {vitals.bloodSugar && <VitalChip label="Blood Sugar" value={`${vitals.bloodSugar} mg/dL`} />}
+          </div>
+        </div>
+      )}
 
       <div className="stat-row">
         <div className="stat-card">
@@ -142,6 +190,31 @@ export default function PatientDetailPage() {
         onConfirm={handleConfirmQueue}
         isSubmitting={isQueueSubmitting}
       />
+
+      {showVitalsModal && (
+        <VitalsModal
+          initialVitals={vitals ?? undefined}
+          onSave={handleSaveVitals}
+          onClose={() => setShowVitalsModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function VitalChip({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'var(--color-surface)',
+      border: `1px solid ${accent ? 'rgba(2,132,199,0.3)' : 'var(--color-border-light)'}`,
+      borderRadius: 8,
+      padding: '6px 12px',
+      minWidth: 90,
+    }}>
+      <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: accent ? 'var(--color-primary)' : 'var(--color-text)', marginTop: 2 }}>{value}</span>
     </div>
   );
 }

@@ -216,6 +216,25 @@
     border-radius: var(--radius-md);
   }
 
+  .mobile-logout-btn {
+    background: none;
+    border: none;
+    color: var(--color-error);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+  }
+
+  .mobile-logout-btn:hover {
+    opacity: 1;
+    background: var(--color-error-light);
+  }
+
   .sidebar {
     position: fixed;
     top: 0;

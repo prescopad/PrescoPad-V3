@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Patient } from '../../types/patient.types';
+import type { Vitals } from '../../types/prescription.types';
 import * as DataService from '../../api/dataService';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useToast } from '../../components/toast/ToastContext';
 import { CloseIcon } from '../../components/icons';
+import VitalsModal from '../../components/VitalsModal';
 import '../../components/modal.css';
 import '../auth/auth.css';
 
@@ -31,16 +33,23 @@ export default function AddPatientModal({ onClose }: Props) {
   const [isMlc, setIsMlc] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Vitals state
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [pendingVitals, setPendingVitals] = useState<Vitals | null>(null);
+  const [pendingPatientForVitals, setPendingPatientForVitals] = useState<Patient | null>(null);
+  // Ref to prevent handleVitalsSkipped from double-triggering after handleVitalsSaved
+  const vitalsAlreadyHandledRef = useRef(false);
+
   // Close modal on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !showVitalsModal) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showVitalsModal]);
 
   useEffect(() => {
     if (activeTab !== 'search') return;
@@ -58,6 +67,44 @@ export default function AddPatientModal({ onClose }: Props) {
       onClose();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to add to queue');
+    }
+  };
+
+  const handleSelectExistingWithVitals = (p: Patient) => {
+    setPendingPatientForVitals(p);
+    setShowVitalsModal(true);
+  };
+
+  const handleVitalsSaved = async (vitals: Vitals) => {
+    setPendingVitals(vitals);
+
+    if (pendingPatientForVitals) {
+      // Existing patient flow: mark as handled so onClose doesn't double-execute
+      vitalsAlreadyHandledRef.current = true;
+      const patient = pendingPatientForVitals;
+      setPendingPatientForVitals(null);
+      setShowVitalsModal(false);
+      try {
+        await DataService.updatePatientVitals(patient.id, vitals);
+        await addToQueue(patient.id, 'Doctor', notes.trim() || undefined, consultationType);
+        toast.success(`Vitals recorded & ${patient.name} added to queue!`);
+        onClose();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Failed to complete operation');
+      } finally {
+        vitalsAlreadyHandledRef.current = false;
+      }
+    }
+    // For new patient flow, pendingVitals is stored and used during form submission
+  };
+
+  const handleVitalsSkipped = () => {
+    setShowVitalsModal(false);
+    // Guard: if handleVitalsSaved already processed the existing patient, do nothing
+    if (vitalsAlreadyHandledRef.current) return;
+    if (pendingPatientForVitals) {
+      handleSelectExisting(pendingPatientForVitals);
+      setPendingPatientForVitals(null);
     }
   };
 
@@ -81,6 +128,16 @@ export default function AddPatientModal({ onClose }: Props) {
         allergies: allergies.trim(),
         isMlc,
       });
+
+      // Save vitals if they were recorded
+      if (pendingVitals) {
+        try {
+          await DataService.updatePatientVitals(created.id, pendingVitals);
+        } catch {
+          // Non-fatal — vitals saving failed silently
+        }
+      }
+
       await addToQueue(created.id, 'Doctor', notes.trim() || undefined, consultationType);
       toast.success(`Registered & added ${created.name} to queue!`);
       onClose();
@@ -92,142 +149,213 @@ export default function AddPatientModal({ onClose }: Props) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <form
-        className="modal-dialog"
-        style={{ maxWidth: 540 }}
-        onSubmit={handleSubmit}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <span className="modal-title">➕ Add Patient to Queue</span>
-          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close modal (Esc)">
-            <CloseIcon size={18} />
-          </button>
-        </div>
-
-        <div className="modal-body">
-          <div className="tab-row" style={{ width: '100%', marginBottom: 16 }}>
-            <button
-              type="button"
-              className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
-              style={{ flex: 1 }}
-              onClick={() => setActiveTab('search')}
-            >
-              🔍 Search Existing
-            </button>
-            <button
-              type="button"
-              className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
-              style={{ flex: 1 }}
-              onClick={() => setActiveTab('new')}
-            >
-              👤 Register New
+    <>
+      <div className="modal-backdrop" onClick={onClose}>
+        <form
+          className="modal-dialog"
+          style={{ maxWidth: 540 }}
+          onSubmit={handleSubmit}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="modal-header">
+            <span className="modal-title">➕ Add Patient to Queue</span>
+            <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close modal (Esc)">
+              <CloseIcon size={18} />
             </button>
           </div>
 
-          {activeTab === 'search' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <input
-                className="auth-input"
-                placeholder="Search patient by name or phone number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                autoFocus
-              />
+          <div className="modal-body">
+            <div className="tab-row" style={{ width: '100%', marginBottom: 16 }}>
+              <button
+                type="button"
+                className={`tab-btn ${activeTab === 'search' ? 'active' : ''}`}
+                style={{ flex: 1 }}
+                onClick={() => setActiveTab('search')}
+              >
+                🔍 Search Existing
+              </button>
+              <button
+                type="button"
+                className={`tab-btn ${activeTab === 'new' ? 'active' : ''}`}
+                style={{ flex: 1 }}
+                onClick={() => setActiveTab('new')}
+              >
+                👤 Register New
+              </button>
+            </div>
 
-              <div className="card-list" style={{ maxHeight: 280, overflowY: 'auto' }}>
-                {isLoading && <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-muted)' }}>Searching patients...</div>}
-                {!isLoading && patients.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-muted)' }}>No matching patients found.</div>
-                )}
-                {patients.map((p) => (
-                  <div key={p.id} className="item-card" onClick={() => handleSelectExisting(p)}>
-                    <div>
-                      <div className="item-name">{p.name}</div>
-                      <div className="item-meta">{p.age} yrs · {p.gender} · {p.phone || 'No phone'}</div>
-                    </div>
-                    <button type="button" className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-                      + Add to Queue
-                    </button>
+            {activeTab === 'search' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Queue options row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="auth-field">
+                    <label className="auth-label">Visit Type</label>
+                    <select className="auth-input" value={consultationType} onChange={(e) => setConsultationType(e.target.value as 'new' | 'follow_up')}>
+                      <option value="new">New Patient Visit</option>
+                      <option value="follow_up">Follow-Up Visit</option>
+                    </select>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div className="auth-field">
-                <label className="auth-label">Full Name *</label>
-                <input className="auth-input" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahul Sharma" autoFocus />
-              </div>
-
-              <div className="auth-form-row">
-                <div className="auth-field">
-                  <label className="auth-label">Age (Years)</label>
-                  <input className="auth-input" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g. 32" />
+                  <div className="auth-field">
+                    <label className="auth-label">Queue Notes</label>
+                    <input className="auth-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes…" />
+                  </div>
                 </div>
-                <div className="auth-field">
-                  <label className="auth-label">Gender</label>
-                  <select className="auth-input" value={gender} onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'other')}>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
+
+                <input
+                  className="auth-input"
+                  placeholder="Search patient by name or phone number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  autoFocus
+                />
+
+                <div className="card-list" style={{ maxHeight: 260, overflowY: 'auto' }}>
+                  {isLoading && <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-muted)' }}>Searching patients...</div>}
+                  {!isLoading && patients.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: 20, color: 'var(--color-text-muted)' }}>No matching patients found.</div>
+                  )}
+                  {patients.map((p) => (
+                    <div key={p.id} className="item-card" style={{ gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="item-name">{p.name}</div>
+                        <div className="item-meta">{p.age} yrs · {p.gender} · {p.phone || 'No phone'}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        style={{ padding: '5px 10px', fontSize: '0.775rem' }}
+                        onClick={() => handleSelectExistingWithVitals(p)}
+                        title="Record vitals then add to queue"
+                      >
+                        📊 + Queue
+                      </button>
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        style={{ padding: '5px 10px', fontSize: '0.775rem' }}
+                        onClick={() => handleSelectExisting(p)}
+                      >
+                        + Queue
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              <div className="auth-form-row">
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div className="auth-field">
-                  <label className="auth-label">Phone Number</label>
-                  <input className="auth-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile number" />
+                  <label className="auth-label">Full Name *</label>
+                  <input className="auth-input" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Rahul Sharma" autoFocus />
                 </div>
+
+                <div className="auth-form-row">
+                  <div className="auth-field">
+                    <label className="auth-label">Age (Years)</label>
+                    <input className="auth-input" type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="e.g. 32" />
+                  </div>
+                  <div className="auth-field">
+                    <label className="auth-label">Gender</label>
+                    <select className="auth-input" value={gender} onChange={(e) => setGender(e.target.value as 'male' | 'female' | 'other')}>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="auth-form-row">
+                  <div className="auth-field">
+                    <label className="auth-label">Phone Number</label>
+                    <input className="auth-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile number" />
+                  </div>
+                  <div className="auth-field">
+                    <label className="auth-label">Visit Type</label>
+                    <select className="auth-input" value={consultationType} onChange={(e) => setConsultationType(e.target.value as 'new' | 'follow_up')}>
+                      <option value="new">New Patient Visit</option>
+                      <option value="follow_up">Follow-Up Visit</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="auth-field">
-                  <label className="auth-label">Visit Type</label>
-                  <select className="auth-input" value={consultationType} onChange={(e) => setConsultationType(e.target.value as 'new' | 'follow_up')}>
-                    <option value="new">New Patient Visit</option>
-                    <option value="follow_up">Follow-Up Visit</option>
-                  </select>
+                  <label className="auth-label">Address</label>
+                  <input className="auth-input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City / Area / Street" />
+                </div>
+
+                <div className="auth-field">
+                  <label className="auth-label">Known Allergies</label>
+                  <input className="auth-input" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Penicillin, Dust, Sulfa" />
+                </div>
+
+                <div className="auth-field">
+                  <label className="auth-label">Queue Notes</label>
+                  <input className="auth-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. High BP, Needs urgent consultation" />
+                </div>
+
+                {/* Vitals quick-record */}
+                <div style={{
+                  border: '1px dashed var(--color-primary)',
+                  borderRadius: 8,
+                  padding: '10px 14px',
+                  background: 'var(--color-primary-surface)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                      📊 Patient Vitals
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
+                      {pendingVitals?.bp
+                        ? `BP: ${pendingVitals.bp}${pendingVitals.pulse ? ` · Pulse: ${pendingVitals.pulse}` : ''}${pendingVitals.temp ? ` · Temp: ${pendingVitals.temp}°F` : ''}`
+                        : 'Optional — record BP, pulse, temperature, etc.'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className={pendingVitals ? 'secondary-btn' : 'primary-btn'}
+                    style={{ padding: '6px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    onClick={() => setShowVitalsModal(true)}
+                  >
+                    {pendingVitals ? '✏️ Edit Vitals' : '+ Record Vitals'}
+                  </button>
+                </div>
+
+                <div className="auth-field" style={{ background: isMlc ? '#fef2f2' : undefined, padding: isMlc ? 10 : undefined, borderRadius: 6, border: isMlc ? '1px solid #fca5a5' : undefined }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, color: isMlc ? '#dc2626' : 'var(--color-text)', fontSize: '0.875rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={isMlc}
+                      onChange={(e) => setIsMlc(e.target.checked)}
+                    />
+                    🚨 MLC / Police / Accident Case Involved
+                  </label>
                 </div>
               </div>
+            )}
+          </div>
 
-              <div className="auth-field">
-                <label className="auth-label">Address</label>
-                <input className="auth-input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="City / Area / Street" />
-              </div>
+          <div className="modal-footer">
+            <button type="button" className="secondary-btn" onClick={onClose}>Cancel (Esc)</button>
+            {activeTab === 'new' && (
+              <button type="submit" className="primary-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Registering...' : 'Register & Add to Queue'}
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
 
-              <div className="auth-field">
-                <label className="auth-label">Known Allergies</label>
-                <input className="auth-input" value={allergies} onChange={(e) => setAllergies(e.target.value)} placeholder="e.g. Penicillin, Dust, Sulfa" />
-              </div>
-
-              <div className="auth-field">
-                <label className="auth-label">Queue Notes</label>
-                <input className="auth-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. High BP, Needs urgent consultation" />
-              </div>
-
-              <div className="auth-field" style={{ background: isMlc ? '#fef2f2' : undefined, padding: isMlc ? 10 : undefined, borderRadius: 6, border: isMlc ? '1px solid #fca5a5' : undefined }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, color: isMlc ? '#dc2626' : 'var(--color-text)', fontSize: '0.875rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={isMlc}
-                    onChange={(e) => setIsMlc(e.target.checked)}
-                  />
-                  🚨 MLC / Police / Accident Case Involved
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="modal-footer">
-          <button type="button" className="secondary-btn" onClick={onClose}>Cancel (Esc)</button>
-          {activeTab === 'new' && (
-            <button type="submit" className="primary-btn" disabled={isSubmitting}>
-              {isSubmitting ? 'Registering...' : 'Register & Add to Queue'}
-            </button>
-          )}
-        </div>
-      </form>
-    </div>
+      {/* Vitals modal — rendered outside the main modal form to avoid nesting issues */}
+      {showVitalsModal && (
+        <VitalsModal
+          initialVitals={pendingVitals ?? undefined}
+          onSave={handleVitalsSaved}
+          onClose={handleVitalsSkipped}
+        />
+      )}
+    </>
   );
 }

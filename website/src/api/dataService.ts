@@ -328,6 +328,17 @@ export async function deletePatient(id: string): Promise<void> {
   throwOnError(error, 'Failed to delete patient.');
 }
 
+export async function updatePatientVitals(id: string, vitals: import('../types/prescription.types').Vitals): Promise<Patient> {
+  const { data: row, error } = await supabase
+    .from('patients')
+    .update({ vitals })
+    .eq('id', id)
+    .select()
+    .single();
+  throwOnError(error, 'Failed to update patient vitals.');
+  return mapPatient(row);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUEUE
 // ═══════════════════════════════════════════════════════════════════════════════
