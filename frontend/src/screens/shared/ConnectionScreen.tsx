@@ -654,7 +654,7 @@ export default function ConnectionScreen(): React.JSX.Element {
 
   function renderRequestCard(request: ConnectionRequest) {
     const isIncoming = isDoctor
-      ? request.initiatedBy === 'assistant'
+      ? request.initiatedBy !== 'doctor'
       : request.initiatedBy === 'doctor';
     const otherName = isDoctor ? request.assistantName : request.doctorName;
 

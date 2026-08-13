@@ -117,6 +117,10 @@ export default function AddPatientScreen(): React.JSX.Element {
   const handleSubmit = async () => {
     if (!validate()) return;
     if (!user) return;
+    if (!user.clinicId) {
+      toast.error('You are not connected to any doctor clinic yet. Please connect via Settings > Connections.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -141,7 +145,7 @@ export default function AddPatientScreen(): React.JSX.Element {
       setShowConsultModal(false);
       await addToQueue(pendingPatientId, user.id, undefined, type);
       toast.success(`${name} registered and added to queue!`);
-      navigation.navigate('DoctorQueue' as never);
+      navigation.navigate('AssistantQueue' as never);
     } catch {
       toast.error('Patient registered but failed to add to queue.');
     } finally {

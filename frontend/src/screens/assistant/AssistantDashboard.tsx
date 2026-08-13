@@ -14,23 +14,21 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../constants/theme';
 import { useQueueStore } from '../../store/useQueueStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { usePatientStore } from '../../store/usePatientStore';
 import { supabase } from '../../services/supabase';
 import { QueueItem, QueueStatus } from '../../types/queue.types';
 import type { AssistantStackParamList } from '../../types/navigation.types';
-import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
 import ReceiptModal from '../../components/ReceiptModal';
-import VitalsInputModal from '../../components/VitalsInputModal';
-import type { Patient } from '../../types/patient.types';
+import CollectFeeModal from '../../components/CollectFeeModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
+type TabType = 'all' | 'waiting' | 'in_progress' | 'completed';
 
 function getStatusColor(status: QueueStatus): string {
   switch (status) {
@@ -54,10 +52,12 @@ export default function AssistantDashboard(): React.JSX.Element {
   const { queueItems, stats, isLoading, doctorReady, loadQueue, loadStats, startPolling, stopPolling } =
     useQueueStore();
   const user = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showConsultTypeModal, setShowConsultTypeModal] = useState(false);
   const [receiptPatientName, setReceiptPatientName] = useState<string | null>(null);
+  const [collectFeeItem, setCollectFeeItem] = useState<QueueItem | null>(null);
 
   const { setDoctorReady } = useQueueStore();
 
@@ -138,19 +138,18 @@ export default function AssistantDashboard(): React.JSX.Element {
     );
   }, []);
 
-  const activeQueue = queueItems.filter(
-    (item) =>
-      item.status === QueueStatus.WAITING ||
-      item.status === QueueStatus.IN_PROGRESS,
-  );
+  const tabFilteredQueue = queueItems.filter((item) => {
+    if (activeTab === 'all') return true;
+    return item.status === activeTab;
+  });
 
   // Filter queue by search query
   const filteredQueue = searchQuery.trim().length > 0
-    ? activeQueue.filter(item =>
+    ? tabFilteredQueue.filter(item =>
         item.patient?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         String(item.tokenNumber).includes(searchQuery)
       )
-    : activeQueue;
+    : tabFilteredQueue;
 
   const statusLabelKey = (status: QueueStatus): string => {
     switch (status) {
@@ -170,6 +169,10 @@ export default function AssistantDashboard(): React.JSX.Element {
   const renderQueueItem = ({ item }: { item: QueueItem }) => {
     const statusColor = getStatusColor(item.status);
     const statusLabel = statusLabelKey(item.status);
+    const isCompleted = item.status === QueueStatus.COMPLETED;
+    const isPaid = item.paymentStatus === 'paid';
+    const isUnpaid = isCompleted && !isPaid;
+
     return (
       <TouchableOpacity
         style={styles.queueCard}
@@ -198,8 +201,34 @@ export default function AssistantDashboard(): React.JSX.Element {
             {item.patient
               ? `${item.patient.age}y / ${item.patient.gender}`
               : `ID: ${item.patientId.slice(0, 8)}`}
+            {item.consultationType === 'follow_up' ? ' · Follow-up' : ' · New Visit'}
           </Text>
+
+          {/* Fee & Payment Info */}
+          {isPaid && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+              <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+              <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.success }}>
+                ₹{item.payment?.amount ?? item.chargeAmount} Paid ({item.payment?.method?.toUpperCase() || 'CASH'})
+              </Text>
+            </View>
+          )}
+
+          {isUnpaid && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: COLORS.warning }}>
+                Fee: ₹{item.chargeAmount || 500} (Unpaid)
+              </Text>
+              <TouchableOpacity
+                style={styles.collectFeeBtn}
+                onPress={() => setCollectFeeItem(item)}
+              >
+                <Text style={styles.collectFeeBtnText}>Collect Fee</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
+
         <TouchableOpacity
           onPress={() => setReceiptPatientName(item.patient?.name || 'Patient')}
           style={{ padding: 6, marginRight: 4 }}
@@ -207,12 +236,14 @@ export default function AssistantDashboard(): React.JSX.Element {
         >
           <Ionicons name="receipt-outline" size={20} color={COLORS.primary} />
         </TouchableOpacity>
+
         <View style={[styles.statusBadge, { backgroundColor: statusColor + '18' }]}>
           <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
           <Text style={[styles.statusText, { color: statusColor }]}>
             {statusLabel}
           </Text>
         </View>
+
         {item.status === QueueStatus.WAITING && (
           <TouchableOpacity 
             onPress={() => handleRemoveQueueItem(item)}
@@ -230,7 +261,7 @@ export default function AssistantDashboard(): React.JSX.Element {
       <Ionicons name="people-outline" size={64} color={COLORS.textLight} />
       <Text style={styles.emptyTitle}>{t('queue.empty')}</Text>
       <Text style={styles.emptySubtitle}>
-        Add patients using the search bar above or the button below
+        Add patients using the '+' button below or search above
       </Text>
     </View>
   );
@@ -278,11 +309,21 @@ export default function AssistantDashboard(): React.JSX.Element {
         </View>
       </View>
 
+      {/* Not connected banner */}
+      {!user?.clinicId && (
+        <View style={styles.notConnectedBanner}>
+          <Ionicons name="warning-outline" size={18} color="#b45309" />
+          <Text style={styles.notConnectedText}>
+            Not connected to any doctor clinic. Connect in Settings → Connections.
+          </Text>
+        </View>
+      )}
+
       {/* Stats Row */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Text style={styles.statValue}>{stats.total}</Text>
-          <Text style={styles.statLabel}>In Queue</Text>
+          <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={[styles.statCard, styles.statCardMiddle]}>
           <Text style={styles.statValue}>
@@ -290,12 +331,33 @@ export default function AssistantDashboard(): React.JSX.Element {
           </Text>
           <Text style={styles.statLabel}>{t('queue.waiting')}</Text>
         </View>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, styles.statCardMiddle]}>
           <Text style={styles.statValue}>
             {stats.inProgress}
           </Text>
           <Text style={styles.statLabel}>{t('queue.inProgress')}</Text>
         </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: COLORS.success }]}>
+            {stats.completed}
+          </Text>
+          <Text style={styles.statLabel}>Completed</Text>
+        </View>
+      </View>
+
+      {/* Tabs Row */}
+      <View style={styles.tabContainer}>
+        {(['all', 'waiting', 'in_progress', 'completed'] as TabType[]).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+            onPress={() => setActiveTab(tab)}
+          >
+            <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
+              {tab === 'all' ? 'All' : tab === 'in_progress' ? 'Consulting' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Quick Search */}
@@ -426,6 +488,21 @@ export default function AssistantDashboard(): React.JSX.Element {
           patientName={receiptPatientName}
           initialAmount={500}
           onClose={() => setReceiptPatientName(null)}
+        />
+      )}
+
+      {/* Collect Fee Modal */}
+      {collectFeeItem && (
+        <CollectFeeModal
+          visible={!!collectFeeItem}
+          patientName={collectFeeItem.patient?.name || 'Patient'}
+          prescriptionId={collectFeeItem.prescriptionId}
+          initialAmount={collectFeeItem.chargeAmount || 500}
+          onClose={() => setCollectFeeItem(null)}
+          onSuccess={() => {
+            loadQueue();
+            loadStats();
+          }}
         />
       )}
     </View>
@@ -740,5 +817,62 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  notConnectedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    borderRadius: RADIUS.md,
+  },
+  notConnectedText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING.lg,
+    marginTop: SPACING.sm,
+    gap: 8,
+  },
+  tabBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  tabBtnActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  tabBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.textMuted,
+  },
+  tabBtnTextActive: {
+    color: COLORS.white,
+    fontWeight: '700',
+  },
+  collectFeeBtn: {
+    backgroundColor: COLORS.success,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  collectFeeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.white,
   },
 });

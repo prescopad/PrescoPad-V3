@@ -60,8 +60,9 @@ export async function sendOTP(
   role: UserRole,
   _purpose: string = 'login'
 ): Promise<{ success: boolean }> {
+  const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.replace(/[^0-9]/g, '')}`;
   const { error } = await supabase.auth.signInWithOtp({
-    phone,
+    phone: formattedPhone,
     options: { data: { role } },
   });
   if (error) throwWithMessage(error, 'Failed to send OTP. Please try again.');
@@ -74,7 +75,8 @@ export async function verifyOTP(
   _role: UserRole,
   _purpose: string = 'login'
 ): Promise<AuthResponse> {
-  const { error } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' });
+  const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.replace(/[^0-9]/g, '')}`;
+  const { error } = await supabase.auth.verifyOtp({ phone: formattedPhone, token: otp, type: 'sms' });
   if (error) throwWithMessage(error, 'Verification failed. Please try again.');
   return currentAuthResponse();
 }

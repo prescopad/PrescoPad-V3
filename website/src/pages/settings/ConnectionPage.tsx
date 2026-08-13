@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore, useIsDoctor } from '../../store/useAuthStore';
 import * as ConnectionService from '../../api/connectionService';
+import { getMe } from '../../api/authService';
+import { supabase } from '../../api/supabase';
 import type { ConnectionRequest, TeamMember, ClinicListItem } from '../../types/connection.types';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
@@ -10,6 +12,7 @@ import '../auth/auth.css';
 
 export default function ConnectionPage() {
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const isDoctor = useIsDoctor();
   const toast = useToast();
   const confirm = useConfirm();
@@ -23,20 +26,27 @@ export default function ConnectionPage() {
   const [selectedClinic, setSelectedClinic] = useState<ClinicListItem | null>(null);
   const [doctorCode, setDoctorCode] = useState('');
 
-  const load = () => {
-    if (isDoctor) {
-      ConnectionService.getTeamMembers().then(setTeam).catch(() => {});
-      ConnectionService.getPendingRequests().then(setPending).catch(() => {});
-    } else {
-      ConnectionService.getPendingRequests().then(setPending).catch(() => {});
+  const syncUserSession = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const freshProfile = await getMe();
+        setUser(freshProfile, sessionData.session.access_token, sessionData.session.refresh_token);
+      }
+    } catch {
+      // silent
     }
+  };
+
+  const load = () => {
+    ConnectionService.getPendingRequests().then(setPending).catch(() => {});
+    ConnectionService.getTeamMembers().then(setTeam).catch(() => {});
   };
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 15000);
+    const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDoctor]);
 
   useEffect(() => {
@@ -54,9 +64,13 @@ export default function ConnectionPage() {
   };
 
   const handleInvite = async () => {
-    if (!assistantPhone.trim()) return;
+    const phone = assistantPhone.trim().replace(/\D/g, '');
+    if (phone.length < 10) {
+      toast.error('Please enter a valid 10-digit phone number.');
+      return;
+    }
     try {
-      await ConnectionService.inviteAssistant(assistantPhone.trim());
+      await ConnectionService.inviteAssistant(phone);
       toast.success('Invite sent to assistant.');
       setAssistantPhone('');
       load();
@@ -68,7 +82,8 @@ export default function ConnectionPage() {
   const handleAccept = async (id: string) => {
     try {
       await ConnectionService.acceptRequest(id);
-      toast.success('Connection request accepted!');
+      await syncUserSession();
+      toast.success('Connection established successfully!');
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to accept request');
@@ -78,7 +93,7 @@ export default function ConnectionPage() {
   const handleReject = async (id: string) => {
     try {
       await ConnectionService.rejectRequest(id);
-      toast.success('Connection request rejected.');
+      toast.success('Connection request cancelled/rejected.');
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to reject request');
@@ -101,15 +116,37 @@ export default function ConnectionPage() {
   };
 
   const handleRequestJoin = async () => {
-    if (!doctorCode.trim()) return;
+    const code = doctorCode.trim().toUpperCase();
+    if (code.length !== 6) {
+      toast.error('Please enter a valid 6-character Doctor Code.');
+      return;
+    }
     try {
-      await ConnectionService.requestToJoin(doctorCode.trim());
+      await ConnectionService.requestToJoin(code);
       toast.success('Join request sent. Waiting for doctor approval.');
       setDoctorCode('');
+      load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to send join request');
     }
   };
+
+  // Assistant: find connected doctor if any
+  const connectedDoctor = !isDoctor ? team.find((m) => m.role === 'doctor') : null;
+  const incomingInvitesForAssistant = !isDoctor
+    ? pending.filter((r) => r.initiatedBy === 'doctor')
+    : [];
+  const outgoingRequestsForAssistant = !isDoctor
+    ? pending.filter((r) => r.initiatedBy !== 'doctor')
+    : [];
+
+  // Doctor: incoming requests vs outgoing invites
+  const incomingRequestsForDoctor = isDoctor
+    ? pending.filter((r) => r.initiatedBy !== 'doctor')
+    : [];
+  const outgoingInvitesForDoctor = isDoctor
+    ? pending.filter((r) => r.initiatedBy === 'doctor')
+    : [];
 
   return (
     <div className="page-container-narrow animate-fade-in">
@@ -136,20 +173,25 @@ export default function ConnectionPage() {
           <div className="auth-field">
             <label className="auth-label">Invite Assistant by Phone</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input className="auth-input" value={assistantPhone} onChange={(e) => setAssistantPhone(e.target.value)} placeholder="Enter 10-digit mobile number" />
+              <input className="auth-input" value={assistantPhone} onChange={(e) => setAssistantPhone(e.target.value)} placeholder="Enter 10-digit mobile number" maxLength={10} />
               <button className="primary-btn" onClick={handleInvite}>Send Invite</button>
             </div>
           </div>
 
-          {pending.length > 0 && (
+          {/* Incoming Join Requests from Assistants */}
+          {incomingRequestsForDoctor.length > 0 && (
             <div className="auth-field" style={{ marginTop: 24 }}>
-              <label className="auth-label" style={{ color: 'var(--color-warning)' }}>Pending Connection Invites ({pending.length})</label>
+              <label className="auth-label" style={{ color: 'var(--color-warning)' }}>Incoming Join Requests ({incomingRequestsForDoctor.length})</label>
               <div className="card-list" style={{ marginTop: 8 }}>
-                {pending.map((r) => (
+                {incomingRequestsForDoctor.map((r) => (
                   <div key={r.id} className="item-card" style={{ cursor: 'default' }}>
                     <div>
                       <div className="item-name">{r.assistantName ?? 'Assistant'}</div>
-                      <div className="item-meta">{r.assistantPhone}</div>
+                      <div className="item-meta">
+                        {r.assistantPhone ? `Phone: ${r.assistantPhone}` : ''}
+                        {r.qualification ? ` · ${r.qualification}` : ''}
+                        {r.city ? ` · ${r.city}` : ''}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="primary-btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => handleAccept(r.id)}>Accept</button>
@@ -161,12 +203,30 @@ export default function ConnectionPage() {
             </div>
           )}
 
+          {/* Outgoing Invites Sent by Doctor */}
+          {outgoingInvitesForDoctor.length > 0 && (
+            <div className="auth-field" style={{ marginTop: 24 }}>
+              <label className="auth-label" style={{ color: 'var(--color-text-muted)' }}>Pending Sent Invites ({outgoingInvitesForDoctor.length})</label>
+              <div className="card-list" style={{ marginTop: 8 }}>
+                {outgoingInvitesForDoctor.map((r) => (
+                  <div key={r.id} className="item-card" style={{ cursor: 'default' }}>
+                    <div>
+                      <div className="item-name">{r.assistantName ?? 'Assistant'}</div>
+                      <div className="item-meta">{r.assistantPhone} · Waiting for assistant to accept</div>
+                    </div>
+                    <button className="secondary-btn" style={{ padding: '6px 14px', fontSize: '0.8rem', color: 'var(--color-error)' }} onClick={() => handleReject(r.id)}>Cancel</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="auth-field" style={{ marginTop: 24 }}>
             <label className="auth-label">Connected Clinic Members ({team.length})</label>
             <div className="card-list" style={{ marginTop: 8 }}>
               {team.length === 0 && (
                 <div className="empty-state" style={{ padding: 24 }}>
-                  No assistants connected yet. Share your doctor code to connect.
+                  No assistants connected yet. Share your doctor code or send an invite to connect.
                 </div>
               )}
               {team.map((m) => (
@@ -176,13 +236,15 @@ export default function ConnectionPage() {
                       {m.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <div className="item-name">{m.name}</div>
-                      <div className="item-meta">{m.phone}</div>
+                      <div className="item-name">{m.name} {m.role === 'assistant' ? '(Assistant)' : '(Doctor)'}</div>
+                      <div className="item-meta">{m.phone} {m.qualification ? `· ${m.qualification}` : ''}</div>
                     </div>
                   </div>
-                  <button className="icon-btn" onClick={() => handleDisconnect(m.id)} title="Disconnect assistant">
-                    <CloseIcon size={16} />
-                  </button>
+                  {m.role === 'assistant' && (
+                    <button className="icon-btn" onClick={() => handleDisconnect(m.id)} title="Disconnect assistant">
+                      <CloseIcon size={16} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -190,11 +252,57 @@ export default function ConnectionPage() {
         </>
       ) : (
         <>
-          {pending.length > 0 && (
+          {/* Connected Doctor Info */}
+          {connectedDoctor && (
+            <div className="stat-card" style={{ padding: 20, background: 'linear-gradient(135deg, #ecfdf5, #f0fdf4)', border: '1px solid #6ee7b7', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '1.4rem' }}>✅</span>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#047857', fontSize: '1.05rem' }}>Connected with Dr. {connectedDoctor.name}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#065f46', marginTop: 2 }}>
+                    {connectedDoctor.specialty || 'General Practitioner'} · {connectedDoctor.phone}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#059669', marginTop: 4 }}>
+                    Live clinic queue is synchronized with the doctor.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Incoming Invites from Doctors to this Assistant */}
+          {incomingInvitesForAssistant.length > 0 && (
+            <div className="auth-field" style={{ marginBottom: 24 }}>
+              <label className="auth-label" style={{ color: 'var(--color-primary-dark)', fontWeight: 800 }}>
+                Doctor Invitations for You ({incomingInvitesForAssistant.length})
+              </label>
+              <div className="card-list" style={{ marginTop: 8 }}>
+                {incomingInvitesForAssistant.map((r) => (
+                  <div key={r.id} className="item-card" style={{ cursor: 'default', border: '2px solid var(--color-primary-light)' }}>
+                    <div>
+                      <div className="item-name" style={{ color: 'var(--color-primary-dark)', fontWeight: 800 }}>
+                        Dr. {r.doctorName || 'Doctor'}
+                      </div>
+                      <div className="item-meta">
+                        {r.clinicName ? `Clinic: ${r.clinicName}` : 'Doctor has invited you to join their clinic queue.'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="primary-btn" style={{ padding: '6px 16px', fontSize: '0.85rem' }} onClick={() => handleAccept(r.id)}>Accept</button>
+                      <button className="secondary-btn" style={{ padding: '6px 14px', fontSize: '0.85rem', color: 'var(--color-error)' }} onClick={() => handleReject(r.id)}>Decline</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Outgoing join request pending */}
+          {outgoingRequestsForAssistant.length > 0 && (
             <div className="stat-card" style={{ padding: 18, background: 'var(--color-warning-light)', border: '1px solid #fcd34d', marginBottom: 20 }}>
-              <div style={{ fontWeight: 800, color: '#b45309', fontSize: '0.95rem' }}>⏳ Join Request Pending Approval</div>
+              <div style={{ fontWeight: 800, color: '#b45309', fontSize: '0.95rem' }}>⏳ Join Request Pending Doctor Approval</div>
               <div style={{ fontSize: '0.825rem', color: '#b45309', marginTop: 4 }}>
-                Your request has been submitted to the doctor. Once approved, the clinic queue will appear automatically.
+                Your request has been submitted to Dr. {outgoingRequestsForAssistant[0].doctorName || 'the doctor'}. Once approved, the clinic queue will appear automatically.
               </div>
             </div>
           )}

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueueStore } from '../../store/useQueueStore';
+import { useIsDoctor } from '../../store/useAuthStore';
 import { QueueStatus } from '../../types/queue.types';
 import type { QueueItem } from '../../types/queue.types';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
 import { CloseIcon } from '../../components/icons';
 import AddPatientModal from './AddPatientModal';
+import CollectFeeModal from '../../components/CollectFeeModal';
 import Portal from '../../components/Portal';
 import '../pages.css';
 
@@ -28,11 +30,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function QueuePage() {
   const navigate = useNavigate();
-  const { queueItems, stats, lastError, startPolling, stopPolling, startConsult, removeFromQueue, clearError, getNextPatient } = useQueueStore();
+  const isDoctor = useIsDoctor();
+  const { queueItems, stats, lastError, startPolling, stopPolling, startConsult, removeFromQueue, clearError, getNextPatient, loadQueueFiltered } = useQueueStore();
   const toast = useToast();
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [collectFeeItem, setCollectFeeItem] = useState<QueueItem | null>(null);
 
   useEffect(() => {
     if (lastError) {
@@ -54,11 +58,15 @@ export default function QueuePage() {
   const nextPatient = getNextPatient();
 
   const handleItemClick = async (item: QueueItem) => {
-    if (item.status === QueueStatus.COMPLETED) {
-      if (item.patient) navigate(`/patients/${item.patient.id}/history`);
+    if (!item.patient) return;
+    if (!isDoctor) {
+      navigate(`/patients/${item.patient.id}/history`);
       return;
     }
-    if (!item.patient) return;
+    if (item.status === QueueStatus.COMPLETED) {
+      navigate(`/patients/${item.patient.id}/history`);
+      return;
+    }
     if (item.status === QueueStatus.IN_PROGRESS) {
       navigate('/consult', { state: { queueItem: item, patient: item.patient } });
       return;
@@ -99,8 +107,8 @@ export default function QueuePage() {
         </button>
       </div>
 
-      {/* Next Patient Hero Callout */}
-      {nextPatient && (
+      {/* Next Patient Hero Callout (Doctor view) */}
+      {isDoctor && nextPatient && (
         <div className="hero-action-card">
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.85, marginBottom: 4 }}>
@@ -185,11 +193,37 @@ export default function QueuePage() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Fee & Payment Status */}
+              {item.paymentStatus === 'paid' && (
+                <span style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 8px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  ✓ ₹{item.payment?.amount ?? item.chargeAmount} Paid ({item.payment?.method?.toUpperCase() || 'CASH'})
+                </span>
+              )}
+              {item.status === QueueStatus.COMPLETED && item.paymentStatus !== 'paid' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', padding: '3px 8px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 700 }}>
+                    Fee: ₹{item.chargeAmount ?? 500} (Unpaid)
+                  </span>
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    style={{ padding: '4px 10px', fontSize: '0.75rem', background: '#059669', borderColor: '#059669' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollectFeeItem(item);
+                    }}
+                  >
+                    💵 Collect Fee
+                  </button>
+                </div>
+              )}
+
               <span className={`status-pill ${item.status}`}>
                 <span className="pulse-dot" style={{ width: 6, height: 6, background: STATUS_COLOR[item.status] }} />
                 {STATUS_LABEL[item.status]}
               </span>
+
               {item.status === QueueStatus.WAITING && (
                 <button type="button" className="icon-btn" onClick={(e) => handleRemove(e, item)} title="Remove from queue">
                   <CloseIcon size={16} />
@@ -204,6 +238,18 @@ export default function QueuePage() {
         <Portal>
           <AddPatientModal onClose={() => setShowAddModal(false)} />
         </Portal>
+      )}
+
+      {collectFeeItem && (
+        <CollectFeeModal
+          patientName={collectFeeItem.patient?.name || 'Patient'}
+          prescriptionId={collectFeeItem.prescriptionId}
+          initialAmount={collectFeeItem.chargeAmount || 500}
+          onClose={() => setCollectFeeItem(null)}
+          onSuccess={() => {
+            loadQueueFiltered();
+          }}
+        />
       )}
     </div>
   );

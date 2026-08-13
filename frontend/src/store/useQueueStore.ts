@@ -138,7 +138,35 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   },
 
   startPolling: () => {
-    if (get().pollInterval) return;
+    if (get().pollInterval) {
+      if (!get().realtimeChannel) {
+        const clinicId = useAuthStore.getState().user?.clinicId;
+        if (clinicId) {
+          try {
+            const channel = supabase
+              .channel(`app_queue_sync_${clinicId}`)
+              .on(
+                'postgres_changes',
+                {
+                  event: '*',
+                  schema: 'public',
+                  table: 'queue',
+                  filter: `clinic_id=eq.${clinicId}`,
+                },
+                () => {
+                  get().loadQueueFiltered();
+                  get().loadStatsFiltered();
+                }
+              )
+              .subscribe();
+            set({ realtimeChannel: channel });
+          } catch (e) {
+            console.warn('Supabase realtime channel initialization warning:', e);
+          }
+        }
+      }
+      return;
+    }
 
     // Trigger initial load
     get().loadQueueFiltered();
@@ -148,6 +176,33 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     const interval = setInterval(() => {
       get().loadQueueFiltered();
       get().loadStatsFiltered();
+
+      if (!get().realtimeChannel) {
+        const clinicId = useAuthStore.getState().user?.clinicId;
+        if (clinicId) {
+          try {
+            const channel = supabase
+              .channel(`app_queue_sync_${clinicId}`)
+              .on(
+                'postgres_changes',
+                {
+                  event: '*',
+                  schema: 'public',
+                  table: 'queue',
+                  filter: `clinic_id=eq.${clinicId}`,
+                },
+                () => {
+                  get().loadQueueFiltered();
+                  get().loadStatsFiltered();
+                }
+              )
+              .subscribe();
+            set({ realtimeChannel: channel });
+          } catch (e) {
+            console.warn('Supabase realtime channel initialization warning:', e);
+          }
+        }
+      }
     }, 10_000);
 
     // 2. Real-time Supabase WebSocket Subscription for Sub-Second Sync

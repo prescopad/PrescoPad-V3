@@ -28,6 +28,7 @@ import { ConsultTypeModal } from '../../components/ConsultTypeModal';
 import { useToast } from '../../components/Toast/ToastContext';
 import MedicalCertificateModal from '../../components/MedicalCertificateModal';
 import ReceiptModal from '../../components/ReceiptModal';
+import CollectFeeModal from '../../components/CollectFeeModal';
 
 type NavigationProp = NativeStackNavigationProp<AssistantStackParamList>;
 type DetailRouteProp = RouteProp<AssistantStackParamList, 'PatientDetail'>;
@@ -51,6 +52,7 @@ export default function PatientDetailScreen(): React.JSX.Element {
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [certRx, setCertRx] = useState<Prescription | null>(null);
   const [receiptRx, setReceiptRx] = useState<Prescription | null>(null);
+  const [collectFeeRx, setCollectFeeRx] = useState<Prescription | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -311,11 +313,18 @@ export default function PatientDetailScreen(): React.JSX.Element {
                 {/* Action buttons */}
                 <View style={styles.rxActionsRow}>
                   <TouchableOpacity
+                    style={[styles.rxActionBtn, { borderColor: COLORS.success }]}
+                    onPress={() => setCollectFeeRx(rx)}
+                  >
+                    <Ionicons name="cash-outline" size={13} color={COLORS.success} />
+                    <Text style={[styles.rxActionText, { color: COLORS.success }]}>Collect Fee</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={styles.rxActionBtn}
                     onPress={() => setCertRx(rx)}
                   >
-                    <Ionicons name="document-text-outline" size={13} color={COLORS.success} />
-                    <Text style={[styles.rxActionText, { color: COLORS.success }]}>Certificate</Text>
+                    <Ionicons name="document-text-outline" size={13} color={COLORS.primary} />
+                    <Text style={[styles.rxActionText, { color: COLORS.primary }]}>Certificate</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.rxActionBtn, { borderColor: '#d97706' }]}
@@ -357,6 +366,20 @@ export default function PatientDetailScreen(): React.JSX.Element {
           patientName={patient.name}
           initialAmount={receiptRx.chargeAmount || 500}
           onClose={() => setReceiptRx(null)}
+        />
+      )}
+
+      {/* Collect Fee Modal */}
+      {collectFeeRx && patient && (
+        <CollectFeeModal
+          visible={true}
+          patientName={patient.name}
+          prescriptionId={collectFeeRx.id}
+          initialAmount={collectFeeRx.chargeAmount || 500}
+          onClose={() => setCollectFeeRx(null)}
+          onSuccess={() => {
+            loadPrescriptions();
+          }}
         />
       )}
     </SafeAreaView>

@@ -9,7 +9,8 @@ import type {
   PrescriptionStatus,
   PrescriptionTemplate,
 } from '../types/prescription.types';
-import type { QueueItem, QueueStatus } from '../types/queue.types';
+import { QueueStatus } from '../types/queue.types';
+import type { QueueItem } from '../types/queue.types';
 import type { Medicine, LabTest } from '../types/medicine.types';
 import { SAMPLE_MEDICINES, SAMPLE_LAB_TESTS } from '../constants/sampleCatalog';
 
@@ -335,7 +336,66 @@ async function fetchQueue(filters: { status?: string; date?: string; todayOnly?:
 
   const { data, error } = await query;
   throwOnError(error, 'Failed to load queue.');
-  return (data ?? []).map(mapQueueItem);
+  const rawItems = (data ?? []) as Record<string, unknown>[];
+  if (rawItems.length === 0) return [];
+
+  const clinicId = currentClinicId();
+  const patientIds = rawItems.map((r) => r.patient_id as string).filter(Boolean);
+
+  let rxList: Record<string, unknown>[] = [];
+  let payList: Record<string, unknown>[] = [];
+
+  try {
+    const [rxRes, payRes] = await Promise.allSettled([
+      supabase
+        .from('prescriptions')
+        .select('id, patient_id, charge_amount, attach_receipt, created_at, status')
+        .eq('clinic_id', clinicId)
+        .in('patient_id', patientIds)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('consultation_payments')
+        .select('id, prescription_id, amount, method, created_at')
+        .eq('clinic_id', clinicId)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    rxList = rxRes.status === 'fulfilled' ? (rxRes.value.data ?? []) : [];
+    payList = payRes.status === 'fulfilled' ? (payRes.value.data ?? []) : [];
+  } catch {
+    // Non-fatal if billing lookup fails
+  }
+
+  return rawItems.map((row) => {
+    const item = mapQueueItem(row);
+    const patientRx = rxList.find((rx) => rx.patient_id === item.patientId);
+
+    if (patientRx) {
+      item.prescriptionId = patientRx.id as string;
+      const receiptObj = patientRx.attach_receipt as Record<string, unknown> | undefined;
+      const doctorFee = (patientRx.charge_amount as number) ?? (receiptObj?.amount as number) ?? null;
+      item.chargeAmount = doctorFee;
+
+      const payment = payList.find((p) => p.prescription_id === patientRx.id);
+      if (payment) {
+        item.payment = {
+          id: payment.id as string,
+          amount: Number(payment.amount),
+          method: payment.method as 'cash' | 'online',
+          createdAt: payment.created_at as string,
+        };
+        item.paymentStatus = 'paid';
+        if (item.chargeAmount == null) item.chargeAmount = item.payment.amount;
+      } else {
+        item.payment = null;
+        item.paymentStatus = item.chargeAmount != null || item.status === QueueStatus.COMPLETED ? 'unpaid' : 'none';
+      }
+    } else {
+      item.paymentStatus = 'none';
+    }
+
+    return item;
+  });
 }
 
 export async function getTodayQueue(): Promise<QueueItem[]> {

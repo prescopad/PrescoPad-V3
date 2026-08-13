@@ -8,6 +8,13 @@ export const QueueStatus = {
 } as const;
 export type QueueStatus = (typeof QueueStatus)[keyof typeof QueueStatus];
 
+export interface QueueItemPayment {
+  id: string;
+  amount: number;
+  method: 'cash' | 'online';
+  createdAt: string;
+}
+
 export interface QueueItem {
   id: string;
   patientId: string;
@@ -20,4 +27,8 @@ export interface QueueItem {
   completedAt: string | null;
   tokenNumber: number;
   consultationType?: 'new' | 'follow_up';
+  prescriptionId?: string;
+  chargeAmount?: number | null;
+  payment?: QueueItemPayment | null;
+  paymentStatus?: 'paid' | 'unpaid' | 'none';
 }

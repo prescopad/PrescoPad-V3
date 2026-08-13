@@ -30,6 +30,14 @@ export default function LoginPage() {
     }
   };
 
+  const handlePhoneChange = (val: string) => {
+    let cleaned = val.replace(/[^0-9]/g, '');
+    if (cleaned.startsWith('91') && cleaned.length > 10) {
+      cleaned = cleaned.slice(2);
+    }
+    setPhone(cleaned.slice(0, 10));
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-wordmark">
@@ -70,7 +78,7 @@ export default function LoginPage() {
               type="tel"
               placeholder="10-digit number"
               value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+              onChange={(e) => handlePhoneChange(e.target.value)}
               maxLength={10}
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && handleSendOTP()}

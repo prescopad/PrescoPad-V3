@@ -147,7 +147,32 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
   },
 
   startPolling: () => {
-    if (get().pollInterval) return;
+    if (get().pollInterval) {
+      // If interval exists but channel wasn't bound yet (e.g. clinicId loaded after mount)
+      if (!get().realtimeChannel) {
+        const clinicId = useAuthStore.getState().user?.clinicId;
+        if (clinicId) {
+          const channel = supabase
+            .channel(`web_queue_sync_${clinicId}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'queue',
+                filter: `clinic_id=eq.${clinicId}`,
+              },
+              () => {
+                get().loadQueueFiltered();
+                get().loadStatsFiltered();
+              }
+            )
+            .subscribe();
+          set({ realtimeChannel: channel });
+        }
+      }
+      return;
+    }
 
     // Trigger initial load
     get().loadQueueFiltered();
@@ -157,6 +182,30 @@ export const useQueueStore = create<QueueStore>((set, get) => ({
     const interval = setInterval(() => {
       get().loadQueueFiltered();
       get().loadStatsFiltered();
+
+      // Check if channel needs dynamic binding
+      if (!get().realtimeChannel) {
+        const clinicId = useAuthStore.getState().user?.clinicId;
+        if (clinicId) {
+          const channel = supabase
+            .channel(`web_queue_sync_${clinicId}`)
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'queue',
+                filter: `clinic_id=eq.${clinicId}`,
+              },
+              () => {
+                get().loadQueueFiltered();
+                get().loadStatsFiltered();
+              }
+            )
+            .subscribe();
+          set({ realtimeChannel: channel });
+        }
+      }
     }, APP_CONFIG.polling.queueIntervalMs);
 
     // 2. Real-time Supabase WebSocket Subscription for Sub-Second Sync
