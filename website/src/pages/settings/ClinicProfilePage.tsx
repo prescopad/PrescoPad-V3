@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useClinicStore } from '../../store/useClinicStore';
-import { useIsDoctor } from '../../store/useAuthStore';
+import { useAuthStore, useIsDoctor } from '../../store/useAuthStore';
 import SignaturePad from '../../components/SignaturePad';
 import { useToast } from '../../components/toast/ToastContext';
 import { useConfirm } from '../../components/confirm/ConfirmContext';
@@ -11,6 +11,7 @@ import '../auth/auth.css';
 import '../../components/modal.css';
 
 export default function ClinicProfilePage() {
+  const user = useAuthStore((s) => s.user);
   const { clinic, doctorProfile, loadClinic, loadDoctorProfile, updateClinic, updateDoctorProfile } = useClinicStore();
   const isDoctor = useIsDoctor();
   const toast = useToast();
@@ -33,9 +34,11 @@ export default function ClinicProfilePage() {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   useEffect(() => {
-    loadClinic();
-    loadDoctorProfile();
-  }, [loadClinic, loadDoctorProfile]);
+    if (user?.clinicId) {
+      loadClinic();
+      loadDoctorProfile();
+    }
+  }, [loadClinic, loadDoctorProfile, user?.clinicId]);
 
   useEffect(() => {
     if (!clinic) return;

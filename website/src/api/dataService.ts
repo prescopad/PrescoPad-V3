@@ -20,6 +20,13 @@ function currentClinicId(): string {
   return clinicId;
 }
 
+/** Returns null (no throw) when clinicId isn't loaded yet — used by polling
+ * functions so a page refresh doesn't surface a confusing error toast while
+ * the auth session is still being restored. */
+function tryCurrentClinicId(): string | null {
+  return useAuthStore.getState().user?.clinicId || null;
+}
+
 function throwOnError(error: { message: string } | null, fallback: string): void {
   if (error) throw new Error(error.message || fallback);
 }
@@ -234,10 +241,13 @@ function mergeByName<T extends { name: string }>(primary: T[], secondary: T[]): 
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getPatients(search?: string, limit = 100, offset = 0): Promise<Patient[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   let query = supabase
     .from('patients')
     .select('*')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .eq('is_deleted', false)
     .order('name')
     .range(offset, offset + limit - 1);
@@ -248,10 +258,13 @@ export async function getPatients(search?: string, limit = 100, offset = 0): Pro
 }
 
 export async function getPatientsPage(search?: string, limit = 50, offset = 0, isMlc?: boolean): Promise<{ patients: Patient[]; total: number }> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return { patients: [], total: 0 };
+
   let query = supabase
     .from('patients')
     .select('*', { count: 'exact' })
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .eq('is_deleted', false)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -320,10 +333,13 @@ export async function deletePatient(id: string): Promise<void> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function fetchQueue(filters: { status?: string; date?: string; todayOnly?: boolean }): Promise<QueueItem[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   let query = supabase
     .from('queue')
     .select('*, patients(*)')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .eq('is_deleted', false)
     .order('added_at', { ascending: true });
 
@@ -339,7 +355,6 @@ async function fetchQueue(filters: { status?: string; date?: string; todayOnly?:
   const rawItems = (data ?? []) as Record<string, unknown>[];
   if (rawItems.length === 0) return [];
 
-  const clinicId = currentClinicId();
   const patientIds = rawItems.map((r) => r.patient_id as string).filter(Boolean);
 
   let rxList: Record<string, unknown>[] = [];
@@ -489,10 +504,13 @@ export async function getPrescriptionById(id: string): Promise<Prescription | nu
 }
 
 export async function getRecentPrescriptions(limit = 20): Promise<Prescription[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   const { data, error } = await supabase
     .from('prescriptions')
     .select('*')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .order('created_at', { ascending: false })
     .limit(limit);
   throwOnError(error, 'Failed to load prescriptions.');
@@ -520,11 +538,14 @@ export async function finalizePrescription(id: string, signature: string, pdfHas
 }
 
 export async function getTodayPrescriptionCount(): Promise<number> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return 0;
+
   const today = new Date().toISOString().slice(0, 10);
   const { count, error } = await supabase
     .from('prescriptions')
     .select('*', { count: 'exact', head: true })
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .gte('created_at', `${today}T00:00:00`)
     .lt('created_at', `${today}T23:59:59.999`);
   throwOnError(error, 'Failed to load today’s prescription count.');
@@ -554,22 +575,29 @@ export async function downloadPrescriptionPdf(id: string): Promise<Blob> {
 
 export async function searchAllMedicines(query: string): Promise<Medicine[]> {
   const local = SAMPLE_MEDICINES.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()));
+  const clinicId = tryCurrentClinicId();
+  
   const [catalogRes, customRes] = await Promise.allSettled([
     supabase.from('medicines_catalog').select('*').ilike('name', `%${query}%`),
-    supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId()).ilike('name', `%${query}%`),
+    clinicId
+      ? supabase.from('custom_medicines').select('*').eq('clinic_id', clinicId).ilike('name', `%${query}%`)
+      : Promise.resolve({ data: [] }),
   ]);
   const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value.data ?? []).map(mapCatalogMedicine) : [];
-  const custom = customRes.status === 'fulfilled' ? (customRes.value.data ?? []).map(mapCustomMedicine) : [];
+  const custom = customRes.status === 'fulfilled' ? ((customRes.value as any).data ?? []).map(mapCustomMedicine) : [];
   return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentMedicines(limit = 20): Promise<Medicine[]> {
+  const clinicId = tryCurrentClinicId();
   const [catalogRes, customRes] = await Promise.allSettled([
     supabase.from('medicines_catalog').select('*'),
-    supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId()).order('usage_count', { ascending: false }).limit(limit),
+    clinicId
+      ? supabase.from('custom_medicines').select('*').eq('clinic_id', clinicId).order('usage_count', { ascending: false }).limit(limit)
+      : Promise.resolve({ data: [] }),
   ]);
   const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value.data ?? []).map(mapCatalogMedicine) : [];
-  const custom = customRes.status === 'fulfilled' ? (customRes.value.data ?? []).map(mapCustomMedicine) : [];
+  const custom = customRes.status === 'fulfilled' ? ((customRes.value as any).data ?? []).map(mapCustomMedicine) : [];
   const merged = mergeByName(mergeByName(custom, catalog), SAMPLE_MEDICINES);
   return merged.sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
 }
@@ -583,12 +611,15 @@ export async function getMedicinesByCategory(types: string[], query = ''): Promi
   const catalog = (catalogRows ?? []).map(mapCatalogMedicine);
 
   let custom: Medicine[] = [];
-  try {
-    let customQuery = supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId());
-    if (query.trim()) customQuery = customQuery.ilike('name', `%${query.trim()}%`);
-    const { data } = await customQuery;
-    custom = (data ?? []).map(mapCustomMedicine).filter((m) => types.includes(m.type));
-  } catch { /* cloud unavailable */ }
+  const clinicId = tryCurrentClinicId();
+  if (clinicId) {
+    try {
+      let customQuery = supabase.from('custom_medicines').select('*').eq('clinic_id', clinicId);
+      if (query.trim()) customQuery = customQuery.ilike('name', `%${query.trim()}%`);
+      const { data } = await customQuery;
+      custom = (data ?? []).map(mapCustomMedicine).filter((m) => types.includes(m.type));
+    } catch { /* cloud unavailable */ }
+  }
 
   return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -602,12 +633,15 @@ export async function getMedicinesOutsideCategories(excludeTypes: string[], quer
   const catalog = (catalogRows ?? []).map(mapCatalogMedicine).filter((m) => !excludeTypes.includes(m.type));
 
   let custom: Medicine[] = [];
-  try {
-    let customQuery = supabase.from('custom_medicines').select('*').eq('clinic_id', currentClinicId());
-    if (query.trim()) customQuery = customQuery.ilike('name', `%${query.trim()}%`);
-    const { data } = await customQuery;
-    custom = (data ?? []).map(mapCustomMedicine).filter((m) => !excludeTypes.includes(m.type));
-  } catch { /* cloud unavailable */ }
+  const clinicId = tryCurrentClinicId();
+  if (clinicId) {
+    try {
+      let customQuery = supabase.from('custom_medicines').select('*').eq('clinic_id', clinicId);
+      if (query.trim()) customQuery = customQuery.ilike('name', `%${query.trim()}%`);
+      const { data } = await customQuery;
+      custom = (data ?? []).map(mapCustomMedicine).filter((m) => !excludeTypes.includes(m.type));
+    } catch { /* cloud unavailable */ }
+  }
 
   return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -623,10 +657,13 @@ export async function addCustomMedicine(name: string, type: string, strength: st
 }
 
 export async function getAllCustomMedicines(limit = 1000): Promise<Medicine[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   const { data, error } = await supabase
     .from('custom_medicines')
     .select('*')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .order('usage_count', { ascending: false })
     .limit(limit);
   throwOnError(error, 'Failed to load custom medicines.');
@@ -640,17 +677,19 @@ export async function deleteCustomMedicine(id: string): Promise<void> {
 
 export async function incrementMedicineUsage(name: string, isCustom: boolean): Promise<void> {
   if (!isCustom) return;
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return;
   try {
     const { data } = await supabase
       .from('custom_medicines')
       .select('usage_count')
-      .eq('clinic_id', currentClinicId())
+      .eq('clinic_id', clinicId)
       .eq('name', name)
       .single();
     await supabase
       .from('custom_medicines')
       .update({ usage_count: ((data?.usage_count as number) ?? 0) + 1 })
-      .eq('clinic_id', currentClinicId())
+      .eq('clinic_id', clinicId)
       .eq('name', name);
   } catch { /* ignore */ }
 }
@@ -661,22 +700,28 @@ export async function incrementMedicineUsage(name: string, isCustom: boolean): P
 
 export async function searchAllLabTests(query: string): Promise<LabTest[]> {
   const local = SAMPLE_LAB_TESTS.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()));
+  const clinicId = tryCurrentClinicId();
   const [catalogRes, customRes] = await Promise.allSettled([
     supabase.from('lab_tests_catalog').select('*').ilike('name', `%${query}%`),
-    supabase.from('custom_lab_tests').select('*').eq('clinic_id', currentClinicId()).ilike('name', `%${query}%`),
+    clinicId
+      ? supabase.from('custom_lab_tests').select('*').eq('clinic_id', clinicId).ilike('name', `%${query}%`)
+      : Promise.resolve({ data: [] }),
   ]);
   const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value.data ?? []).map(mapCatalogLabTest) : [];
-  const custom = customRes.status === 'fulfilled' ? (customRes.value.data ?? []).map(mapCustomLabTest) : [];
+  const custom = customRes.status === 'fulfilled' ? ((customRes.value as any).data ?? []).map(mapCustomLabTest) : [];
   return mergeByName(mergeByName(local, catalog), custom).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getAllFrequentLabTests(limit = 20): Promise<LabTest[]> {
+  const clinicId = tryCurrentClinicId();
   const [catalogRes, customRes] = await Promise.allSettled([
     supabase.from('lab_tests_catalog').select('*'),
-    supabase.from('custom_lab_tests').select('*').eq('clinic_id', currentClinicId()).order('usage_count', { ascending: false }).limit(limit),
+    clinicId
+      ? supabase.from('custom_lab_tests').select('*').eq('clinic_id', clinicId).order('usage_count', { ascending: false }).limit(limit)
+      : Promise.resolve({ data: [] }),
   ]);
   const catalog = catalogRes.status === 'fulfilled' ? (catalogRes.value.data ?? []).map(mapCatalogLabTest) : [];
-  const custom = customRes.status === 'fulfilled' ? (customRes.value.data ?? []).map(mapCustomLabTest) : [];
+  const custom = customRes.status === 'fulfilled' ? ((customRes.value as any).data ?? []).map(mapCustomLabTest) : [];
   const merged = mergeByName(mergeByName(custom, catalog), SAMPLE_LAB_TESTS);
   return merged.sort((a, b) => b.usageCount - a.usageCount).slice(0, limit);
 }
@@ -701,10 +746,13 @@ export async function addCustomLabTest(name: string, category: string): Promise<
 }
 
 export async function getAllCustomLabTests(limit = 1000): Promise<LabTest[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   const { data, error } = await supabase
     .from('custom_lab_tests')
     .select('*')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .order('usage_count', { ascending: false })
     .limit(limit);
   throwOnError(error, 'Failed to load custom lab tests.');
@@ -713,17 +761,19 @@ export async function getAllCustomLabTests(limit = 1000): Promise<LabTest[]> {
 
 export async function incrementLabTestUsage(name: string, isCustom: boolean): Promise<void> {
   if (!isCustom) return;
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return;
   try {
     const { data } = await supabase
       .from('custom_lab_tests')
       .select('usage_count')
-      .eq('clinic_id', currentClinicId())
+      .eq('clinic_id', clinicId)
       .eq('name', name)
       .single();
     await supabase
       .from('custom_lab_tests')
       .update({ usage_count: ((data?.usage_count as number) ?? 0) + 1 })
-      .eq('clinic_id', currentClinicId())
+      .eq('clinic_id', clinicId)
       .eq('name', name);
   } catch { /* ignore */ }
 }
@@ -738,10 +788,13 @@ export async function deleteCustomLabTest(id: string): Promise<void> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getPrescriptionTemplates(): Promise<PrescriptionTemplate[]> {
+  const clinicId = tryCurrentClinicId();
+  if (!clinicId) return [];
+
   const { data, error } = await supabase
     .from('prescription_templates')
     .select('*')
-    .eq('clinic_id', currentClinicId())
+    .eq('clinic_id', clinicId)
     .order('created_at', { ascending: false });
   throwOnError(error, 'Failed to load templates.');
   return (data ?? []).map(mapPrescriptionTemplate);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getAnalytics } from '../../api/analyticsService';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { ComprehensiveAnalytics, TimePeriod } from '../../types/analytics.types';
 import { APP_CONFIG } from '../../constants/config';
 import PageLoader from '../../components/PageLoader';
@@ -12,6 +13,7 @@ const PERIODS: { value: TimePeriod; label: string }[] = [
 ];
 
 export default function AnalyticsPage() {
+  const user = useAuthStore((s) => s.user);
   const [period, setPeriod] = useState<TimePeriod>('today');
   const [analytics, setAnalytics] = useState<ComprehensiveAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +21,7 @@ export default function AnalyticsPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!user?.clinicId) return;
     setIsLoading(true);
     setError(null);
     getAnalytics(period)
@@ -27,7 +30,7 @@ export default function AnalyticsPage() {
         setError(e instanceof Error ? e.message : 'Failed to load analytics.');
       })
       .finally(() => setIsLoading(false));
-  }, [period, reloadKey]);
+  }, [period, reloadKey, user?.clinicId]);
 
   const maxMedCount = Math.max(...(analytics?.popular.topMedicines.map((m) => m.count) || [1]), 1);
   const maxTestCount = Math.max(...(analytics?.popular.topTests.map((t) => t.count) || [1]), 1);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as DataService from '../../api/dataService';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { Patient } from '../../types/patient.types';
 import PageLoader from '../../components/PageLoader';
 import CasebookViewerModal from '../../components/CasebookViewerModal';
@@ -10,6 +11,7 @@ const PAGE_SIZE = 50;
 
 export default function CasebookPage() {
   const toast = useToast();
+  const user = useAuthStore((s) => s.user);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState('');
@@ -20,6 +22,7 @@ export default function CasebookPage() {
   const [showMlcOnly, setShowMlcOnly] = useState(false);
 
   useEffect(() => {
+    if (!user?.clinicId) return;
     setIsLoading(true);
     DataService.getPatientsPage(query.trim() || undefined, PAGE_SIZE, 0, showMlcOnly || undefined)
       .then(({ patients: p, total: t }) => {
@@ -28,7 +31,7 @@ export default function CasebookPage() {
       })
       .catch((e) => toast.error(e instanceof Error ? e.message : 'Failed to load patients'))
       .finally(() => setIsLoading(false));
-  }, [query, showMlcOnly]);
+  }, [query, showMlcOnly, user?.clinicId]);
 
   const loadMore = async () => {
     setIsLoadingMore(true);

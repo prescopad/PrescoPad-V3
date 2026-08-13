@@ -7,6 +7,7 @@ import {
   deleteCustomMedicine,
   deleteCustomLabTest,
 } from '../../api/dataService';
+import { useAuthStore } from '../../store/useAuthStore';
 import { MedicineType, LAB_TEST_CATEGORIES } from '../../types/medicine.types';
 import type { Medicine, LabTest } from '../../types/medicine.types';
 import { useToast } from '../../components/toast/ToastContext';
@@ -18,6 +19,7 @@ import '../auth/auth.css';
 import '../../components/modal.css';
 
 export default function MedicineTestManagementPage() {
+  const user = useAuthStore((s) => s.user);
   const toast = useToast();
   const confirm = useConfirm();
   const [tab, setTab] = useState<'medicines' | 'tests'>('medicines');
@@ -40,9 +42,10 @@ export default function MedicineTestManagementPage() {
   };
 
   useEffect(() => {
+    if (!user?.clinicId) return;
     if (tab === 'medicines') loadMedicines();
     else loadTests();
-  }, [tab]);
+  }, [tab, user?.clinicId]);
 
   const filteredMedicines = medicines.filter((m) => m.name.toLowerCase().includes(query.toLowerCase()));
   const filteredTests = tests.filter((t) => t.name.toLowerCase().includes(query.toLowerCase()));

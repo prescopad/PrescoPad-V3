@@ -20,8 +20,10 @@ export default function PatientsPage() {
   const [isQueueSubmitting, setIsQueueSubmitting] = useState(false);
 
   useEffect(() => {
-    loadPatients();
-  }, [loadPatients]);
+    if (user?.clinicId) {
+      loadPatients();
+    }
+  }, [loadPatients, user?.clinicId]);
 
   useEffect(() => {
     if (lastError) {
